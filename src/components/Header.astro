@@ -1,0 +1,86 @@
+---
+// src/components/Header.astro
+const { activePath = "/" } = Astro.props;
+---
+
+<header class="site-header">
+  <div class="shell site-header__inner">
+    <a href="/" class="site-header__brand">
+      <span class="site-header__logo" aria-hidden="true">🍽️</span>
+      <span class="site-header__title">Local Food Directory</span>
+    </a>
+
+    <nav aria-label="Primary navigation" class="site-header__nav">
+      <a
+        href="/"
+        class={`site-header__link ${activePath === "/" ? "is-active" : ""}`}
+      >
+        Directory
+      </a>
+
+      <button
+        id="themeToggle"
+        type="button"
+        class="theme-toggle"
+        aria-label="Toggle color theme"
+        aria-pressed="false"
+      >
+        <span class="theme-toggle__icon" aria-hidden="true">🌞</span>
+        <span class="theme-toggle__label">Light</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- 🔎 Focused type links for SEO + UX -->
+  <nav
+    class="shell site-header__quick-links"
+    aria-label="Browse by type"
+  >
+    <a href="/type/restaurant/" class="site-header__quick-link">
+      Restaurants
+    </a>
+    <a href="/type/catering/" class="site-header__quick-link">
+      Catering
+    </a>
+    <a href="/type/entertainment/" class="site-header__quick-link">
+      Entertainment
+    </a>
+    <a href="/type/art/" class="site-header__quick-link">
+      Art &amp; Culture
+    </a>
+    <a href="/type/other/" class="site-header__quick-link">
+      Other
+    </a>
+  </nav>
+
+  <style is:inline>
+    .site-header__quick-links {
+      display: flex;
+      gap: 0.4rem;
+      padding: 0.4rem 1rem 0.6rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .site-header__quick-links::-webkit-scrollbar {
+      display: none;
+    }
+
+    .site-header__quick-link {
+      text-decoration: none;
+      border-radius: 9999px;
+      padding: 0.18rem 0.6rem;
+      border: 1px solid transparent;
+      background: transparent;
+      white-space: nowrap;
+    }
+
+    .site-header__quick-link:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+  </style>
+</header>

@@ -1,0 +1,1284 @@
+---
+import BaseLayout from "../layouts/Base.astro";
+import { businesses } from "../lib/businesses";
+
+/**
+ * Enhance businesses with a primaryType
+ */
+const enhanced = businesses.map((b) => ({
+  ...b,
+  primaryType:
+    b.type ||
+    (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
+    "Other",
+}));
+
+const params = Astro.url.searchParams;
+
+const neighborhoodFromUrl = (params.get("neighborhood") || "").toLowerCase();
+const sortFromUrl = params.get("sort") || "az";
+const qFromUrl = params.get("q") || "";
+
+const allTypes = Array.from(
+  new Set(enhanced.map((b) => b.primaryType))
+).sort();
+
+const allNeighborhoods = Array.from(
+  new Set(enhanced.flatMap((b) => b.neighborhoods || []))
+).sort();
+
+// Collect BOTH cuisineTypes and entertainmentTypes and artTypes
+const allCuisines = Array.from(
+  new Set(
+    enhanced.flatMap((b) => [
+      ...(b.cuisineTypes || []),
+      ...(b.entertainmentTypes || []),
+      ...(b.artTypes || []),
+    ])
+  )
+).sort();
+
+const allMicrofilters = Array.from(
+  new Set(enhanced.flatMap((b) => b.microfilters || []))
+).sort();
+
+// Helper function for type icons
+function getTypeIcon(type: string): string {
+  const icons: Record<string, string> = {
+    restaurant: "🍽️",
+    entertainment: "🎵",
+    catering: "🎉",
+    "food truck": "🚚",
+    art: "🎨",
+  };
+  return icons[type.toLowerCase()] || "📦";
+}
+
+// Helper function to create slugs
+function slugify(str: string): string {
+  return String(str)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// Helper function for amenity icons
+function getAmenityIcon(tag: string): string {
+  const icons: Record<string, string> = {
+    "takeout": "🥡",
+    "dine-in": "🍽️",
+    "outdoor seating": "🌳",
+    "delivery": "🚚",
+    "vegan options": "🌱",
+    "live entertainment": "🎵",
+    "lgbtq+ friendly": "🏳️‍🌈",
+    "wine and beer": "🍷",
+    "parking available": "🅿️",
+    "pet-friendly patio": "🐾",
+    "live music": "🎸",
+  };
+  return icons[tag.toLowerCase()] || "✓";
+}
+---
+
+<BaseLayout title="All Businesses • Denver Directory">
+  <div class="directory">
+    <!-- Breadcrumb using global styles -->
+    <nav aria-label="Breadcrumb" class="breadcrumb">
+      <ol class="breadcrumb__list">
+        <li class="breadcrumb__item">
+          <a href="/" class="breadcrumb__link">Home</a>
+          <span class="breadcrumb__separator">/</span>
+        </li>
+        <li class="breadcrumb__item">
+          <span>All businesses</span>
+        </li>
+      </ol>
+    </nav>
+
+    <header class="directory__head">
+      <h1 class="directory__title">
+        All Businesses
+      </h1>
+
+      <!-- Quick stats -->
+      <div class="directory__stats">
+        <span class="stat">
+          <strong>{enhanced.length}</strong> businesses
+        </span>
+        <span class="stat-separator">·</span>
+        <span class="stat">
+          <strong>{allTypes.length}</strong> types
+        </span>
+        <span class="stat-separator">·</span>
+        <span class="stat">
+          <strong>{allNeighborhoods.length}</strong> neighborhoods
+        </span>
+      </div>
+
+      <p class="directory__subtitle">
+        Browse our complete directory with advanced filters — find exactly 
+        what you're looking for by type, neighborhood, cuisine, and amenities.
+      </p>
+    </header>
+
+    <!-- FILTERS / CONTROLS -->
+    <section class="filter-panel" id="filters" data-collapsed="true">
+      <!-- Mobile filter toggle -->
+      <button class="filter-panel__toggle" id="filter-toggle" type="button">
+        <span id="filter-toggle-text">Show filters</span>
+        <span class="filter-badge" id="filter-count">0</span>
+        <span class="filter-toggle__icon">▼</span>
+      </button>
+
+      <div class="filter-panel__content">
+        <!-- Top row: search + sort -->
+        <div class="filter-row filter-row--top">
+          <div class="filter-search-wrap">
+            <label for="search" class="filter-label">
+              Search
+            </label>
+            <div class="filter-search">
+              <svg
+                class="filter-search__icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <input
+                id="search"
+                name="directory-search"
+                type="search"
+                class="filter-search__input"
+                placeholder="Search by name, cuisine, neighborhood, or amenity..."
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                value={qFromUrl}
+              />
+              <button
+                type="button"
+                id="search-clear"
+                class="filter-search__clear"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            </div>
+            <p class="filter-search__hint">
+              Try: "soul food", "takeout", "Five Points", "live music"
+            </p>
+          </div>
+
+          <div class="filter-sort-wrap">
+            <label for="sort" class="filter-label">
+              Sort by
+            </label>
+            <select id="sort" class="filter-sort">
+              <option value="az" selected={sortFromUrl === "az"}>
+                A–Z (Name)
+              </option>
+              <option
+                value="neighborhood"
+                selected={sortFromUrl === "neighborhood"}
+              >
+                Neighborhood
+              </option>
+              <option value="type" selected={sortFromUrl === "type"}>
+                Type
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Type (LINKS to dedicated type pages) -->
+        <div class="filter-row">
+          <span class="filter-label filter-label--pill">Browse by type</span>
+          <div class="filter-chips">
+            <a href="/" class="chip chip--link chip--active">
+              <span class="chip__icon">🏠</span>
+              All
+            </a>
+
+            {allTypes.map((t) => {
+              const icon = getTypeIcon(t);
+              const slug = slugify(t);
+              return (
+                <a href={`/type/${slug}`} class="chip chip--link">
+                  <span class="chip__icon">{icon}</span>
+                  {t}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        <!-- Filter dropdowns in a grid -->
+        <div class="filter-dropdowns">
+          <!-- Neighborhood dropdown -->
+          <div class="filter-dropdown">
+            <label for="neighborhood-select" class="filter-label">
+              Neighborhood
+            </label>
+            <select id="neighborhood-select" class="filter-select">
+              <option value="">All neighborhoods</option>
+              {allNeighborhoods.map((n) => (
+                <option
+                  value={n.toLowerCase()}
+                  selected={neighborhoodFromUrl === n.toLowerCase()}
+                >
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <!-- Cuisine/Entertainment/Art dropdown (multi-select) -->
+          {allCuisines.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="cuisine-select" class="filter-label">
+                Cuisine / entertainment / art
+              </label>
+              <select
+                id="cuisine-select"
+                class="filter-select"
+                multiple
+                size="4"
+              >
+                {allCuisines.map((c) => (
+                  <option value={c.toLowerCase()}>{c}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">
+                Hold Ctrl/Cmd to select multiple
+              </p>
+            </div>
+          )}
+
+          <!-- Amenities dropdown (multi-select) -->
+          {allMicrofilters.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="amenities-select" class="filter-label">
+                Amenities &amp; options
+              </label>
+              <select
+                id="amenities-select"
+                class="filter-select"
+                multiple
+                size="4"
+              >
+                {allMicrofilters.map((m) => (
+                  <option value={m.toLowerCase()}>{m}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">
+                Hold Ctrl/Cmd to select multiple
+              </p>
+            </div>
+          )}
+        </div>
+
+        <!-- Reset button -->
+        <div class="filter-row filter-row--actions">
+          <button type="button" id="reset-all-filters" class="btn-reset-all">
+            Clear all filters
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active filters summary -->
+    <div
+      id="active-filters-summary"
+      class="active-filters"
+      style="display: none;"
+    >
+      <span class="active-filters__label">Active</span>
+      <div id="active-filters-list" class="active-filters__list">
+        <!-- Populated by JavaScript -->
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <section aria-label="Business results" class="directory__results">
+      <p id="results-count" class="directory__results-count">
+        Showing {enhanced.length} place{enhanced.length === 1 ? "" : "s"}
+      </p>
+
+      <!-- Empty state (hidden by default) -->
+      <div id="empty-state" class="empty-state" style="display: none;">
+        <div class="empty-state__icon">🔍</div>
+        <h3 class="empty-state__title">No businesses found</h3>
+        <p class="empty-state__message">
+          Try adjusting your filters or search terms.
+        </p>
+        <button id="reset-from-empty" class="empty-state__button">
+          Clear all filters
+        </button>
+      </div>
+
+      <div id="results-grid" class="directory__grid">
+        {enhanced.map((b) => {
+          const type = b.primaryType;
+          const name = b.name || "";
+          const cuisines = b.cuisineTypes || [];
+          const entertainmentTypes = b.entertainmentTypes || [];
+          const artTypes = b.artTypes || [];
+          const neighborhoods = b.neighborhoods || [];
+          const microfilters = b.microfilters || [];
+
+          // Combine for display and filtering
+          const allTypeLabels = [
+            ...cuisines,
+            ...entertainmentTypes,
+            ...artTypes,
+          ];
+
+          return (
+            <article
+              class="card business-card"
+              data-name={name.toLowerCase()}
+              data-type={String(type).toLowerCase()}
+              data-cuisines={allTypeLabels.join("|").toLowerCase()}
+              data-neighborhoods={neighborhoods.join("|").toLowerCase()}
+              data-microfilters={microfilters.join("|").toLowerCase()}
+            >
+              <header>
+                <h2 class="business-card__name">
+                  <a
+                    href={`/business/${b.slug}/`}
+                    class="business-card__link"
+                  >
+                    {name}
+                  </a>
+                </h2>
+
+                {/* Quick info with icons */}
+                <div class="business-card__quick-info">
+                  <span class="quick-info-item">
+                    <span class="quick-info-item__icon">📍</span>
+                    {neighborhoods[0] || "Location TBD"}
+                  </span>
+                  {b.yearEstablished && (
+                    <span class="quick-info-item">
+                      <span class="quick-info-item__icon">📅</span>
+                      Est. {b.yearEstablished}
+                    </span>
+                  )}
+                </div>
+              </header>
+
+              <p class="business-card__meta">
+                <span class="business-card__type">{type}</span>
+                {allTypeLabels.length > 0 && (
+                  <>
+                    {" · "}
+                    <span>
+                      {allTypeLabels.slice(0, 2).join(", ")}
+                      {allTypeLabels.length > 2 &&
+                        ` +${allTypeLabels.length - 2}`}
+                    </span>
+                  </>
+                )}
+              </p>
+
+              {microfilters.length > 0 && (
+                <div class="business-card__amenities">
+                  {microfilters.slice(0, 3).map((tag) => {
+                    const icon = getAmenityIcon(tag);
+                    return (
+                      <span class="amenity-tag" title={tag}>
+                        <span class="amenity-tag__icon">{icon}</span>
+                        <span class="amenity-tag__label">{tag}</span>
+                      </span>
+                    );
+                  })}
+                  {microfilters.length > 3 && (
+                    <span class="business-card__more">
+                      +{microfilters.length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div class="business-card__footer">
+                <a
+                  href={`/business/${b.slug}/`}
+                  class="business-card__action-link"
+                >
+                  View details →
+                </a>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  </div>
+
+  <style>
+    .directory {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .directory__head {
+      margin-bottom: 0.25rem;
+    }
+
+    .directory__title {
+      margin: 0 0 0.5rem;
+      font-size: 1.6rem;
+      line-height: 1.2;
+    }
+
+    .directory__stats {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stat strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .stat-separator {
+      opacity: 0.5;
+    }
+
+    .directory__subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 42rem;
+    }
+
+    /* FILTER PANEL */
+
+    .filter-panel {
+      border-radius: 0.9rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+      padding: 0.9rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .filter-panel__toggle {
+      display: none;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      gap: 0.75rem;
+    }
+
+    .filter-badge {
+      background: var(--accent);
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+
+    .filter-toggle__icon {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+
+    .filter-panel[data-collapsed="false"] .filter-toggle__icon {
+      transform: rotate(180deg);
+    }
+
+    @media (max-width: 768px) {
+      .filter-panel__toggle {
+        display: flex;
+      }
+
+      .filter-panel[data-collapsed="true"] .filter-panel__content {
+        display: none;
+      }
+
+      .filter-panel {
+        padding: 0;
+      }
+
+      .filter-panel__content {
+        padding: 0.9rem 1rem 1rem;
+      }
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.6rem;
+      align-items: flex-start;
+    }
+
+    .filter-row--top {
+      align-items: flex-end;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-row--actions {
+      justify-content: flex-end;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .filter-search-wrap {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .filter-sort-wrap {
+      flex: 0 0 auto;
+      min-width: 150px;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .filter-label--pill {
+      margin-top: 0.25rem;
+      min-width: 75px;
+    }
+
+    .filter-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .filter-search__icon {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .filter-search__input {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.4rem 2rem 0.4rem 2.5rem;
+      font-size: 0.85rem;
+    }
+
+    .filter-search__input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .filter-search__clear {
+      position: absolute;
+      right: 0.4rem;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+
+    .filter-search__clear.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .filter-search__clear:hover {
+      color: var(--accent-strong);
+    }
+
+    .filter-search__hint {
+      margin: 0.35rem 0 0;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .filter-sort {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    /* FILTER DROPDOWNS */
+
+    .filter-dropdowns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .filter-dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      font-size: 0.85rem;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .filter-select[multiple] {
+      min-height: 120px;
+      padding: 0.25rem;
+    }
+
+    .filter-select option {
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.25rem;
+      margin: 0.1rem 0;
+    }
+
+    .filter-select option:checked {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+
+    .filter-select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .filter-dropdown__hint {
+      margin: 0.25rem 0 0;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .chip__icon {
+      font-size: 0.9rem;
+      margin-right: 0.25rem;
+    }
+
+    .btn-reset-all {
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-all:hover {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+
+    /* ACTIVE FILTERS SUMMARY */
+
+    .active-filters {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-elevated);
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+    }
+
+    .active-filters__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .active-filters__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      flex: 1;
+    }
+
+    .active-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      color: var(--accent-strong);
+    }
+
+    .active-filter-pill__remove {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0;
+      line-height: 1;
+      opacity: 0.7;
+    }
+
+    .active-filter-pill__remove:hover {
+      opacity: 1;
+    }
+
+    /* EMPTY STATE */
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .empty-state__icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state__title {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: var(--text-main);
+    }
+
+    .empty-state__message {
+      margin: 0 0 1.5rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state__button {
+      padding: 0.6rem 1.5rem;
+      border-radius: 9999px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .empty-state__button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    /* RESULTS */
+
+    .directory__results {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .directory__results-count {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .directory__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 0.9rem;
+    }
+
+    /* BUSINESS CARD */
+
+    .business-card {
+      padding: 1rem 1.1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .business-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .business-card__name {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.3;
+    }
+
+    .business-card__link {
+      text-decoration: none;
+    }
+
+    .business-card__link:hover {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    .business-card__quick-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .quick-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .quick-info-item__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__meta {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .business-card__type {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .business-card__amenities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    .amenity-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--text-main);
+    }
+
+    .amenity-tag__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__more {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding: 0.2rem 0.5rem;
+    }
+
+    .business-card__footer {
+      margin-top: 0.35rem;
+      padding-top: 0.4rem;
+      display: flex;
+      justify-content: flex-end;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .business-card__action-link {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 500;
+      text-decoration: none;
+    }
+
+    .business-card__action-link:hover {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    @media (max-width: 640px) {
+      .filter-panel {
+        padding-inline: 0;
+      }
+
+      .directory__title {
+        font-size: 1.4rem;
+      }
+
+      .directory__grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-dropdowns {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <script
+    is:inline
+    define:vars={{ neighborhoodFromUrl, sortFromUrl, qFromUrl }}
+  >
+    (function () {
+      const searchInput = document.getElementById("search");
+      const clearBtn = document.getElementById("search-clear");
+      const sortSelect = document.getElementById("sort");
+      const neighborhoodSelect = document.getElementById("neighborhood-select");
+      const cuisineSelect = document.getElementById("cuisine-select");
+      const amenitiesSelect = document.getElementById("amenities-select");
+      const grid = document.getElementById("results-grid");
+      const countEl = document.getElementById("results-count");
+      const emptyState = document.getElementById("empty-state");
+      const filterToggle = document.getElementById("filter-toggle");
+      const filterToggleText = document.getElementById("filter-toggle-text");
+      const filterPanel = document.getElementById("filters");
+      const filterCount = document.getElementById("filter-count");
+      const activeFiltersSummary = document.getElementById(
+        "active-filters-summary"
+      );
+      const activeFiltersList = document.getElementById("active-filters-list");
+      const resetAllBtn = document.getElementById("reset-all-filters");
+      const resetFromEmpty = document.getElementById("reset-from-empty");
+
+      const cards = Array.from(
+        document.querySelectorAll("#results-grid article")
+      );
+
+      function normalize(str) {
+        return (str || "").toLowerCase();
+      }
+
+      function getSelectedValues(selectElement) {
+        if (!selectElement) return new Set();
+        const selected = Array.from(selectElement.selectedOptions);
+        return new Set(selected.map((opt) => normalize(opt.value)));
+      }
+
+      function updateClearButton() {
+        if (!clearBtn || !searchInput) return;
+        const hasValue = !!searchInput.value.trim();
+        if (hasValue) {
+          clearBtn.classList.add("is-visible");
+        } else {
+          clearBtn.classList.remove("is-visible");
+        }
+      }
+
+      function getActiveFilterCount() {
+        let count = 0;
+        if (neighborhoodSelect && neighborhoodSelect.value) count++;
+        if (cuisineSelect) count += cuisineSelect.selectedOptions.length;
+        if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
+        if (searchInput && searchInput.value.trim()) count++;
+        return count;
+      }
+
+      function updateFilterCount() {
+        const count = getActiveFilterCount();
+        if (filterCount) {
+          filterCount.textContent = count;
+          filterCount.style.display = count > 0 ? "" : "none";
+        }
+      }
+
+      function updateActiveFiltersSummary() {
+        const count = getActiveFilterCount();
+
+        if (count === 0) {
+          if (activeFiltersSummary) {
+            activeFiltersSummary.style.display = "none";
+          }
+          return;
+        }
+
+        if (activeFiltersSummary) {
+          activeFiltersSummary.style.display = "flex";
+        }
+
+        if (!activeFiltersList) return;
+
+        let html = "";
+
+        // Neighborhood
+        if (neighborhoodSelect && neighborhoodSelect.value) {
+          const label =
+            neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
+          html += `<span class="active-filter-pill">
+            📍 ${label}
+            <button class="active-filter-pill__remove" data-clear="neighborhood">×</button>
+          </span>`;
+        }
+
+        // Cuisines
+        if (cuisineSelect) {
+          Array.from(cuisineSelect.selectedOptions).forEach((opt) => {
+            html += `<span class="active-filter-pill">
+              ${opt.text}
+              <button class="active-filter-pill__remove" data-clear="cuisine" data-value="${opt.value}">×</button>
+            </span>`;
+          });
+        }
+
+        // Amenities
+        if (amenitiesSelect) {
+          Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
+            html += `<span class="active-filter-pill">
+              ${opt.text}
+              <button class="active-filter-pill__remove" data-clear="amenity" data-value="${opt.value}">×</button>
+            </span>`;
+          });
+        }
+
+        activeFiltersList.innerHTML = html;
+
+        // Attach event listeners
+        activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const clearType = btn.dataset.clear;
+            const value = btn.dataset.value;
+
+            if (clearType === "neighborhood") {
+              neighborhoodSelect.value = "";
+            } else if (clearType === "cuisine" && cuisineSelect) {
+              Array.from(cuisineSelect.options).forEach((opt) => {
+                if (opt.value === value) opt.selected = false;
+              });
+            } else if (clearType === "amenity" && amenitiesSelect) {
+              Array.from(amenitiesSelect.options).forEach((opt) => {
+                if (opt.value === value) opt.selected = false;
+              });
+            }
+
+            applyFiltersAndSort();
+          });
+        });
+      }
+
+      function resetAllFilters() {
+        if (searchInput) searchInput.value = "";
+        if (neighborhoodSelect) neighborhoodSelect.value = "";
+        if (cuisineSelect) {
+          Array.from(cuisineSelect.options).forEach(
+            (opt) => (opt.selected = false)
+          );
+        }
+        if (amenitiesSelect) {
+          Array.from(amenitiesSelect.options).forEach(
+            (opt) => (opt.selected = false)
+          );
+        }
+
+        applyFiltersAndSort();
+      }
+
+      function applyFiltersAndSort() {
+        const q = normalize(searchInput ? searchInput.value : "");
+        const sortValue = sortSelect ? sortSelect.value : "az";
+        const activeNeighborhood = neighborhoodSelect
+          ? normalize(neighborhoodSelect.value)
+          : "";
+        const activeCuisines = getSelectedValues(cuisineSelect);
+        const activeAmenities = getSelectedValues(amenitiesSelect);
+
+        const sorted = cards.slice().sort((a, b) => {
+          const an = a.dataset.name || "";
+          const bn = b.dataset.name || "";
+
+          if (sortValue === "az") {
+            return an.localeCompare(bn);
+          }
+
+          if (sortValue === "neighborhood") {
+            const anb = (a.dataset.neighborhoods || "").split("|")[0] || "";
+            const bnb = (b.dataset.neighborhoods || "").split("|")[0] || "";
+            return anb.localeCompare(bnb) || an.localeCompare(bn);
+          }
+
+          if (sortValue === "type") {
+            const at = a.dataset.type || "";
+            const bt = b.dataset.type || "";
+            return at.localeCompare(bt) || an.localeCompare(bn);
+          }
+
+          return 0;
+        });
+
+        let visible = 0;
+
+        sorted.forEach((card) => {
+          const name = card.dataset.name || "";
+          const cuisines = card.dataset.cuisines || "";
+          const neighborhoods = card.dataset.neighborhoods || "";
+          const micro = card.dataset.microfilters || "";
+
+          // Text search: OR across name, cuisines, neighborhoods, amenities
+          const matchesText =
+            !q ||
+            name.includes(q) ||
+            cuisines.includes(q) ||
+            neighborhoods.includes(q) ||
+            micro.includes(q);
+
+          // Neighborhood: single-select, AND with other groups
+          const matchesNeighborhood =
+            !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
+
+          // Cuisines: multi-select, OR within the group
+          const matchesCuisine =
+            activeCuisines.size === 0 ||
+            Array.from(activeCuisines).some((c) => cuisines.includes(c));
+
+          // Amenities: multi-select, OR within the group
+          const matchesAmenity =
+            activeAmenities.size === 0 ||
+            Array.from(activeAmenities).some((m) => micro.includes(m));
+
+          // Final decision: AND across groups
+          const show =
+            matchesText &&
+            matchesNeighborhood &&
+            matchesCuisine &&
+            matchesAmenity;
+
+          card.style.display = show ? "" : "none";
+
+          if (show) {
+            visible++;
+            grid.appendChild(card);
+          }
+        });
+
+        if (countEl) {
+          countEl.textContent = `Showing ${visible} place${
+            visible === 1 ? "" : "s"
+          }`;
+        }
+
+        if (emptyState) {
+          emptyState.style.display = visible === 0 ? "block" : "none";
+        }
+        if (grid) {
+          grid.style.display = visible === 0 ? "none" : "";
+        }
+
+        updateClearButton();
+        updateFilterCount();
+        updateActiveFiltersSummary();
+      }
+
+      // Mobile filter toggle
+      if (filterToggle && filterPanel && filterToggleText) {
+        filterToggle.addEventListener("click", () => {
+          const isCollapsed = filterPanel.dataset.collapsed === "true";
+          filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
+          filterToggleText.textContent = isCollapsed
+            ? "Hide filters"
+            : "Show filters";
+        });
+      }
+
+      // Event listeners
+      if (searchInput) {
+        searchInput.addEventListener("input", applyFiltersAndSort);
+      }
+
+      if (clearBtn && searchInput) {
+        clearBtn.addEventListener("click", () => {
+          searchInput.value = "";
+          searchInput.focus();
+          applyFiltersAndSort();
+        });
+      }
+
+      if (neighborhoodSelect) {
+        neighborhoodSelect.addEventListener("change", applyFiltersAndSort);
+      }
+
+      if (cuisineSelect) {
+        cuisineSelect.addEventListener("change", applyFiltersAndSort);
+      }
+
+      if (amenitiesSelect) {
+        amenitiesSelect.addEventListener("change", applyFiltersAndSort);
+      }
+
+      if (sortSelect) {
+        sortSelect.addEventListener("change", applyFiltersAndSort);
+      }
+
+      if (resetAllBtn) {
+        resetAllBtn.addEventListener("click", resetAllFilters);
+      }
+      if (resetFromEmpty) {
+        resetFromEmpty.addEventListener("click", resetAllFilters);
+      }
+
+      // Initial sync from URL vars
+      if (sortSelect && sortFromUrl) {
+        sortSelect.value = sortFromUrl;
+      }
+
+      // Make sure clear button initial state matches URL q param
+      updateClearButton();
+
+      // First render
+      applyFiltersAndSort();
+    })();
+  </script>
+</BaseLayout>

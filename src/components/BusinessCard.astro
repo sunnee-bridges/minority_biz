@@ -1,0 +1,111 @@
+---
+// src/components/BusinessCard.astro
+// Props: { business }
+const { business } = Astro.props;
+
+const cuisines = (business.cuisineTypes ?? []) as string[];
+const categories = (business.businessCategories ?? []) as string[];
+const neighborhoods = (business.neighborhoods ?? []) as string[];
+const microfilters = (business.microfilters ?? []) as string[];
+---
+
+<article
+  class="card business-card"
+  data-name={business.name.toLowerCase()}
+  data-categories={categories.join("|").toLowerCase()}
+  data-cuisines={cuisines.join("|").toLowerCase()}
+  data-neighborhoods={neighborhoods.join("|").toLowerCase()}
+  data-microfilters={microfilters.join("|").toLowerCase()}
+>
+  <header class="business-card__header">
+    <h2 class="business-card__name">
+      <a href={`/business/${business.slug}/`} class="business-card__link">
+        {business.name}
+      </a>
+    </h2>
+
+    <p class="business-card__line business-card__line--primary">
+      {cuisines.join(", ")}
+    </p>
+
+    <p class="business-card__line">
+      {categories.join(", ")}
+      {neighborhoods.length > 0 && ` · ${neighborhoods.join(", ")}`}
+      {business.yearEstablished && ` · Est. ${business.yearEstablished}`}
+    </p>
+  </header>
+
+  {microfilters.length > 0 && (
+    <div class="business-card__tags">
+      {microfilters.slice(0, 4).map((tag) => (
+        <span class="chip business-card__chip">
+          {tag}
+        </span>
+      ))}
+      {microfilters.length > 4 && (
+        <span class="chip business-card__chip business-card__chip--more">
+          +{microfilters.length - 4} more
+        </span>
+      )}
+    </div>
+  )}
+</article>
+
+<style>
+  .business-card {
+    padding: 1rem 1.1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .business-card__header {
+    margin-bottom: 0.6rem;
+  }
+
+  .business-card__name {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .business-card__link {
+    text-decoration: none;
+  }
+
+  .business-card__link:hover {
+    text-decoration: underline;
+  }
+
+  .business-card__line {
+    margin: 0.1rem 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .business-card__line--primary {
+    font-weight: 500;
+    color: var(--text-main);
+  }
+
+  .business-card__tags {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .business-card__chip {
+    font-size: 0.68rem;
+  }
+
+  .business-card__chip--more {
+    opacity: 0.8;
+  }
+
+  @media (max-width: 640px) {
+    .business-card {
+      padding-inline: 0.9rem;
+    }
+  }
+</style>

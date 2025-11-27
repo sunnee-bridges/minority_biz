@@ -1,0 +1,1484 @@
+---
+import BaseLayout from "../../layouts/Base.astro";
+import { businesses } from "../../lib/businesses";
+
+// 🔥 CRITICAL: Tell Astro which pages to generate
+export function getStaticPaths() {
+  /** Helper to create URL-friendly slugs */
+  function slugForType(t) {
+    if (!t) return "other";
+    return String(t)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      || "other";
+  }
+  
+  // Enhance businesses with primaryType
+  const enhanced = businesses.map((b) => ({
+    ...b,
+    primaryType:
+      b.type ||
+      (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
+      "Other",
+  }));
+
+  // Get all unique types
+  const allTypes = Array.from(
+    new Set(enhanced.map((b) => b.primaryType))
+  );
+
+  // Create a path for each type
+  return allTypes.map((typeLabel) => ({
+    params: { 
+      type: slugForType(typeLabel)
+    },
+  }));
+}
+
+/** Helper to create URL-friendly slugs (defined again for use in page) */
+function slugForType(t) {
+  if (!t) return "other";
+  return String(t)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    || "other";
+}
+
+// Helper function for amenity icons
+function getAmenityIcon(tag: string): string {
+  const icons: Record<string, string> = {
+    'takeout': '🥡',
+    'dine-in': '🍽️',
+    'outdoor seating': '🌳',
+    'delivery': '🚚',
+    'vegan options': '🌱',
+    'live entertainment': '🎵',
+    'lgbtq+ friendly': '🏳️‍🌈',
+    'wine and beer': '🍷',
+    'parking available': '🅿️',
+    'pet-friendly patio': '🐾',
+    'live music': '🎸',
+    'free admission': '🎟️',
+    'artist talks': '🎨',
+    'workshop space': '🛠️',
+  };
+  return icons[tag.toLowerCase()] || '✓';
+}
+
+// Get the URL parameter
+const { type } = Astro.params;
+const typeParam = type ?? "";
+
+// Enhance businesses with primaryType
+const enhanced = businesses.map((b) => ({
+  ...b,
+  primaryType:
+    b.type ||
+    (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
+    "Other",
+}));
+
+// Filter businesses that match this type slug
+const filtered = enhanced.filter(
+  (b) => slugForType(b.primaryType) === typeParam
+);
+
+if (!filtered.length) {
+  return Astro.redirect("/");
+}
+
+// Use the first item to display a human label
+const currentTypeLabel = filtered[0].primaryType;
+const typeSlug = slugForType(currentTypeLabel);
+
+// Detect the type
+const isEntertainment = typeSlug === "entertainment";
+const isArt = typeSlug === "art";
+
+// Build filter lists from this type only
+const allNeighborhoods = Array.from(
+  new Set(filtered.flatMap((b) => b.neighborhoods || []))
+).sort();
+
+// Use appropriate field based on type
+let primaryTypes = [];
+if (isEntertainment) {
+  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.entertainmentTypes || []))).sort();
+} else if (isArt) {
+  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.artTypes || []))).sort();
+} else {
+  // Default to cuisineTypes for restaurant and other food-related types
+  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.cuisineTypes || []))).sort();
+}
+
+const allMicrofilters = Array.from(
+  new Set(filtered.flatMap((b) => b.microfilters || []))
+).sort();
+
+// Customize label based on type
+let primaryFacetLabel = "Cuisine";
+if (isEntertainment) {
+  primaryFacetLabel = "Entertainment Type";
+} else if (isArt) {
+  primaryFacetLabel = "Art Type";
+}
+
+// Customize search placeholder
+let searchPlaceholder = "Try: soul food, brunch, Park Hill";
+if (isEntertainment) {
+  searchPlaceholder = "Try: jazz, live music, Five Points, LGBTQ+ friendly";
+} else if (isArt) {
+  searchPlaceholder = "Try: contemporary, sculpture, downtown, free admission";
+}
+
+// Prepare location data for the map
+const locationsForMap = filtered
+  .filter(b => b.latitude && b.longitude)
+  .map(b => ({
+    slug: b.slug,
+    name: b.name,
+    lat: b.latitude,
+    lng: b.longitude,
+    neighborhoods: b.neighborhoods || [],
+    type: b.primaryType,
+  }));
+
+const title = `${currentTypeLabel} • Local Business Directory`;
+---
+
+<BaseLayout title={title}>
+  <!-- Add Leaflet CSS in the head -->
+
+
+  <div class="directory">
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="directory__breadcrumb">
+      <a href="/" class="directory__breadcrumb-link">Home</a>
+      <span aria-hidden="true">/</span>
+      <span class="directory__breadcrumb-current">
+        {currentTypeLabel}
+      </span>
+    </nav>
+
+    <header class="directory__head">
+      <h1 class="directory__title">
+        {currentTypeLabel}
+      </h1>
+      <p class="directory__subtitle">
+        Explore {currentTypeLabel.toLowerCase()} — filter by neighborhood,
+        {primaryTypes.length ? ` ${primaryFacetLabel.toLowerCase()},` : ""} and
+        amenities.
+      </p>
+    </header>
+
+    <!-- FILTERS -->
+    <section class="filter-panel" id="filters" aria-label={`${currentTypeLabel} filters`} data-collapsed="true">
+      <!-- Mobile filter toggle -->
+      <button class="filter-panel__toggle" id="filter-toggle" type="button">
+        <span id="filter-toggle-text">Show Filters</span>
+        <span class="filter-badge" id="filter-count">0</span>
+        <span class="filter-toggle__icon">▼</span>
+      </button>
+
+      <div class="filter-panel__content">
+        <!-- Top row: search + sort -->
+        <div class="filter-row filter-row--top">
+          <div class="filter-search-wrap">
+            <label for="search" class="filter-label">
+              Search
+            </label>
+            <div class="filter-search">
+              <svg class="filter-search__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input
+                id="search"
+                name="directory-search"
+                type="search"
+                class="filter-search__input"
+                placeholder={searchPlaceholder}
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button
+                type="button"
+                id="search-clear"
+                class="filter-search__clear"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="filter-sort-wrap">
+            <label for="sort" class="filter-label">
+              Sort by
+            </label>
+            <select id="sort" class="filter-sort">
+              <option value="az">A–Z (Name)</option>
+              <option value="neighborhood">Neighborhood</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Filter dropdowns in a grid -->
+        <div class="filter-dropdowns">
+          <!-- Neighborhood dropdown -->
+          {allNeighborhoods.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="neighborhood-select" class="filter-label">
+                Neighborhood
+              </label>
+              <select id="neighborhood-select" class="filter-select">
+                <option value="">All Neighborhoods</option>
+                {allNeighborhoods.map((n) => (
+                  <option value={n.toLowerCase()}>{n}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <!-- Primary facet: Cuisine, Entertainment Type, or Art Type (multi-select) -->
+          {primaryTypes.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="primary-select" class="filter-label">
+                {primaryFacetLabel}
+              </label>
+              <select id="primary-select" class="filter-select" multiple size="4">
+                {primaryTypes.map((c) => (
+                  <option value={c.toLowerCase()}>{c}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+          )}
+
+          <!-- Amenities dropdown (multi-select) -->
+          {allMicrofilters.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="amenities-select" class="filter-label">
+                Amenities &amp; Options
+              </label>
+              <select id="amenities-select" class="filter-select" multiple size="4">
+                {allMicrofilters.map((m) => (
+                  <option value={m.toLowerCase()}>{m}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+          )}
+        </div>
+
+        <!-- Reset button -->
+        <div class="filter-row filter-row--actions">
+          <button type="button" id="reset-all-filters" class="btn-reset-all">
+            Clear all filters
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active filters summary -->
+    <div id="active-filters-summary" class="active-filters" style="display: none;">
+      <span class="active-filters__label">Active:</span>
+      <div id="active-filters-list" class="active-filters__list">
+        <!-- Populated by JavaScript -->
+      </div>
+    </div>
+
+    <!-- Map Toggle for Mobile -->
+    <button class="map-toggle" id="map-toggle" type="button">
+      <span id="map-toggle-text">📍 Show Map</span>
+    </button>
+
+    <!-- Split View Container -->
+    <div class="split-container" id="split-container">
+      <!-- Map Section -->
+      <section class="map-section" id="map-section" aria-label="Map view">
+        <div id="map" class="map-view"></div>
+        <div class="map-overlay">
+          <p class="map-overlay__text">
+            <span id="map-marker-count">{locationsForMap.length}</span> locations
+          </p>
+        </div>
+      </section>
+
+      <!-- RESULTS -->
+      <section aria-label={`${currentTypeLabel} results`} class="directory__results">
+        <p id="results-count" class="directory__results-count">
+          Showing {filtered.length} place{filtered.length === 1 ? "" : "s"}
+        </p>
+
+        <!-- Empty state -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+          <div class="empty-state__icon">🔍</div>
+          <h3 class="empty-state__title">No businesses found</h3>
+          <p class="empty-state__message">
+            Try adjusting your filters or search terms
+          </p>
+          <button id="reset-from-empty" class="empty-state__button">
+            Clear all filters
+          </button>
+        </div>
+
+        <div id="results-grid" class="directory__grid">
+          {filtered.map((b) => {
+            const name = b.name || "";
+            const cuisines = b.cuisineTypes || [];
+            const entertainmentTypes = b.entertainmentTypes || [];
+            const artTypes = b.artTypes || [];
+            const neighborhoods = b.neighborhoods || [];
+            const microfilters = b.microfilters || [];
+            
+            // Use appropriate type data based on current page type
+            let displayTypes = [];
+            if (isEntertainment) {
+              displayTypes = entertainmentTypes;
+            } else if (isArt) {
+              displayTypes = artTypes;
+            } else {
+              displayTypes = cuisines;
+            }
+
+            return (
+              <article
+                class="card business-card"
+                data-slug={b.slug}
+                data-name={name.toLowerCase()}
+                data-primary-types={displayTypes.join("|").toLowerCase()}
+                data-neighborhoods={neighborhoods.join("|").toLowerCase()}
+                data-microfilters={microfilters.join("|").toLowerCase()}
+                data-lat={b.latitude}
+                data-lng={b.longitude}
+              >
+                <h2 class="business-card__name">
+                  <a href={`/business/${b.slug}/`} class="business-card__link">
+                    {name}
+                  </a>
+                </h2>
+
+                {/* Quick info with icons */}
+                <div class="business-card__quick-info">
+                  <span class="quick-info-item">
+                    <span class="quick-info-item__icon">📍</span>
+                    {neighborhoods[0] || "Location TBD"}
+                  </span>
+                  {b.yearEstablished && (
+                    <span class="quick-info-item">
+                      <span class="quick-info-item__icon">📅</span>
+                      Est. {b.yearEstablished}
+                    </span>
+                  )}
+                </div>
+
+                <p class="business-card__meta">
+                  {displayTypes.length > 0 && (
+                    <>
+                      <span class="business-card__type">
+                        {primaryFacetLabel}:
+                      </span>{" "}
+                      <span>{displayTypes.join(", ")}</span>
+                    </>
+                  )}
+                  {displayTypes.length === 0 && (
+                    <span class="business-card__type">
+                      {currentTypeLabel}
+                    </span>
+                  )}
+                </p>
+
+                {microfilters.length > 0 && (
+                  <div class="business-card__amenities">
+                    {microfilters.slice(0, 3).map((tag) => {
+                      const icon = getAmenityIcon(tag);
+                      return (
+                        <span class="amenity-tag" title={tag}>
+                          <span class="amenity-tag__icon">{icon}</span>
+                          <span class="amenity-tag__label">{tag}</span>
+                        </span>
+                      );
+                    })}
+                    {microfilters.length > 3 && (
+                      <span class="business-card__more">
+                        +{microfilters.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div class="business-card__action">
+                  View Details →
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <style>
+    .directory {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .directory__breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+    .directory__breadcrumb-link {
+      text-decoration: none;
+    }
+    .directory__breadcrumb-link:hover {
+      text-decoration: underline;
+    }
+    .directory__breadcrumb-current {
+      font-weight: 600;
+    }
+
+    .directory__head {
+      margin-bottom: 0.25rem;
+    }
+
+    .directory__title {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.2;
+    }
+
+    .directory__subtitle {
+      margin: 0.35rem 0 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 42rem;
+    }
+
+    .filter-panel {
+      border-radius: 0.9rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+      padding: 0.9rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .filter-panel__toggle {
+      display: none;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      gap: 0.75rem;
+    }
+
+    .filter-badge {
+      background: var(--accent);
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+
+    .filter-toggle__icon {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+
+    .filter-panel[data-collapsed="false"] .filter-toggle__icon {
+      transform: rotate(180deg);
+    }
+
+    @media (max-width: 768px) {
+      .filter-panel__toggle {
+        display: flex;
+      }
+
+      .filter-panel[data-collapsed="true"] .filter-panel__content {
+        display: none;
+      }
+
+      .filter-panel {
+        padding: 0;
+      }
+
+      .filter-panel__content {
+        padding: 0.9rem 1rem 1rem;
+      }
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.6rem;
+      align-items: flex-start;
+    }
+
+    .filter-row--top {
+      align-items: flex-end;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-row--actions {
+      justify-content: flex-end;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .filter-search-wrap {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .filter-sort-wrap {
+      flex: 0 0 auto;
+      min-width: 150px;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .filter-label--pill {
+      margin-top: 0.25rem;
+      min-width: 75px;
+    }
+
+    .filter-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .filter-search__icon {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .filter-search__input {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.4rem 2rem 0.4rem 2.5rem;
+      font-size: 0.85rem;
+    }
+
+    .filter-search__input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .filter-search__clear {
+      position: absolute;
+      right: 0.4rem;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+
+    .filter-search__clear.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .filter-search__clear:hover {
+      color: var(--accent-strong);
+    }
+
+    .filter-sort {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    /* FILTER DROPDOWNS */
+
+    .filter-dropdowns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .filter-dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      font-size: 0.85rem;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .filter-select[multiple] {
+      min-height: 120px;
+      padding: 0.25rem;
+    }
+
+    .filter-select option {
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.25rem;
+      margin: 0.1rem 0;
+    }
+
+    .filter-select option:checked {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+
+    .filter-select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .filter-dropdown__hint {
+      margin: 0.25rem 0 0;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .filter-chips--scroll {
+      max-height: 80px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .btn-reset-all {
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-all:hover {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+
+    .active-filters {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-elevated);
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+    }
+
+    .active-filters__label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .active-filters__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      flex: 1;
+    }
+
+    .active-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.65rem;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      color: var(--accent-strong);
+    }
+
+    .active-filter-pill__remove {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0;
+      line-height: 1;
+      opacity: 0.7;
+    }
+
+    .active-filter-pill__remove:hover {
+      opacity: 1;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+
+    .empty-state__icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state__title {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: var(--text-main);
+    }
+
+    .empty-state__message {
+      margin: 0 0 1.5rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state__button {
+      padding: 0.6rem 1.5rem;
+      border-radius: 9999px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .empty-state__button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    /* MAP STYLES */
+
+    .map-toggle {
+      display: none;
+      width: 100%;
+      padding: 0.75rem 1.25rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .map-toggle:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 768px) {
+      .map-toggle {
+        display: block;
+      }
+    }
+
+    .split-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .split-container {
+        grid-template-columns: 1fr;
+      }
+
+      .map-section {
+        display: none;
+      }
+
+      .map-section.is-visible {
+        display: block;
+        margin-bottom: 1rem;
+      }
+    }
+
+    .map-section {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      min-height: 500px;
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+    }
+
+    @media (max-width: 768px) {
+      .map-section {
+        position: relative;
+        top: 0;
+        height: 450px;
+        min-height: 400px;
+      }
+    }
+
+    .map-view {
+      width: 100%;
+      height: 100%;
+    }
+
+    .map-overlay {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+    }
+
+    .map-overlay__text {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .directory__results {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .directory__results-count {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .directory__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .business-card {
+      padding: 1rem 1.1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .business-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .business-card.is-highlighted {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .business-card__name {
+      margin: 0 0 0.1rem;
+      font-size: 1rem;
+    }
+
+    .business-card__link {
+      text-decoration: none;
+    }
+
+    .business-card__link:hover {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    .business-card__quick-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .quick-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .quick-info-item__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__meta {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .business-card__type {
+      font-weight: 600;
+    }
+
+    .business-card__amenities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    .amenity-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--text-main);
+    }
+
+    .amenity-tag__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__more {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding: 0.2rem 0.5rem;
+    }
+
+    .business-card__action {
+      margin-top: auto;
+      padding-top: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .business-card:hover .business-card__action {
+      opacity: 1;
+    }
+
+    @media (max-width: 640px) {
+      .filter-panel {
+        padding-inline: 0;
+      }
+
+      .directory__title {
+        font-size: 1.4rem;
+      }
+
+      .directory__grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-dropdowns {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <script
+  is:inline
+  define:vars={{
+    mapLocations: locationsForMap
+  }}
+>
+  // MAP FUNCTIONALITY - Wait for page load
+  window.addEventListener('load', function() {
+    console.log('Page loaded, initializing map...');
+    console.log('Map locations:', mapLocations);
+    console.log('Leaflet available?', typeof window.L);
+    
+    if (typeof window.L === 'undefined') {
+      console.error('Leaflet not loaded!');
+      return;
+    }
+
+    const mapElement = document.getElementById('map');
+    const mapToggle = document.getElementById('map-toggle');
+    const mapToggleText = document.getElementById('map-toggle-text');
+    const mapSection = document.getElementById('map-section');
+    const markerCountEl = document.getElementById('map-marker-count');
+
+    if (!mapElement) {
+      console.error('Map element not found');
+      return;
+    }
+    
+    console.log('Creating map...');
+
+    try {
+      // Initialize map centered on Denver
+      const map = window.L.map('map').setView([39.7392, -104.9903], 12);
+      console.log('Map created successfully');
+
+      // Add Carto Voyager tile layer
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19
+      }).addTo(map);
+      console.log('Tile layer added');
+
+      // Custom marker icon
+      const customIcon = window.L.divIcon({
+        className: 'custom-marker',
+        html: '<div style="background: var(--accent); width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      const markers = {};
+      const markerGroup = window.L.featureGroup().addTo(map);
+
+      // Add markers
+      console.log('Adding markers...');
+      mapLocations.forEach((location, index) => {
+        if (!location.lat || !location.lng) return;
+
+        console.log(`Adding marker ${index + 1}:`, location.name);
+        
+        const marker = window.L.marker([location.lat, location.lng], {
+          icon: customIcon
+        }).addTo(markerGroup);
+
+        marker.bindPopup(`
+          <div style="padding: 0.5rem;">
+            <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
+              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
+                ${location.name}
+              </a>
+            </h3>
+            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
+              ${location.neighborhoods[0] || 'Denver'}
+            </p>
+          </div>
+        `);
+
+        markers[location.slug] = marker;
+
+        marker.on('click', () => {
+          const card = document.querySelector(`[data-slug="${location.slug}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('is-highlighted');
+            setTimeout(() => card.classList.remove('is-highlighted'), 2000);
+          }
+        });
+      });
+      
+      console.log(`Added ${Object.keys(markers).length} markers total`);
+
+      if (markerGroup.getBounds().isValid()) {
+        map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+        console.log('Map fitted to bounds');
+      }
+
+      function updateMarkerCount() {
+        const visibleCards = document.querySelectorAll('.business-card:not([style*="display: none"])');
+        const visibleSlugs = Array.from(visibleCards).map(card => card.dataset.slug);
+        
+        let visibleCount = 0;
+        Object.entries(markers).forEach(([slug, marker]) => {
+          if (visibleSlugs.includes(slug)) {
+            markerGroup.addLayer(marker);
+            visibleCount++;
+          } else {
+            markerGroup.removeLayer(marker);
+          }
+        });
+
+        if (markerCountEl) {
+          markerCountEl.textContent = visibleCount;
+        }
+
+        if (markerGroup.getBounds().isValid()) {
+          map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+        }
+      }
+
+      document.querySelectorAll('.business-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          const slug = card.dataset.slug;
+          const marker = markers[slug];
+          if (marker && marker.getElement()) {
+            marker.getElement().style.transform = 'scale(1.3)';
+            marker.getElement().style.zIndex = '1000';
+          }
+        });
+
+        card.addEventListener('mouseleave', () => {
+          const slug = card.dataset.slug;
+          const marker = markers[slug];
+          if (marker && marker.getElement()) {
+            marker.getElement().style.transform = 'scale(1)';
+            marker.getElement().style.zIndex = '';
+          }
+        });
+      });
+
+      if (mapToggle && mapSection && mapToggleText) {
+        mapToggle.addEventListener('click', () => {
+          const isVisible = mapSection.classList.contains('is-visible');
+          if (isVisible) {
+            mapSection.classList.remove('is-visible');
+            mapToggleText.textContent = '📍 Show Map';
+          } else {
+            mapSection.classList.add('is-visible');
+            mapToggleText.textContent = '📍 Hide Map';
+            setTimeout(() => map.invalidateSize(), 100);
+          }
+        });
+      }
+
+      window.updateMapMarkers = updateMarkerCount;
+      updateMarkerCount();
+      console.log('✅ Map initialization complete!');
+      
+    } catch (error) {
+      console.error('❌ Error initializing map:', error);
+    }
+  });
+</script>
+
+  <script>
+    const searchInput = document.getElementById("search") as HTMLInputElement;
+    const clearBtn = document.getElementById("search-clear") as HTMLButtonElement;
+    const sortSelect = document.getElementById("sort") as HTMLSelectElement;
+    const neighborhoodSelect = document.getElementById("neighborhood-select") as HTMLSelectElement;
+    const primarySelect = document.getElementById("primary-select") as HTMLSelectElement;
+    const amenitiesSelect = document.getElementById("amenities-select") as HTMLSelectElement;
+    const grid = document.getElementById("results-grid") as HTMLElement;
+    const countEl = document.getElementById("results-count") as HTMLElement;
+    const emptyState = document.getElementById("empty-state") as HTMLElement;
+    const filterToggle = document.getElementById("filter-toggle");
+    const filterToggleText = document.getElementById("filter-toggle-text");
+    const filterPanel = document.getElementById("filters");
+    const filterCount = document.getElementById("filter-count");
+    const activeFiltersSummary = document.getElementById("active-filters-summary");
+    const activeFiltersList = document.getElementById("active-filters-list");
+    const resetAllBtn = document.getElementById("reset-all-filters");
+    const resetFromEmpty = document.getElementById("reset-from-empty");
+
+    const cards = Array.from(
+      document.querySelectorAll("#results-grid article")
+    ) as HTMLElement[];
+
+    function normalize(str: string): string {
+      return (str || "").toLowerCase();
+    }
+
+    function getSelectedValues(selectElement: HTMLSelectElement | null): Set<string> {
+      if (!selectElement) return new Set();
+      const selected = Array.from(selectElement.selectedOptions);
+      return new Set(selected.map(opt => normalize(opt.value)));
+    }
+
+    function updateClearButton() {
+      if (!clearBtn || !searchInput) return;
+      const hasValue = !!searchInput.value.trim();
+      if (hasValue) {
+        clearBtn.classList.add("is-visible");
+      } else {
+        clearBtn.classList.remove("is-visible");
+      }
+    }
+
+    function getActiveFilterCount() {
+      let count = 0;
+      if (neighborhoodSelect && neighborhoodSelect.value) count++;
+      if (primarySelect) count += primarySelect.selectedOptions.length;
+      if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
+      if (searchInput && searchInput.value.trim()) count++;
+      return count;
+    }
+
+    function updateFilterCount() {
+      const count = getActiveFilterCount();
+      if (filterCount) {
+        filterCount.textContent = count.toString();
+        filterCount.style.display = count > 0 ? "" : "none";
+      }
+    }
+
+    function updateActiveFiltersSummary() {
+      const count = getActiveFilterCount();
+      
+      if (count === 0) {
+        if (activeFiltersSummary) {
+          activeFiltersSummary.style.display = "none";
+        }
+        return;
+      }
+
+      if (activeFiltersSummary) {
+        activeFiltersSummary.style.display = "flex";
+      }
+
+      if (!activeFiltersList) return;
+
+      let html = "";
+
+      // Neighborhood
+      if (neighborhoodSelect && neighborhoodSelect.value) {
+        const label = neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
+        html += `<span class="active-filter-pill">
+          📍 ${label}
+          <button class="active-filter-pill__remove" data-clear="neighborhood">×</button>
+        </span>`;
+      }
+
+      // Primary types
+      if (primarySelect) {
+        Array.from(primarySelect.selectedOptions).forEach(opt => {
+          html += `<span class="active-filter-pill">
+            ${opt.text}
+            <button class="active-filter-pill__remove" data-clear="primary" data-value="${opt.value}">×</button>
+          </span>`;
+        });
+      }
+
+      // Amenities
+      if (amenitiesSelect) {
+        Array.from(amenitiesSelect.selectedOptions).forEach(opt => {
+          html += `<span class="active-filter-pill">
+            ${opt.text}
+            <button class="active-filter-pill__remove" data-clear="amenity" data-value="${opt.value}">×</button>
+          </span>`;
+        });
+      }
+
+      activeFiltersList.innerHTML = html;
+
+      // Attach event listeners
+      activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const clearType = (btn as HTMLElement).dataset.clear;
+          const value = (btn as HTMLElement).dataset.value;
+
+          if (clearType === "neighborhood") {
+            if (neighborhoodSelect) neighborhoodSelect.value = "";
+          } else if (clearType === "primary" && value && primarySelect) {
+            Array.from(primarySelect.options).forEach(opt => {
+              if (opt.value === value) opt.selected = false;
+            });
+          } else if (clearType === "amenity" && value && amenitiesSelect) {
+            Array.from(amenitiesSelect.options).forEach(opt => {
+              if (opt.value === value) opt.selected = false;
+            });
+          }
+
+          applyFiltersAndSort();
+        });
+      });
+    }
+
+    function resetAllFilters() {
+      if (searchInput) searchInput.value = "";
+      if (neighborhoodSelect) neighborhoodSelect.value = "";
+      if (primarySelect) {
+        Array.from(primarySelect.options).forEach(opt => opt.selected = false);
+      }
+      if (amenitiesSelect) {
+        Array.from(amenitiesSelect.options).forEach(opt => opt.selected = false);
+      }
+      
+      applyFiltersAndSort();
+    }
+
+    function applyFiltersAndSort() {
+      const q = normalize(searchInput?.value || "");
+      const sortValue = sortSelect?.value || "az";
+      const activeNeighborhood = neighborhoodSelect 
+        ? normalize(neighborhoodSelect.value)
+        : "";
+      const activePrimaryTypes = getSelectedValues(primarySelect);
+      const activeMicrofilters = getSelectedValues(amenitiesSelect);
+
+      const sorted = cards.slice().sort((a, b) => {
+        const an = a.dataset.name || "";
+        const bn = b.dataset.name || "";
+
+        if (sortValue === "az") {
+          return an.localeCompare(bn);
+        }
+
+        if (sortValue === "neighborhood") {
+          const anb = (a.dataset.neighborhoods || "").split("|")[0] || "";
+          const bnb = (b.dataset.neighborhoods || "").split("|")[0] || "";
+          return anb.localeCompare(bnb) || an.localeCompare(bn);
+        }
+
+        return 0;
+      });
+
+      let visible = 0;
+
+      sorted.forEach((card) => {
+        const name = card.dataset.name || "";
+        const primaryData = card.dataset.primaryTypes || "";
+        const neighborhoods = card.dataset.neighborhoods || "";
+        const micro = card.dataset.microfilters || "";
+
+        // Enhanced search includes all fields
+        const matchesText =
+          !q ||
+          name.includes(q) ||
+          primaryData.includes(q) ||
+          neighborhoods.includes(q) ||
+          micro.includes(q);
+
+        const matchesNeighborhood =
+          !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
+
+        const matchesPrimary =
+          activePrimaryTypes.size === 0 ||
+          Array.from(activePrimaryTypes).some((c) => primaryData.includes(c));
+
+        const matchesMicro =
+          activeMicrofilters.size === 0 ||
+          Array.from(activeMicrofilters).some((m) => micro.includes(m));
+
+        const show =
+          matchesText &&
+          matchesNeighborhood &&
+          matchesPrimary &&
+          matchesMicro;
+
+        card.style.display = show ? "" : "none";
+
+        if (show) {
+          visible++;
+          grid?.appendChild(card);
+        }
+      });
+
+      if (countEl) {
+        countEl.textContent = `Showing ${visible} place${
+          visible === 1 ? "" : "s"
+        }`;
+      }
+
+      if (emptyState) {
+        emptyState.style.display = visible === 0 ? "block" : "none";
+      }
+      if (grid) {
+        grid.style.display = visible === 0 ? "none" : "";
+      }
+
+      updateClearButton();
+      updateFilterCount();
+      updateActiveFiltersSummary();
+
+      // Update map markers if the function is available
+      if (typeof window.updateMapMarkers === 'function') {
+        window.updateMapMarkers();
+      }
+    }
+
+    // Make function globally accessible for map integration
+    window.applyFiltersAndSort = applyFiltersAndSort;
+
+    // Mobile filter toggle
+    if (filterToggle && filterPanel && filterToggleText) {
+      filterToggle.addEventListener("click", () => {
+        const isCollapsed = filterPanel.dataset.collapsed === "true";
+        filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
+        filterToggleText.textContent = 
+          isCollapsed ? "Hide Filters" : "Show Filters";
+      });
+    }
+
+    searchInput?.addEventListener("input", applyFiltersAndSort);
+    
+    clearBtn?.addEventListener("click", () => {
+      if (searchInput) {
+        searchInput.value = "";
+        searchInput.focus();
+      }
+      applyFiltersAndSort();
+    });
+
+    neighborhoodSelect?.addEventListener("change", applyFiltersAndSort);
+    primarySelect?.addEventListener("change", applyFiltersAndSort);
+    amenitiesSelect?.addEventListener("change", applyFiltersAndSort);
+
+    sortSelect?.addEventListener("change", applyFiltersAndSort);
+
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener("click", resetAllFilters);
+    }
+    if (resetFromEmpty) {
+      resetFromEmpty.addEventListener("click", resetAllFilters);
+    }
+
+    updateClearButton();
+    applyFiltersAndSort();
+  </script>
+</BaseLayout>

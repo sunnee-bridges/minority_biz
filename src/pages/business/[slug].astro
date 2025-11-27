@@ -1,0 +1,237 @@
+---
+import BaseLayout from "../../layouts/Base.astro";
+import { businesses } from "../../lib/businesses";
+
+// 🔑 Tell Astro which /business/[slug]/ pages to generate
+export function getStaticPaths() {
+  return businesses.map((b) => ({
+    params: { slug: b.slug },
+  }));
+}
+
+const { slug } = Astro.params;
+const business = businesses.find((b) => b.slug === slug);
+
+if (!business) {
+  throw new Error(`Business not found: ${slug}`);
+}
+
+const title = `${business.name} • Local Food Directory`;
+---
+
+<BaseLayout title={title}>
+  <div class="business-detail">
+    {/* 🧭 Breadcrumb (no numbered list) */}
+    <nav class="business-detail__breadcrumb" aria-label="Breadcrumb">
+      <div class="business-detail__breadcrumb-row">
+        <a href="/" class="business-detail__breadcrumb-link">Home</a>
+        <span class="business-detail__breadcrumb-separator">/</span>
+        <a href="/" class="business-detail__breadcrumb-link">Directory</a>
+        <span class="business-detail__breadcrumb-separator">/</span>
+        <span aria-current="page">{business.name}</span>
+      </div>
+    </nav>
+
+    {/* “Back to results” — prefers browser history so filters/scroll are preserved */}
+    <a
+      href="/"
+      class="business-detail__back"
+      onclick="if (window.history.length > 1) { history.back(); return false; }"
+    >
+      ← Back to results
+    </a>
+
+    <article class="card business-detail__card">
+      <header class="business-detail__header">
+        <h1 class="business-detail__name">
+          {business.name}
+        </h1>
+
+        <p class="business-detail__meta">
+          {business.cuisineTypes.join(", ")}
+          {" · "}
+          {business.businessCategories.join(", ")}
+        </p>
+
+        <p class="business-detail__meta">
+          {business.neighborhoods.join(", ")}
+          {business.yearEstablished && ` · Est. ${business.yearEstablished}`}
+        </p>
+      </header>
+
+      <section class="business-detail__body">
+        {business.website && (
+          <p class="business-detail__row">
+            <span class="business-detail__label">Website:</span>{" "}
+            <a
+              href={business.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="business-detail__link"
+            >
+              {business.website}
+            </a>
+          </p>
+        )}
+
+        {business.phone && (
+          <p class="business-detail__row">
+            <span class="business-detail__label">Phone:</span>{" "}
+            <a href={`tel:${business.phone}`} class="business-detail__link">
+              {business.phone}
+            </a>
+          </p>
+        )}
+
+        {business.microfilters.length > 0 && (
+          <div class="business-detail__row">
+            <p class="business-detail__section-label">
+              Amenities &amp; options
+            </p>
+            <div class="business-detail__chips">
+              {business.microfilters.map((tag) => (
+                <span class="chip chip--pill business-detail__chip">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {business.notes && (
+          <p class="business-detail__notes">
+            {business.notes}
+          </p>
+        )}
+      </section>
+    </article>
+  </div>
+
+  <style>
+    .business-detail {
+      max-width: 720px;
+      margin: 0 auto;
+      padding-block: 1.5rem 0;
+    }
+
+    /* 🧭 Breadcrumb styles (no list, so no numbers) */
+    .business-detail__breadcrumb {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .business-detail__breadcrumb-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
+    .business-detail__breadcrumb-link {
+      text-decoration: none;
+      color: var(--text-muted);
+    }
+
+    .business-detail__breadcrumb-link:hover {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    .business-detail__breadcrumb-separator {
+      margin: 0 0.1rem;
+      opacity: 0.6;
+    }
+
+    .business-detail__back {
+      display: inline-block;
+      margin-bottom: 0.75rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .business-detail__back:hover {
+      text-decoration: underline;
+    }
+
+    .business-detail__card {
+      padding: 1.25rem 1.5rem 1.4rem;
+    }
+
+    .business-detail__header {
+      margin-bottom: 0.9rem;
+    }
+
+    .business-detail__name {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.2;
+    }
+
+    .business-detail__meta {
+      margin: 0.1rem 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .business-detail__body {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    .business-detail__row {
+      margin: 0.4rem 0;
+    }
+
+    .business-detail__label {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .business-detail__link {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    .business-detail__link:hover {
+      color: var(--accent);
+    }
+
+    .business-detail__section-label {
+      margin: 0 0 0.25rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .business-detail__chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .business-detail__chip {
+      font-size: 0.68rem;
+    }
+
+    .business-detail__notes {
+      margin-top: 0.9rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-main);
+    }
+
+    @media (max-width: 640px) {
+      .business-detail__card {
+        padding-inline: 1rem;
+      }
+
+      .business-detail__name {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</BaseLayout>

@@ -1,0 +1,13 @@
+{
+  "name": "Example Soul Kitchen",
+  "slug": "example-soul-kitchen",
+   "type": "restaurant",
+  "website": "https://example.com",
+  "phone": "303-555-1234",
+  "yearEstablished": 2014,
+  "businessCategories": ["Restaurant", "Catering"],
+  "cuisineTypes": ["Soul food", "Southern", "BBQ"],
+  "neighborhoods": ["Park Hill"],
+  "microfilters": ["Dine-in", "Takeout", "Outdoor seating"],
+  "notes": "Sample business entry for your directory."
+}

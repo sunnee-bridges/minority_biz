@@ -1,0 +1,21 @@
+{
+  "name": "The Modern Frame",
+  "slug": "the-modern-frame",
+  "type": "art",
+  "artTypes": ["Abstract", "Contemporary", "Minimalist", "Digital Art"],
+  "businessCategories": ["Art Gallery", "Framing Services"],
+  "neighborhoods": ["Cherry Creek"],
+  "latitude": 39.7175,
+  "longitude": -104.9536,
+  "microfilters": [
+    "Custom framing",
+    "Art consultation",
+    "Corporate collections",
+    "Art installation",
+    "Appraisals"
+  ],
+  "website": "https://themodernframe.example.com",
+  "phone": "303-555-5678",
+  "yearEstablished": 2015,
+  "notes": "Contemporary art gallery and custom framing studio. Curated exhibitions featuring emerging and established artists working in abstract and minimalist styles."
+}

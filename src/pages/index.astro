@@ -1,0 +1,1230 @@
+---
+import BaseLayout from "../layouts/Base.astro";
+import { businesses } from "../lib/businesses";
+
+/**
+ * Enhance businesses with a primaryType
+ */
+const enhanced = businesses.map((b) => ({
+  ...b,
+  primaryType:
+    b.type ||
+    (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
+    "Other",
+}));
+
+// Filter to featured businesses only (max 25)
+const featuredBusinesses = enhanced
+  .filter(b => b.featured === true)
+  .sort((a, b) => (a.featuredOrder || 999) - (b.featuredOrder || 999))
+  .slice(0, 25);
+
+// Get all types with counts
+const allTypes = Array.from(
+  new Set(enhanced.map((b) => b.primaryType))
+).sort();
+
+const typeCounts = allTypes.map(type => ({
+  type,
+  count: enhanced.filter(b => b.primaryType === type).length
+}));
+
+// Helper function for type icons
+function getTypeIcon(type: string): string {
+  const icons: Record<string, string> = {
+    'restaurant': '🍽️',
+    'entertainment': '🎵',
+    'catering': '🎉',
+    'food truck': '🚚',
+    'art': '🎨',
+  };
+  return icons[type.toLowerCase()] || '📦';
+}
+
+// Helper function to create slugs
+function slugify(str: string): string {
+  return String(str)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+// Helper function for amenity icons
+function getAmenityIcon(tag: string): string {
+  const icons: Record<string, string> = {
+    'takeout': '🥡',
+    'dine-in': '🍽️',
+    'outdoor seating': '🌳',
+    'delivery': '🚚',
+    'vegan options': '🌱',
+    'live entertainment': '🎵',
+    'lgbtq+ friendly': '🏳️‍🌈',
+    'wine and beer': '🍷',
+    'parking available': '🅿️',
+    'pet-friendly patio': '🐾',
+    'live music': '🎸',
+    'free admission': '🎟️',
+    'artist talks': '🎨',
+    'workshop space': '🛠️',
+  };
+  return icons[tag.toLowerCase()] || '✓';
+}
+
+// Prepare data for search suggestions
+const allNeighborhoods = Array.from(
+  new Set(enhanced.flatMap((b) => b.neighborhoods || []))
+).sort();
+
+const allCuisines = Array.from(
+  new Set(
+    enhanced.flatMap((b) => [
+      ...(b.cuisineTypes || []),
+      ...(b.entertainmentTypes || []),
+      ...(b.artTypes || [])
+    ])
+  )
+).sort();
+---
+
+<BaseLayout title="Denver Black-Owned Business Directory">
+  <div class="homepage">
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="hero__content">
+        <h1 class="hero__title">
+          Denver's Black-Owned Business Directory
+        </h1>
+        <p class="hero__subtitle">
+          Discover and support amazing local restaurants, entertainment venues, 
+          art galleries, and more in the Denver community.
+        </p>
+        
+        <!-- Hero Search -->
+        <div class="hero__search">
+          <svg class="hero__search-icon" width="20" height="20" viewBox="0 0 16 16" fill="none">
+            <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input
+            type="search"
+            class="hero__search-input"
+            placeholder="Search businesses, cuisines, or neighborhoods..."
+            id="hero-search"
+            autocomplete="off"
+          />
+          <button type="button" class="hero__search-button">
+            Search
+          </button>
+          
+          <!-- Live suggestions dropdown -->
+          <div id="search-suggestions" class="search-suggestions" style="display: none;">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BROWSE BY CATEGORY -->
+    <section class="categories">
+      <h2 class="categories__title">Browse by Category</h2>
+      
+      <div class="categories__grid">
+        {typeCounts.map(({ type, count }) => {
+          const icon = getTypeIcon(type);
+          const slug = slugify(type);
+          
+          return (
+            <a href={`/type/${slug}`} class="category-card">
+              <div class="category-card__icon">{icon}</div>
+              <h3 class="category-card__name">{type}</h3>
+              <p class="category-card__count">{count} {count === 1 ? 'place' : 'places'}</p>
+            </a>
+          );
+        })}
+      </div>
+
+      <div class="categories__footer">
+        <a href="/all" class="categories__view-all">
+          View All Categories →
+        </a>
+      </div>
+    </section>
+
+    <!-- FEATURED BUSINESSES -->
+    <section class="featured">
+      <div class="featured__header">
+        <div>
+          <h2 class="featured__title">⭐ Featured Businesses</h2>
+          <p class="featured__subtitle">
+            Handpicked businesses supporting our community
+          </p>
+        </div>
+        <a href="/all" class="featured__browse-all">
+          Browse All {enhanced.length} Businesses →
+        </a>
+      </div>
+
+      {featuredBusinesses.length === 0 ? (
+        <div class="featured__empty">
+          <p class="featured__empty-icon">⭐</p>
+          <h3 class="featured__empty-title">No Featured Businesses Yet</h3>
+          <p class="featured__empty-text">
+            Check back soon for our curated selection of amazing local businesses!
+          </p>
+          <a href="/all" class="featured__empty-button">
+            Browse All Businesses
+          </a>
+        </div>
+      ) : (
+        <div class="featured__grid">
+          {featuredBusinesses.map((b) => {
+            const type = b.primaryType;
+            const name = b.name || "";
+            const cuisines = b.cuisineTypes || [];
+            const entertainmentTypes = b.entertainmentTypes || [];
+            const artTypes = b.artTypes || [];
+            const neighborhoods = b.neighborhoods || [];
+            const microfilters = b.microfilters || [];
+            
+            const allTypeLabels = [...cuisines, ...entertainmentTypes, ...artTypes];
+
+            return (
+              <article class="business-card business-card--featured">
+                <div class="business-card__badge">Featured</div>
+                
+                <h3 class="business-card__name">
+                  <a href={`/business/${b.slug}/`} class="business-card__link">
+                    {name}
+                  </a>
+                </h3>
+
+                <div class="business-card__quick-info">
+                  <span class="quick-info-item">
+                    <span class="quick-info-item__icon">📍</span>
+                    {neighborhoods[0] || "Location TBD"}
+                  </span>
+                  {b.yearEstablished && (
+                    <span class="quick-info-item">
+                      <span class="quick-info-item__icon">📅</span>
+                      Est. {b.yearEstablished}
+                    </span>
+                  )}
+                </div>
+
+                <p class="business-card__meta">
+                  <span class="business-card__type">{type}</span>
+                  {allTypeLabels.length > 0 && (
+                    <>
+                      {" · "}
+                      <span>
+                        {allTypeLabels.slice(0, 2).join(", ")}
+                        {allTypeLabels.length > 2 && ` +${allTypeLabels.length - 2}`}
+                      </span>
+                    </>
+                  )}
+                </p>
+
+                {microfilters.length > 0 && (
+                  <div class="business-card__amenities">
+                    {microfilters.slice(0, 3).map((tag) => {
+                      const icon = getAmenityIcon(tag);
+                      return (
+                        <span class="amenity-tag" title={tag}>
+                          <span class="amenity-tag__icon">{icon}</span>
+                          <span class="amenity-tag__label">{tag}</span>
+                        </span>
+                      );
+                    })}
+                    {microfilters.length > 3 && (
+                      <span class="business-card__more">
+                        +{microfilters.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div class="business-card__action">
+                  View Details →
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div class="featured__footer">
+        <a href="/all" class="featured__view-all-button">
+          Browse All {enhanced.length} Businesses
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <style>
+    .homepage {
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    /* HERO SECTION */
+
+    .hero {
+      background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-elevated) 100%);
+      border-radius: 1.25rem;
+      padding: 3rem 2rem;
+      text-align: center;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .hero__content {
+      max-width: 42rem;
+      margin: 0 auto;
+    }
+
+    .hero__title {
+      margin: 0 0 0.75rem;
+      font-size: 2rem;
+      line-height: 1.2;
+      color: var(--text-main);
+    }
+
+    .hero__subtitle {
+      margin: 0 0 2rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .hero__search {
+      position: relative;
+      display: flex;
+      align-items: center;
+      max-width: 36rem;
+      margin: 0 auto;
+      background: var(--bg-page);
+      border-radius: 9999px;
+      border: 2px solid var(--border-subtle);
+      padding: 0.5rem 0.5rem 0.5rem 1rem;
+      transition: border-color 0.2s;
+    }
+
+    .hero__search:focus-within {
+      border-color: var(--accent);
+    }
+
+    /* LIVE SUGGESTION STYLES */
+
+    .search-suggestions {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      right: 0;
+      background: var(--bg-elevated);
+      border: 2px solid var(--border-subtle);
+      border-radius: 0.875rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      max-height: 420px;
+      overflow-y: auto;
+      z-index: 9999;
+      pointer-events: auto;
+      text-align: left !important;
+    }
+
+    .search-suggestions * {
+      text-align: left !important;
+    }
+
+    .search-suggestions__section {
+      padding: 0.5rem 0;
+      text-align: left !important;
+    }
+
+    .search-suggestions__section:not(:last-child) {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .search-suggestions__header {
+      padding: 0.5rem 1rem 0.25rem 1rem; /* Less left padding - flush with container */
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      cursor: default;
+    }
+
+    .search-suggestions__item {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 0.75rem 1.25rem 0.75rem 3rem; /* More left padding - clearly indented */
+      margin: 0;
+      border-left: 3px solid transparent;
+      cursor: pointer !important;
+      background: var(--bg-elevated);
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+    }
+
+    .search-suggestions__item *{
+      cursor: pointer !important;
+    }
+
+    /* Small marker / bullet - aligned with indented items */
+    .search-suggestions__item::before {
+      content: "•";
+      position: absolute;
+      left: 2rem; /* Adjusted to be between header and item text */
+      top: 0.95rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .search-suggestions__content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+      width: 100%;
+    }
+
+    .search-suggestions__text {
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      width: 100%;
+      display: block;
+    }
+
+    .search-suggestions__meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      width: 100%;
+      display: block;
+    }
+
+    .search-suggestions__item:hover,
+    .search-suggestions__item--active {
+      background: var(--accent-soft);
+      border-left-color: var(--accent);
+      transform: translateX(2px);
+      padding-left: 3rem; /* Keep same indentation on hover */
+    }
+
+    .search-suggestions__item:hover .search-suggestions__text,
+    .search-suggestions__item--active .search-suggestions__text {
+      text-decoration: underline;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 2px;
+    }
+
+    .search-suggestions__item:active {
+      background: var(--accent);
+      border-left-color: var(--accent-strong);
+      transform: scale(0.99);
+    }
+
+    .search-suggestions__item:active .search-suggestions__text {
+      color: white;
+    }
+
+    .search-suggestions__item:active .search-suggestions__meta {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .search-suggestions__empty {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .hero__search-icon {
+      color: var(--text-muted);
+      margin-right: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .hero__search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .hero__search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .hero__search-button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.65rem 1.5rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .hero__search-button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    /* CATEGORIES SECTION */
+
+    .categories {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .categories__title {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-main);
+    }
+
+    .categories__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .category-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .category-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-soft);
+      border-color: var(--accent);
+    }
+
+    .category-card__icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .category-card__name {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      color: var(--text-main);
+    }
+
+    .category-card__count {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .categories__footer {
+      text-align: center;
+      padding-top: 0.5rem;
+    }
+
+    .categories__view-all {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .categories__view-all:hover {
+      text-decoration: underline;
+    }
+
+    /* FEATURED SECTION */
+
+    .featured {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .featured__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .featured__title {
+      margin: 0 0 0.25rem;
+      font-size: 1.5rem;
+      color: var(--text-main);
+    }
+
+    .featured__subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .featured__browse-all {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .featured__browse-all:hover {
+      text-decoration: underline;
+    }
+
+    .featured__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .featured__empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 1rem;
+    }
+
+    .featured__empty-icon {
+      font-size: 4rem;
+      margin: 0 0 1rem;
+      opacity: 0.5;
+    }
+
+    .featured__empty-title {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      color: var(--text-main);
+    }
+
+    .featured__empty-text {
+      margin: 0 0 1.5rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .featured__empty-button {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      border-radius: 9999px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .featured__empty-button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    .featured__footer {
+      text-align: center;
+      padding-top: 1rem;
+    }
+
+    .featured__view-all-button {
+      display: inline-block;
+      padding: 0.75rem 2rem;
+      background: var(--bg-elevated);
+      color: var(--accent);
+      text-decoration: none;
+      border: 2px solid var(--accent);
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .featured__view-all-button:hover {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    /* BUSINESS CARDS */
+
+    .business-card {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.9rem;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .business-card--featured {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--accent-soft) 100%);
+    }
+
+    .business-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .business-card__badge {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: var(--accent);
+      color: white;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .business-card__name {
+      margin: 0;
+      font-size: 1.1rem;
+      line-height: 1.3;
+      padding-right: 4rem;
+    }
+
+    .business-card__link {
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .business-card__link:hover {
+      text-decoration: underline;
+      color: var(--accent-strong);
+    }
+
+    .business-card__quick-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .quick-info-item {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .quick-info-item__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__meta {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .business-card__type {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .business-card__amenities {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+
+    .amenity-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--bg-page);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--text-main);
+    }
+
+    .amenity-tag__icon {
+      font-size: 0.85rem;
+    }
+
+    .business-card__more {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding: 0.25rem 0.5rem;
+    }
+
+    .business-card__action {
+      margin-top: auto;
+      padding-top: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .business-card:hover .business-card__action {
+      opacity: 1;
+    }
+
+    /* RESPONSIVE */
+
+    @media (max-width: 768px) {
+      .hero {
+        padding: 2rem 1.5rem;
+      }
+
+      .hero__title {
+        font-size: 1.5rem;
+      }
+
+      .hero__subtitle {
+        font-size: 0.9rem;
+      }
+
+      .hero__search {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0.75rem;
+        gap: 0.75rem;
+      }
+
+      .hero__search-icon {
+        display: none;
+      }
+
+      .hero__search-button {
+        width: 100%;
+      }
+
+      .search-suggestions {
+        max-height: 300px;
+      }
+
+      .search-suggestions__item {
+        padding: 0.75rem 1.25rem 0.75rem 2.25rem;
+      }
+
+      .categories__grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+
+      .category-card {
+        padding: 1.5rem 1rem;
+      }
+
+      .category-card__icon {
+        font-size: 2.5rem;
+      }
+
+      .featured__header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .featured__browse-all {
+        display: none;
+      }
+
+      .featured__grid {
+        grid-template-columns: 1fr;
+      }
+
+      .featured__title {
+        font-size: 1.25rem;
+      }
+
+      .categories__title {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+
+  <script
+    is:inline
+    define:vars={{
+      searchData: enhanced.map((b) => ({
+        name: b.name,
+        slug: b.slug,
+        type: b.primaryType,
+        neighborhoods: b.neighborhoods || [],
+        cuisines: [
+          ...(b.cuisineTypes || []),
+          ...(b.entertainmentTypes || []),
+          ...(b.artTypes || []),
+        ],
+      })),
+    }}
+  >
+    // Hero search functionality with live suggestions
+    (function () {
+      const heroSearch = document.getElementById("hero-search");
+      const heroButton = document.querySelector(".hero__search-button");
+      const suggestionsEl = document.getElementById("search-suggestions");
+
+      // Data injected from server
+      const businesses = Array.isArray(searchData) ? searchData : [];
+
+      // Build neighborhood & cuisine sets
+      const neighborhoods = new Set();
+      const cuisines = new Set();
+
+      businesses.forEach((b) => {
+        (b.neighborhoods || []).forEach((n) => {
+          if (n && n !== "Location TBD") neighborhoods.add(n);
+        });
+        (b.cuisines || []).forEach((c) => {
+          if (c) cuisines.add(c);
+        });
+      });
+
+      let currentFocusIndex = -1;
+
+      function normalize(str) {
+        return (str || "").toLowerCase().trim();
+      }
+
+      function handleSearch() {
+        if (!heroSearch) return;
+        const query = heroSearch.value.trim();
+        if (query) {
+          window.location.href = `/all?q=${encodeURIComponent(query)}`;
+        } else {
+          window.location.href = "/all";
+        }
+      }
+
+      function highlightMatch(text, query) {
+        if (!text || !query) return text;
+        const lowerText = text.toLowerCase();
+        const lowerQuery = query.toLowerCase();
+        const idx = lowerText.indexOf(lowerQuery);
+        if (idx === -1) return text;
+
+        const before = text.slice(0, idx);
+        const match = text.slice(idx, idx + query.length);
+        const after = text.slice(idx + query.length);
+
+        return (
+          before +
+          '<strong style="font-weight:700;color:var(--accent-strong);">' +
+          match +
+          "</strong>" +
+          after
+        );
+      }
+
+      function showSuggestions(query) {
+        if (!suggestionsEl) return;
+
+        if (!query || query.length < 2) {
+          hideSuggestions();
+          return;
+        }
+
+        const qNorm = normalize(query);
+        currentFocusIndex = -1;
+
+        // Businesses
+        const matchingBusinesses = businesses
+          .filter((b) => normalize(b.name).includes(qNorm))
+          .slice(0, 5);
+
+        // Cuisines
+        const matchingCuisines = Array.from(cuisines)
+          .filter((c) => normalize(c).includes(qNorm))
+          .slice(0, 5);
+
+        // Neighborhoods
+        const matchingNeighborhoods = Array.from(neighborhoods)
+          .filter((n) => normalize(n).includes(qNorm))
+          .slice(0, 5);
+
+        let html = "";
+
+        // Businesses section
+        if (matchingBusinesses.length > 0) {
+  html +=
+    '<div class="search-suggestions__section">' +
+    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
+  
+  matchingBusinesses.forEach((b, index) => {
+    const cuisineText =
+      (b.cuisines || []).slice(0, 2).join(", ") || b.type;
+    const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
+    const highlightedName = highlightMatch(b.name, query);
+    
+    // Reduced padding for last item
+    const spacingStyle = index === matchingBusinesses.length - 1 
+      ? "padding-bottom:0.45rem;" 
+      : "padding-bottom:0.35rem;";
+    
+    html +=
+      `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+      '<div class="search-suggestions__content" style="text-align:left;">' +
+      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
+      `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
+      "</div>" +
+      "</div>";
+  });
+  
+  html += "</div>";
+}
+
+        // Cuisines section
+        // Cuisines section
+if (matchingCuisines.length > 0) {
+  html +=
+    '<div class="search-suggestions__section">' +
+    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
+
+  matchingCuisines.forEach((c, index) => {
+    const itemIndex = matchingBusinesses.length + index;
+    const highlightedCuisine = highlightMatch(c, query);
+    
+    // Add extra padding to the last item
+    const spacingStyle = index === matchingCuisines.length - 1 
+      ? "padding-bottom:0.75rem;" 
+      : "padding-bottom:0.35rem;";
+
+    html +=
+      `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+      '<div class="search-suggestions__content" style="text-align:left;">' +
+      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
+      "</div>" +
+      "</div>";
+  });
+
+  html += "</div>";
+}
+
+        // Neighborhoods section
+        if (matchingNeighborhoods.length > 0) {
+  html +=
+    '<div class="search-suggestions__section">' +
+    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
+  
+  matchingNeighborhoods.forEach((n, index) => {
+    const itemIndex =
+      matchingBusinesses.length + matchingCuisines.length + index;
+    const highlightedNeighborhood = highlightMatch(n, query);
+    
+    // Add extra padding to the last item, less for others
+    const spacingStyle = index === matchingNeighborhoods.length - 1 
+      ? "padding-bottom:0.5rem;" 
+      : "padding-bottom:0.35rem;";
+    
+    html +=
+      `<div class="search-suggestions__item" data-type="neighborhood" data-value="${n}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+      '<div class="search-suggestions__content" style="text-align:left;">' +
+      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedNeighborhood}</div>` +
+      "</div>" +
+      "</div>";
+  });
+  
+  html += "</div>";
+}
+
+        if (!html) {
+          html =
+            '<div class="search-suggestions__empty">No results found</div>';
+        }
+
+        suggestionsEl.innerHTML = html;
+        suggestionsEl.style.display = "block";
+      }
+
+      function hideSuggestions() {
+        if (!suggestionsEl) return;
+        suggestionsEl.style.display = "none";
+        currentFocusIndex = -1;
+      }
+
+      function handleSuggestionClick(item) {
+        if (!item) return;
+
+        const type = item.getAttribute("data-type");
+        const slug = item.getAttribute("data-slug");
+        const value = item.getAttribute("data-value");
+
+        hideSuggestions();
+
+        if (type === "business" && slug) {
+          window.location.href = `/business/${slug}`;
+        } else if (type === "cuisine" && value) {
+          window.location.href = `/all?q=${encodeURIComponent(value)}`;
+        } else if (type === "neighborhood" && value) {
+          const neighborhoodSlug = value.toLowerCase().replace(/\s+/g, "-");
+          window.location.href = `/all?neighborhood=${encodeURIComponent(
+            neighborhoodSlug
+          )}`;
+        } else {
+          window.location.href = "/all";
+        }
+      }
+
+      function navigateSuggestions(direction) {
+        if (!suggestionsEl) return;
+        const items = suggestionsEl.querySelectorAll(
+          ".search-suggestions__item"
+        );
+        if (!items || items.length === 0) return;
+
+        if (currentFocusIndex >= 0 && currentFocusIndex < items.length) {
+          items[currentFocusIndex].classList.remove(
+            "search-suggestions__item--active"
+          );
+        }
+
+        if (direction === "down") {
+          currentFocusIndex = (currentFocusIndex + 1) % items.length;
+        } else {
+          currentFocusIndex =
+            currentFocusIndex <= 0 ? items.length - 1 : currentFocusIndex - 1;
+        }
+
+        const activeItem = items[currentFocusIndex];
+        activeItem.classList.add("search-suggestions__item--active");
+        activeItem.scrollIntoView({ block: "nearest" });
+      }
+
+      function selectCurrentSuggestion() {
+        if (!suggestionsEl) {
+          handleSearch();
+          return;
+        }
+        const items = suggestionsEl.querySelectorAll(
+          ".search-suggestions__item"
+        );
+        if (
+          items &&
+          currentFocusIndex >= 0 &&
+          currentFocusIndex < items.length
+        ) {
+          handleSuggestionClick(items[currentFocusIndex]);
+        } else {
+          handleSearch();
+        }
+      }
+
+      // Wire up events
+      if (heroButton) {
+        heroButton.addEventListener("click", handleSearch);
+      }
+
+      if (heroSearch) {
+        heroSearch.addEventListener("input", (event) => {
+          const query = event.target.value;
+          showSuggestions(query);
+        });
+
+        heroSearch.addEventListener("focus", () => {
+          if (heroSearch.value.length >= 2) {
+            showSuggestions(heroSearch.value);
+          }
+        });
+
+        heroSearch.addEventListener("keydown", (event) => {
+          if (!suggestionsEl) return;
+          const isOpen = suggestionsEl.style.display === "block";
+
+          if (isOpen) {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              navigateSuggestions("down");
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              navigateSuggestions("up");
+              return;
+            }
+            if (event.key === "Enter") {
+              event.preventDefault();
+              selectCurrentSuggestion();
+              return;
+            }
+            if (event.key === "Escape") {
+              hideSuggestions();
+              return;
+            }
+          }
+
+          if (event.key === "Enter") {
+            handleSearch();
+          }
+        });
+      }
+
+      // Delegated click handler - BOTH click and mousedown
+      if (suggestionsEl) {
+        // Primary handler - click
+        suggestionsEl.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const item = target.closest(".search-suggestions__item");
+          if (item) {
+            event.preventDefault();
+            event.stopPropagation();
+            handleSuggestionClick(item);
+          }
+        });
+
+        // Backup handler - mousedown (fires earlier)
+        suggestionsEl.addEventListener("mousedown", (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const item = target.closest(".search-suggestions__item");
+          if (item) {
+            event.preventDefault();
+            // Don't call handleSuggestionClick here to avoid double-firing
+            // Just prevent default to stop any interference
+          }
+        });
+      }
+
+      // Close suggestions when clicking outside
+      document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Node)) return;
+
+        if (
+          suggestionsEl &&
+          heroSearch &&
+          (suggestionsEl.contains(target) || heroSearch.contains(target))
+        ) {
+          return;
+        }
+
+        hideSuggestions();
+      });
+    })();
+  </script>
+</BaseLayout>

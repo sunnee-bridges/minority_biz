@@ -1,0 +1,303 @@
+/* src/styles/global.css */
+
+/* THEME TOKENS */
+:root {
+  color-scheme: light;
+  /* keep page base very light, gradient adds color */
+  --bg-page: #f9fafb;
+  --bg-elevated: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.96);
+  --bg-footer: #ffffff;
+
+  --border-subtle: #e5e7eb;
+  --shadow-soft: 0 10px 25px -20px rgba(0, 0, 0, 0.4);
+
+  --text-main: #0f172a;
+  --text-muted: #6b7280;
+
+  /* 🌸 lavender/purple accents */
+  --accent: #7c3aed;        /* violet-600 */
+  --accent-soft: #ede9fe;   /* violet-100 */
+  --accent-strong: #5b21b6; /* violet-800 */
+
+  --chip-bg: #f9fafb;
+  --chip-border: #e5e7eb;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Keep page dark, but let cards float above it a bit */
+  --bg-page: #020617;      /* very dark slate */
+  --bg-elevated: #020617;  /* slightly lighter navy surface */
+  --bg-header: rgba(15, 23, 42, 0.96);
+  --bg-footer: #020617;
+
+  /* Lighter border so cards and dividers are visible */
+  --border-subtle: #334155; /* slate-700 */
+  --shadow-soft: 0 18px 45px -28px rgba(0, 0, 0, 0.9);
+
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+
+  /* 🌌 indigo/violet accents in dark mode */
+  --accent: #8b5cf6;        /* violet-500 */
+  --accent-soft: #1f2937;   /* slate-800-ish for soft surfaces */
+  --accent-strong: #a855f7; /* violet-500/600 */
+
+  --chip-bg: #020617;
+  --chip-border: #334155;
+}
+
+/* GLOBAL RESET / BASE */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  /* 🎨 light mode background: soft lavender gradients */
+  background:
+    radial-gradient(circle at top left, #ede9fe 0, transparent 60%),
+    radial-gradient(circle at bottom right, #e0e7ff 0, transparent 55%),
+    var(--bg-page);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+[data-theme="dark"] body {
+  /* 🎨 dark mode background: softer violet/indigo glow with more transparency */
+  background:
+    radial-gradient(circle at top left, rgba(129, 140, 248, 0.22) 0, transparent 55%),
+    radial-gradient(circle at bottom right, rgba(76, 81, 191, 0.24) 0, transparent 55%),
+    var(--bg-page);
+}
+
+a {
+  color: inherit;
+}
+
+/* LAYOUT SHELL */
+
+.shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-inline: 1rem;
+}
+
+/* HEADER */
+
+.site-header {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-header);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.65rem;
+}
+
+.site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.site-header__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-soft);
+  font-size: 1rem;
+}
+
+.site-header__title {
+  letter-spacing: 0.02em;
+}
+
+.site-header__nav {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.site-header__link {
+  text-decoration: none;
+  padding: 0.25rem 0.7rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+.site-header__link:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+/* THEME TOGGLE */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.theme-toggle__icon {
+  font-size: 0.9rem;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* MAIN + FOOTER */
+
+.site-main {
+  padding: 1.5rem 0 3rem;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-footer);
+}
+
+.site-footer__inner {
+  padding: 1rem 0 1.5rem;
+}
+
+.site-footer__text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.site-footer__text--small {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+/* REUSABLE UI: CARDS & CHIPS */
+
+.card {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-soft);
+}
+
+.chip {
+  border-radius: 9999px;
+  border: 1px solid var(--chip-border);
+  padding: 0.18rem 0.65rem;
+  background: var(--chip-bg);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.chip--pill {
+  font-weight: 500;
+}
+
+.chip--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* (duplicate footer rules kept for safety; could be deduped) */
+
+.site-footer {
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-footer);
+}
+
+.site-footer__inner {
+  padding: 1rem 0 1.5rem;
+}
+
+.site-footer__text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.site-footer__text--small {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+/* BREADCRUMB */
+
+.breadcrumb {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.breadcrumb__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumb__link {
+  text-decoration: none;
+  color: var(--text-muted);
+}
+
+.breadcrumb__link:hover {
+  text-decoration: underline;
+  color: var(--accent-strong);
+}
+
+.breadcrumb__separator {
+  margin: 0 0.25rem;
+  opacity: 0.6;
+}
+
+.chip--link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chip--link:hover {
+  background: color-mix(in oklab, var(--accent-soft) 70%, var(--chip-bg));
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--chip-border));
+}

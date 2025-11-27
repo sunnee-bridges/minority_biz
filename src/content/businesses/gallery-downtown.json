@@ -1,0 +1,22 @@
+{
+  "name": "Gallery Downtown",
+  "slug": "gallery-downtown",
+  "type": "art",
+  "artTypes": ["Contemporary", "Sculpture", "Photography", "Mixed Media"],
+  "businessCategories": ["Art Gallery", "Event Space"],
+  "neighborhoods": ["Downtown", "RiNo"],
+  "latitude": 39.7575,
+  "longitude": -104.9879,
+  "microfilters": [
+    "Free admission",
+    "Artist talks",
+    "Workshop space",
+    "Wheelchair accessible",
+    "Event hosting",
+    "Private viewings"
+  ],
+  "website": "https://gallerydowntown.example.com",
+  "phone": "303-555-2468",
+  "yearEstablished": 2019,
+  "notes": "Contemporary art gallery featuring local and international artists. Rotating exhibitions every 6-8 weeks with opening receptions, artist talks, and community workshops. Available for private events and corporate art consultations."
+}
