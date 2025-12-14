@@ -1,0 +1,19 @@
+{
+  "name": "Nola Voodoo Tavern",
+  "slug": "nola-voodoo-tavern",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul food", "Southern"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["Cole"],
+  "latitude": 39.76463,
+  "longitude": -104.96039,
+  "microfilters": [
+    "Pool table",
+    "Juke box",
+    "Heated outdoor seating"
+  ],
+  "website": "https://noladenver.com/",
+  "phone": "720-389-9544",
+  "yearEstablished": 2015,
+  "notes": "Nola Voodoo Tavern brings New Orleans-inspired soul food and Southern comfort to Denver’s Cole neighborhood. With a laid-back vibe, pool table, classic jukebox, and heated outdoor seating, it’s a go-to spot for bold flavors, good music, and relaxed hangouts."
+}

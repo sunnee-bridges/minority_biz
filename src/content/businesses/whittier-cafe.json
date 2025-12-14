@@ -1,0 +1,29 @@
+{
+  "name": "Whittier Cafe",
+  "slug": "whittier-cafe",
+  "type": "restaurant",
+  "cuisineTypes": [
+    "Coffee, tea, wine and beer",
+    "African",
+    "Snacks"
+  ],
+  "businessCategories": [
+    "Restaurant"
+  ],
+  "neighborhoods": [
+    "Five Points"
+  ],
+  "latitude": 39.75322,
+  "longitude": -104.96674,
+  "microfilters": [
+    "Outdoor seating",
+    "Dine-in",
+    "Delivery",
+    "Takeout",
+    "Vegetarian options"
+  ],
+  "website": "https://whittiercafe.com/",
+  "phone": "720-550-7440",
+  "yearEstablished": 2014,
+  "notes": "Whittier Cafe is a cozy neighborhood spot in Denver’s Five Points area that blends the feel of a community living room with the flavors of African-inspired coffee and snacks. Guests can sip coffee, tea, wine, or beer on the patio, grab a light bite, or settle in to work or catch up with friends. With vegetarian options and a welcoming atmosphere, it’s a favorite gathering place for locals who want good drinks, simple food, and a strong sense of community."
+}

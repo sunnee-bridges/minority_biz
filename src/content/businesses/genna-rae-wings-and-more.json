@@ -1,0 +1,20 @@
+{
+  "name": "Genna Rae Wings and More",
+  "slug": "genna-rae-wings-and-more",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul Food", "Seafood", "BBQ"],
+  "businessCategories": ["Restaurant"],
+  "neighborhoods": ["Whittier", "Five Points"],
+  "latitude": 39.7561,
+  "longitude": -104.9679,
+  "microfilters": [
+    "Offers catering",
+    "LGBTQ+ friendly",
+    "Wheelchair accessible",
+    "Gender-neutral restrooms"
+  ],
+  "website": "https://gennaraeswings.com/",
+  "phone": "(720) 287-3523",
+  "yearEstablished": 2016,
+  "notes": "Genn opened Genna Rae's Wings and More in 2016 to share his passion for food and hometown cooking with the community. Originally from the Virgin Islands, he came to the United States to pursue a career as an auto mechanic. However, once people began trying his famous fresh-cooked wings, he knew starting his own restaurant was his true calling."
+}

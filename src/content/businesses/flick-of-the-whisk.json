@@ -1,0 +1,17 @@
+{
+  "name": "Flick of the Whisk",
+  "slug": "flick-of-the-whisk",
+  "type": "restaurant",
+  "cuisineTypes": ["Dessert"],
+  "businessCategories": ["Bakery", "Catering"],
+  "neighborhoods": ["Denver"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "LGBTQ+ friendly"
+  ],
+  "website": "https://www.flickofthewhiskcakes.com/",
+  "phone": "(720) 279-4318",
+  "yearEstablished": 2019,
+  "notes": "Flick of the Whisk is a custom cake and dessert bakery offering catering services. They create handcrafted wedding cakes and desserts that elevate amazing creativity for your event. Their mission is twofold: delighting you with stunning cakes, and empowering the next generation of bakers with real-world expertise."
+}

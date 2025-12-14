@@ -1,0 +1,20 @@
+{
+  "name": "Nana's African Market",
+  "slug": "nanas-african-market",
+  "type": "other",
+  "cuisineTypes": ["African"],
+  "businessCategories": ["Other"],
+  "neighborhoods": ["Aurora"],
+  "latitude": 39.6753,
+  "longitude": -104.86888,
+  "microfilters": ["African groceries",
+  "Caribbean groceries",
+  "Imported goods",
+  "Specialty market",
+  "Cultural products",
+  "Fabrics and jewelry"],
+  "website": "https://www.facebook.com/NanasAfricanMarket",
+  "phone": "(303) 755-7985",
+  "yearEstablished": null,
+  "notes": "Nana's African Market is a retail store located in Aurora. Nana's specializes in African and Caribbean foodstuffs and specialty products, including but not limited to fabrics, jewelry, games, and more."
+}

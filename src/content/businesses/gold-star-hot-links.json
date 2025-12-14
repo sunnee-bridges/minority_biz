@@ -1,0 +1,17 @@
+{
+  "name": "Gold Star Hot Links",
+  "slug": "gold-star-hot-links",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul Food"],
+  "businessCategories": ["Food Manufacturer", "Specialty Food"],
+  "neighborhoods": ["Skyland", "Park Hill"],
+  "latitude": 39.7192,
+  "longitude": -104.9402,
+  "microfilters": [
+    "Philanthropic"
+  ],
+  "website": "https://www.goldstarhotlinks.com/",
+  "phone": "720-361-2761",
+  "yearEstablished": 1936,
+  "notes": "A Colorado institution since 1936, Gold Star Hot Links has been serving the community for nearly 90 years. Known as the \"King of Links,\" this family-owned business carries on the tradition of crafting great-tasting sausages that bring smiles and create lasting memories. Gold Star's iconic hot links have become a beloved staple throughout Colorado, bringing authentic soul food flavors to generations of families."
+}

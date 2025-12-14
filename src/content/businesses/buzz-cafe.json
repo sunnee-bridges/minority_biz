@@ -1,0 +1,25 @@
+{
+  "name": "Buzz Cafe",
+  "slug": "buzz-cafe",
+  "type": "restaurant",
+  "cuisineTypes": ["Coffee & Tea", "Breakfast & Brunch", "Dessert"],
+  "businessCategories": ["Restaurant", "Cafe"],
+  "neighborhoods": ["Alamo Placita", "Speer"],
+  "latitude": 39.7258,
+  "longitude": -104.9734,
+  "microfilters": [
+    "Dine-in",
+    "Outdoor seating",
+    "Drive-thru",
+    "Parking available",
+    "Pet-friendly patio",
+    "Offers catering",
+    "Bike parking",
+    "Gender-neutral restrooms",
+    "Wine and beer"
+  ],
+  "website": "https://buzzcafedenver.com/",
+  "phone": "303-831-1077",
+  "yearEstablished": 2003,
+  "notes": "Buzz is a neighborhood cafe that's been serving coffee, tea, wine, breakfast, brunch, and desserts since 2003. Whether you visit the drive-thru or hang out on the patio with your dog, everyone can find a home at Buzz. Owners Haile and Yoko love to share their tastes with customers, and they believe not only in delicious drinks and food, but also fast, friendly service."
+}

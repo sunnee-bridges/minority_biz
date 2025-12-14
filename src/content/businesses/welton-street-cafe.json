@@ -1,0 +1,19 @@
+{
+  "name": "Welton Street Cafe",
+  "slug": "welton-street-cafe",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul food", "Southern", "Caribbean"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["Five Points"],
+  "latitude": 39.75656,
+  "longitude": -104.97574,
+  "microfilters": [
+    "Accepts reservations",
+    "Dine-in",
+    "Takeout"
+  ],
+  "website": "https://weltonstreetcafe.com/",
+  "phone": "(303) 296-6602",
+  "yearEstablished": 1999,
+  "notes": "Welton Street Cafe is a beloved soul food and Caribbean spot in Denver’s historic Five Points neighborhood. Flynn and Mona Dickerson moved from the Virgin Islands to Colorado in the 1970s and set out to bring a taste of home to the community. Since opening in 1999, their island-inspired Southern dishes have made the cafe a true neighborhood staple and one of the last of its kind in the area. In 2024, after years of patience, construction, and community support, Welton Street Cafe reopened at a new Welton Street location — continuing its legacy as a welcoming, family-run gathering place for great food and community."
+}

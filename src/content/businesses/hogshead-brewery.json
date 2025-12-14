@@ -1,0 +1,19 @@
+{
+  "name": "Hogshead Brewery",
+  "slug": "hogshead-brewery",
+  "type": "restaurant",
+  "cuisineTypes": ["American", "Pub Food"],
+  "businessCategories": ["Restaurant", "Brewery"],
+  "neighborhoods": ["Sloan's Lake", "Edgewater"],
+  "latitude": 39.7549,
+  "longitude": -105.0456,
+  "microfilters": [
+    "Delivery",
+    "Outdoor seating",
+    "Wine and beer"
+  ],
+  "website": "https://hogshead54.com/",
+  "phone": "(303) 396-4240",
+  "yearEstablished": null,
+  "notes": "Neighborhood brewery specializing in English-style cask ales and West Coast IPAs. Known for their four flagship beers: Chin Wag ESB, a dangerously quaffable session beer perfect for conversation; Gilpin Black Gold, a dark and beautiful London Porter with notes of dark cocoa, coffee, and dark fruits; Lake Lightning, a clean English Pale Ale with biscuity malts and herbal hops that can go in all sorts of directions on cask; and Hog Wild, a bold West Coast IPA that makes Colorado proud. Each beer is crafted with care, offering everything from creamy porters to hop-forward IPAs."
+}

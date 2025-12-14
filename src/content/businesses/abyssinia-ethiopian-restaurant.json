@@ -1,0 +1,19 @@
+{
+  "name": "Abyssinia Ethiopian Restaurant",
+  "slug": "abyssinia-ethiopian-restaurant",
+  "type": "restaurant",
+  "cuisineTypes": ["African", "Vegetarian"],
+  "businessCategories": ["Restaurant"],
+  "neighborhoods": ["Park Hill"],
+  "latitude": 39.7402,
+  "longitude": -104.9015,
+  "microfilters": [
+    "Vegan options",
+    "Offers catering",
+    "Street parking"
+  ],
+  "website": "https://www.facebook.com/injera303/",
+  "phone": "(303) 316-8830",
+  "yearEstablished": null,
+  "notes": "Abyssinia Ethiopian Restaurant and Bar serves classic Ethiopian and East African dishes in a warm, relaxed setting. Guests love the rich flavors, especially the lamb plates, veggie sampler, and big combo platters that let you try a bit of everything. The team is often praised for being welcoming, attentive, and genuinely friendly, which makes the whole experience feel extra special."
+}

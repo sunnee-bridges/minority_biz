@@ -1,0 +1,32 @@
+{
+  "name": "TeaLee's Tea House",
+  "slug": "tea-lees-tea-house",
+  "type": "restaurant",
+  "cuisineTypes": [
+    "Coffee, tea, wine and beer",
+    "American",
+    "Breakfast/Brunch"
+  ],
+  "businessCategories": [
+    "Restaurant"
+  ],
+  "neighborhoods": [
+    "Five Points"
+  ],
+  "latitude": 39.75034,
+  "longitude": -104.98437,
+  "microfilters": [
+    "Dine-in",
+    "Delivery",
+    "Takeout",
+    "Gender-neutral restroom",
+    "Wheelchair accessible entrance",
+    "Wheelchair accessible parking lot",
+    "Wheelchair accessible restroom",
+    "Wheelchair accessible seating"
+  ],
+  "website": "https://www.tealeesdenverteahouse.com/",
+  "phone": "303-593-2013",
+  "yearEstablished": null,
+  "notes": "TeaLee's Tea House is a cozy neighborhood spot in Five Points. The shop feels like a welcoming living room for the neighborhood, offering a thoughtful menu of black, white, and green teas along with coffee, light American fare, and brunch-style bites. Guests can settle in for a quiet cup, meet friends, or simply enjoy the energy of one of Denver’s historic Black neighborhoods.TeaLee’s is designed to be a warm, inclusive space for everyone."
+}

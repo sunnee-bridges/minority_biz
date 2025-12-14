@@ -1,0 +1,17 @@
+{
+  "name": "Toby's New Orleans Po'boys",
+  "slug": "tobys-new-orleans-po-boys",
+  "type": "food truck",
+  "cuisineTypes": ["Southern", "Soul food"],
+  "businessCategories": ["Food Truck", "Catering"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "Takeout"
+  ],
+  "website": "https://www.instagram.com/tobyspoboys/",
+  "phone": "(720) 236-0146",
+  "yearEstablished": null,
+  "notes": "Toby's New Orleans Po'boys is a mobile food truck serving up Southern and soul food classics with a New Orleans twist. Known for generous portions and bold flavors, Toby's brings po'boys and other comfort dishes to different spots around the Denver area. Follow their Instagram to find the truck’s current location and daily offerings."
+}

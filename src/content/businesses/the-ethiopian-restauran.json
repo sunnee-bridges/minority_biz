@@ -1,0 +1,28 @@
+{
+  "name": "The Ethiopian Restaurant",
+  "slug": "the-ethiopian-restaurant",
+  "type": "restaurant",
+  "cuisineTypes": [
+    "African"
+  ],
+  "businessCategories": [
+    "Restaurant"
+  ],
+  "neighborhoods": [
+    "City Park"
+  ],
+  "latitude": 39.73997,
+  "longitude": -104.9536,
+  "microfilters": [
+    "Dine-in",
+    "Halal food",
+    "Hard liquor",
+    "Vegan options",
+    "Vegetarian options",
+    "Wine"
+  ],
+  "website": "https://www.facebook.com/TheEthiopianRestaurant/?_rdr",
+  "phone": "(303) 322-5939",
+  "yearEstablished": 1985,
+  "notes": "The Ethiopian Restaurant in Denver's City Park has been serving traditional East African flavors since 1985. Guests can enjoy classic dishes built around spongy injera bread, perfect for scooping up richly spiced stews and vegetable plates. With vegan and vegetarian options, halal choices, and a full bar that includes wine and spirits, it’s a cozy spot for anyone looking to experience authentic Ethiopian cooking in a relaxed, welcoming setting."
+}

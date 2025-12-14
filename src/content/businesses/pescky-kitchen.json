@@ -1,0 +1,20 @@
+{
+  "name": "Pescky Kitchen",
+  "slug": "pescky-kitchen",
+  "type": "catering",
+  "cuisineTypes": ["Soul food", "Vegetarian"],
+  "businessCategories": ["Catering"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "100% vegan",
+    "All-natural ingredients",
+    "Plant-based soul food",
+    "Handmade dishes"
+  ],
+  "website": "https://pesckykitchen.com/",
+  "phone": "",
+  "yearEstablished": null,
+  "notes": "Pescky Kitchen creates bold, plant-based soul food that proves you don’t need meat to enjoy rich, satisfying flavors. Their mission is to show non-vegans that there are vibrant, nutrient-dense options that feel indulgent and exciting. Every dish is handmade with all-natural, fully vegan ingredients, offering a memorable and thoughtful culinary experience."
+}

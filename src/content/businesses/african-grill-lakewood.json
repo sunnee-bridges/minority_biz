@@ -1,0 +1,20 @@
+{
+  "name": "African Grill Lakewood",
+  "slug": "african-grill-lakewood",
+  "type": "restaurant",
+  "cuisineTypes": ["African", "Vegetarian"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["Lakewood"],
+  "latitude": 39.7013,
+  "longitude": -105.1026,
+  "microfilters": [
+    "Live entertainment",
+    "Outdoor seating",
+    "Vegan options",
+    "Wine and beer"
+  ],
+  "website": "https://africangrilllakewood.com/",
+  "phone": "(303) 985-4497",
+  "yearEstablished": 2004,
+  "notes": "AKWAABA is how African Grill welcomes you to their family restaurant in their native Akan dialect. Since 2004, they have served Colorado with real authentic food, beers, root drinks, bitters, wine, good African music and amazing African drummers and dancers. They specialize in many popular cuisines, such as South African chakalaka and pap, East African samosa and chapati, North African couscous, West African fufu and jollof, and Central African dishes."
+}

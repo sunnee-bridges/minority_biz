@@ -1,0 +1,26 @@
+{
+  "name": "Reggae Pot Jamaican Kitchen",
+  "slug": "reggae-pot-jamaican-kitchen",
+  "type": "restaurant",
+  "cuisineTypes": ["Caribbean"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["Goldsmith", "Aurora"],
+  "latitude": 39.57895,
+  "longitude": -104.9594,
+  "microfilters": [
+    "Family-friendly",
+    "Groups welcome",
+    "LGBTQ+ friendly",
+    "Tourists",
+    "Transgender safespace",
+    "Quick bite",
+    "Small plates",
+    "Vegan options",
+    "Vegetarian options",
+    "Wheelchair accessible restroom"
+  ],
+  "website": "https://reggaepotjamaicangrill.com/order/",
+  "phone": "(303) 997-5623",
+  "yearEstablished": null,
+  "notes": "Reggae Pot Jamaican Kitchen is led by owner and head chef Tamara Nisbeth, who brings the flavors of her hometown Montego Bay, Jamaica, to Colorado. Drawing on a family tradition of great cooks, Tamara focuses on quality and flavor in every dish. She uses traditional Jamaican cooking methods, fresh spices, and carefully sourced produce to serve authentic, comforting Caribbean meals in a warm and welcoming setting."
+}

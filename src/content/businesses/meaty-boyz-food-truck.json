@@ -1,0 +1,19 @@
+{
+  "name": "Meaty Boyz Food Truck",
+  "slug": "meaty-boyz-food-truck",
+  "type": "food truck",
+  "cuisineTypes": ["Soul Food", "BBQ"],
+  "businessCategories": ["Food Truck", "Catering"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "Curbside pickup",
+    "Takeout",
+    "Dietary/allergy friendly"
+  ],
+  "website": "https://www.facebook.com/profile.php?id=61553366735066",
+  "phone": "(720) 372-3756",
+  "yearEstablished": null,
+  "notes": "Meaty Boyz is a mobile soul food and BBQ food truck serving the Denver area. They specialize in catering and curbside pickup with accommodations for dietary restrictions and allergies."
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Sweet Sweetz Ice Cream",
+  "slug": "sweet-sweetz-ice-cream",
+  "type": "restaurant",
+  "cuisineTypes": ["Dessert"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["Skyland"],
+  "latitude": 39.75697,
+  "longitude": -104.95909,
+  "microfilters": [
+    "Dine-in",
+    "Philanthropic",
+    "Free parking",
+    "wheelchair accessible"
+  ],
+  "website": "https://www.sweetsweetz.com/",
+  "phone": "(720) 949-1896",
+  "yearEstablished": 2017,
+  "notes": "Sweet Sweetz Ice Cream is a family-run dessert shop led by Lodene Turner and her daughters, Erin and Jamie. This spot scoops up a wide range of Blue Bell ice cream flavors alongside house-made treats like chocolate-covered pretzels, fruit pies, and cobblers. Beyond dessert, Sweet Sweetz creates a warm, positive place for kids, families, and neighbors to gather. The shop itself is a true passion project for Lodene, whose childhood nickname, “Sweet Sweetz,” inspired the name."
+}

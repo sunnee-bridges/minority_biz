@@ -1,0 +1,33 @@
+{
+  "name": "The Blazing Chicken Shack II",
+  "slug": "the-blazing-chicken-shack-ii",
+  "type": "restaurant",
+  "cuisineTypes": [
+    "Soul food",
+    "American",
+    "Southern"
+  ],
+  "businessCategories": [
+    "Restaurant",
+    "Catering"
+  ],
+  "neighborhoods": [
+    "Park Hill"
+  ],
+  "latitude": 39.7638,
+  "longitude": -104.92275,
+  "microfilters": [
+    "Dine-in",
+    "Delivery",
+    "Takeout",
+    "Halal food",
+    "Happy hour drinks",
+    "Family-friendly",
+    "LGBTQ+ friendly",
+    "Transgender safespace"
+  ],
+  "website": "https://blazingchickenshackii.com/",
+  "phone": "720-596-4501",
+  "yearEstablished": 2017,
+  "notes": "The Blazing Chicken Shack II is a Park Hill favorite for real-deal soul food. Rooted in Mississippi traditions, the menu leans into comfort classics like catfish, oxtails, fried chicken, and pork chops, plus Southern sides such as macaroni and cheese, collard greens, and yams. It’s the kind of spot that feels like a family kitchen — warm, welcoming, and full of flavor.The Blazing Chicken Shack II brings the taste and spirit of home cooking to Denver."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Kabod Coffee",
+  "slug": "kabod-coffee",
+  "type": "restaurant",
+  "cuisineTypes": ["Coffee & Tea", "African"],
+  "businessCategories": ["Cafe", "Coffee Roaster"],
+  "neighborhoods": ["DIA"],
+  "latitude": 39.8561,
+  "longitude": -104.6737,
+  "microfilters": [
+    "Wine and beer"
+  ],
+  "website": "https://kabodcoffee.com/",
+  "phone": "(303) 342-6344",
+  "yearEstablished": null,
+  "notes": "Kabod is an Ethiopian specialty coffee roaster located at Concourse B of Denver International Airport. Every cup begins on small, family-owned farms in the heart of Ethiopia - the birthplace of coffee. Kabod sources only 100% organic, single-source beans, with each harvest coming from one distinct region and never blended with coffee from other farms. From selecting sun-dried green coffee beans to careful local roasting, every step honors a true farm-to-cup experience, delivering unparalleled freshness, authenticity, and a taste that tells the story of its origin."
+}

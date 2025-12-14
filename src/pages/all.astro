@@ -19,6 +19,23 @@ const neighborhoodFromUrl = (params.get("neighborhood") || "").toLowerCase();
 const sortFromUrl = params.get("sort") || "az";
 const qFromUrl = params.get("q") || "";
 
+
+
+//remove when have more than restaurant categories -- REMOVE
+const restaurantBusinesses = enhanced.filter(
+  (b) => (b.primaryType || "").toLowerCase() === "restaurant"
+); 
+
+const allTypes = Array.from(
+  new Set(restaurantBusinesses.map((b) => b.primaryType))
+).sort();
+
+const allNeighborhoods = Array.from(
+  new Set(restaurantBusinesses.flatMap((b) => b.neighborhoods || []))
+).sort();
+
+/*
+ remove comment to display all businesses
 const allTypes = Array.from(
   new Set(enhanced.map((b) => b.primaryType))
 ).sort();
@@ -26,6 +43,9 @@ const allTypes = Array.from(
 const allNeighborhoods = Array.from(
   new Set(enhanced.flatMap((b) => b.neighborhoods || []))
 ).sort();
+
+*/
+
 
 // Collect BOTH cuisineTypes and entertainmentTypes and artTypes
 const allCuisines = Array.from(
@@ -102,9 +122,10 @@ function getAmenityIcon(tag: string): string {
       </h1>
 
       <!-- Quick stats -->
+      <!-- changed enhanced.length to restauranntBusinesses -->
       <div class="directory__stats">
         <span class="stat">
-          <strong>{enhanced.length}</strong> businesses
+          <strong>{restaurantBusinesses.length}</strong> businesses
         </span>
         <span class="stat-separator">·</span>
         <span class="stat">
@@ -308,9 +329,10 @@ function getAmenityIcon(tag: string): string {
     </div>
 
     <!-- RESULTS -->
+    <!-- was Showing enhanced.length place enhanced.length but only display restaurant -->
     <section aria-label="Business results" class="directory__results">
       <p id="results-count" class="directory__results-count">
-        Showing {enhanced.length} place{enhanced.length === 1 ? "" : "s"}
+        Showing {restaurantBusinesses.length} place{restaurantBusinesses.length === 1 ? "" : "s"}
       </p>
 
       <!-- Empty state (hidden by default) -->
@@ -325,8 +347,9 @@ function getAmenityIcon(tag: string): string {
         </button>
       </div>
 
+      <!-- was enhanced.map to -->
       <div id="results-grid" class="directory__grid">
-        {enhanced.map((b) => {
+        {restaurantBusinesses.map((b) => {
           const type = b.primaryType;
           const name = b.name || "";
           const cuisines = b.cuisineTypes || [];

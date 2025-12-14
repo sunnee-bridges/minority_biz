@@ -1,0 +1,1220 @@
+---
+import BaseLayout from "../../layouts/Base.astro";
+import { businesses } from "../../lib/businesses";
+
+// Helper functions for use in the template (NOT in getStaticPaths)
+const titleCase = (str: string): string => {
+  return String(str || "")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
+const getAmenityIcon = (tag: string): string => {
+  const icons: Record<string, string> = {
+    takeout: "🥡",
+    "dine-in": "🍽️",
+    "outdoor seating": "🌳",
+    delivery: "🚚",
+    "vegan options": "🌱",
+    "live entertainment": "🎵",
+    "lgbtq+ friendly": "🏳️‍🌈",
+    "wine and beer": "🍷",
+    "parking available": "🅿️",
+    "pet-friendly patio": "🐾",
+    "live music": "🎸",
+    "free admission": "🎟️",
+    "artist talks": "🎨",
+    "workshop space": "🛠️",
+  };
+  return icons[tag.toLowerCase()] || "✓";
+};
+
+export function getStaticPaths() {
+  // Define slugify INSIDE getStaticPaths where it's used
+  function slugify(str: string): string {
+    return String(str || "")
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  const names = Array.from(
+    new Set(
+      businesses.flatMap((b) => (Array.isArray(b.neighborhoods) ? b.neighborhoods : []))
+    )
+  )
+    .filter(Boolean)
+    .map((n) => String(n).trim())
+    .filter(Boolean);
+
+  const slugToNeighborhood = new Map<string, string>();
+  for (const name of names) {
+    const s = slugify(name);
+    if (s && !slugToNeighborhood.has(s)) slugToNeighborhood.set(s, name);
+  }
+
+  return Array.from(slugToNeighborhood.entries()).map(([slug, name]) => ({
+    params: { slug },
+    props: { neighborhoodName: name },
+  }));
+}
+
+const { slug } = Astro.params;
+const { neighborhoodName } = Astro.props as { neighborhoodName: string };
+
+const isMobile =
+  slug === "mobile" || String(neighborhoodName || "").toLowerCase() === "mobile";
+
+// Enhance businesses with primaryType (same logic as your type page)
+const enhanced = businesses.map((b) => ({
+  ...b,
+  primaryType:
+    b.type || (Array.isArray(b.businessCategories) && b.businessCategories[0]) || "Other",
+}));
+
+// Filter businesses for this neighborhood
+let filtered = enhanced.filter(
+  (b) => Array.isArray(b.neighborhoods) && b.neighborhoods.includes(neighborhoodName)
+);
+
+// ✅ TEMP: restaurants only
+filtered = filtered.filter((b) => String(b.primaryType).toLowerCase() === "restaurant");
+const displayNeighborhood = isMobile ? "Mobile" : titleCase(neighborhoodName);
+
+// Filter lists from this neighborhood only
+const primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.cuisineTypes || []))).sort();
+
+const allMicrofilters = Array.from(new Set(filtered.flatMap((b) => b.microfilters || []))).sort();
+
+const locationsForMap = filtered
+  .filter((b) => b.latitude && b.longitude)
+  .map((b) => ({
+    slug: b.slug,
+    name: b.name,
+    lat: b.latitude,
+    lng: b.longitude,
+    neighborhoods: b.neighborhoods || [],
+    type: b.primaryType,
+  }));
+
+const title = isMobile
+  ? "Mobile & Pop-Up Black-Owned Businesses • Denver Black Guide"
+  : `Black-Owned Businesses in ${displayNeighborhood} • Denver Black Guide`;
+
+const description = isMobile
+  ? "Browse mobile and pop-up Black-owned businesses serving the Denver metro area."
+  : `Explore Black-owned businesses in ${displayNeighborhood}, Denver. Filter by cuisine and amenities.`;
+
+const searchPlaceholder = isMobile ? "Try: soul food, BBQ, catering" : `Try: brunch, coffee, ${displayNeighborhood}`;
+---
+
+
+<BaseLayout {title} {description}>
+  <div class="directory">
+    <!-- Breadcrumb -->
+    <nav aria-label="Breadcrumb" class="directory__breadcrumb">
+      <a href="/" class="directory__breadcrumb-link">Home</a>
+      <span aria-hidden="true">/</span>
+      <span class="directory__breadcrumb-current">
+        {isMobile ? "Mobile" : displayNeighborhood}
+      </span>
+    </nav>
+
+    <header class="directory__head">
+      <h1 class="directory__title">
+        {isMobile ? "Mobile & Pop-Up Businesses" : `Businesses in ${displayNeighborhood}`}
+      </h1>
+
+      <p class="directory__subtitle">
+        {isMobile
+          ? "These businesses may not have one fixed neighborhood. Check each listing for current locations and scheduling."
+          : `Explore businesses listed in ${displayNeighborhood} — filter by cuisine and amenities.`}
+      </p>
+    </header>
+
+    <!-- FILTERS (same feel; no neighborhood dropdown because this page IS the neighborhood) -->
+    <section class="filter-panel" id="filters" aria-label="Neighborhood filters" data-collapsed="true">
+      <button class="filter-panel__toggle" id="filter-toggle" type="button">
+        <span id="filter-toggle-text">Show Filters</span>
+        <span class="filter-badge" id="filter-count">0</span>
+        <span class="filter-toggle__icon">▼</span>
+      </button>
+
+      <div class="filter-panel__content">
+        <div class="filter-row filter-row--top">
+          <div class="filter-search-wrap">
+            <label for="search" class="filter-label">Search</label>
+            <div class="filter-search">
+              <svg class="filter-search__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input
+                id="search"
+                name="directory-search"
+                type="search"
+                class="filter-search__input"
+                placeholder={searchPlaceholder}
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+              <button type="button" id="search-clear" class="filter-search__clear" aria-label="Clear search">✕</button>
+            </div>
+          </div>
+
+          <div class="filter-sort-wrap">
+            <label for="sort" class="filter-label">Sort by</label>
+            <select id="sort" class="filter-sort">
+              <option value="az">A–Z (Name)</option>
+              <option value="type">Type</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-dropdowns">
+          {primaryTypes.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="primary-select" class="filter-label">Cuisine / Type</label>
+              <select id="primary-select" class="filter-select" multiple size="4">
+                {primaryTypes.map((c) => (
+                  <option value={c.toLowerCase()}>{c}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+          )}
+
+          {allMicrofilters.length > 0 && (
+            <div class="filter-dropdown">
+              <label for="amenities-select" class="filter-label">Amenities &amp; Options</label>
+              <select id="amenities-select" class="filter-select" multiple size="4">
+                {allMicrofilters.map((m) => (
+                  <option value={m.toLowerCase()}>{m}</option>
+                ))}
+              </select>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+          )}
+        </div>
+
+        <div class="filter-row filter-row--actions">
+          <button type="button" id="reset-all-filters" class="btn-reset-all">Clear all filters</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="active-filters-summary" class="active-filters" style="display: none;">
+      <span class="active-filters__label">Active:</span>
+      <div id="active-filters-list" class="active-filters__list"></div>
+    </div>
+
+    <button class="map-toggle" id="map-toggle" type="button">
+      <span id="map-toggle-text">📍 Show Map</span>
+    </button>
+
+    <div class="split-container" id="split-container">
+      <section class="map-section" id="map-section" aria-label="Map view">
+        <div id="map" class="map-view"></div>
+        <div class="map-overlay">
+          <p class="map-overlay__text">
+            <span id="map-marker-count">{locationsForMap.length}</span> locations
+          </p>
+        </div>
+      </section>
+
+      <section aria-label="Results" class="directory__results">
+        <p id="results-count" class="directory__results-count">
+          Showing {filtered.length} place{filtered.length === 1 ? "" : "s"}
+        </p>
+
+        <div id="empty-state" class="empty-state" style="display: {filtered.length ? "none" : "block"};">
+          <div class="empty-state__icon">🔍</div>
+          <h3 class="empty-state__title">No businesses found</h3>
+          <p class="empty-state__message">Try adjusting your filters or search terms</p>
+          <button id="reset-from-empty" class="empty-state__button">Clear all filters</button>
+        </div>
+
+        <div id="results-grid" class="directory__grid" style="display: {filtered.length ? "" : "none"};">
+          {filtered.map((b) => {
+            const name = b.name || "";
+            const neighborhoods = b.neighborhoods || [];
+            const microfilters = b.microfilters || [];
+            const cuisines = b.cuisineTypes || [];
+
+            return (
+              <a
+                href={`/business/${b.slug}/`}
+                class="business-card-link"
+                data-slug={b.slug}
+                data-name={name.toLowerCase()}
+                data-primary-types={cuisines.join("|").toLowerCase()}
+                data-microfilters={microfilters.join("|").toLowerCase()}
+                data-type={(b.primaryType || "").toLowerCase()}
+                data-lat={b.latitude}
+                data-lng={b.longitude}
+              >
+                <article class="card business-card">
+                  <h2 class="business-card__name">{name}</h2>
+
+                  <div class="business-card__quick-info">
+                    <span class="quick-info-item">
+                      <span class="quick-info-item__icon">📍</span>
+                      {neighborhoods.length > 0
+                          ? neighborhoods.join(", ")
+                          : (isMobile ? "Mobile" : "Location TBD")}
+                    </span>
+                    {b.yearEstablished && (
+                      <span class="quick-info-item">
+                        <span class="quick-info-item__icon">📅</span>
+                        Est. {b.yearEstablished}
+                      </span>
+                    )}
+                  </div>
+
+                  <p class="business-card__meta">
+                    {cuisines.length > 0 ? (
+                      <>
+                        <span class="business-card__type">Cuisine:</span>{" "}
+                        <span>{cuisines.join(", ")}</span>
+                      </>
+                    ) : (
+                      <span class="business-card__type">{b.primaryType}</span>
+                    )}
+                  </p>
+
+                  {microfilters.length > 0 && (
+                    <div class="business-card__amenities">
+                      {microfilters.slice(0, 3).map((tag) => (
+                        <span class="amenity-tag" title={tag}>
+                          <span class="amenity-tag__icon">{getAmenityIcon(tag)}</span>
+                          <span class="amenity-tag__label">{tag}</span>
+                        </span>
+                      ))}
+                      {microfilters.length > 3 && (
+                        <span class="business-card__more">+{microfilters.length - 3} more</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div class="business-card__action">View Details →</div>
+                </article>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ✅ Reuse your SAME CSS by copying the directory CSS blocks from /type/[type].astro -->
+  <style>
+  /* ---------- Layout container ---------- */
+  .directory {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  /* ---------- Breadcrumb ---------- */
+  .directory__breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .directory__breadcrumb-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .directory__breadcrumb-link:hover {
+    color: var(--accent-strong);
+    text-decoration: underline;
+  }
+
+  .directory__breadcrumb-current {
+    color: var(--text-main);
+    font-weight: 600;
+  }
+
+  /* ---------- Header ---------- */
+  .directory__head {
+    margin-bottom: 1.25rem;
+  }
+
+  .directory__title {
+    margin: 0 0 0.35rem;
+    font-size: 2rem;
+    line-height: 1.15;
+    color: var(--text-main);
+  }
+
+  .directory__subtitle {
+    margin: 0;
+    max-width: 70ch;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-size: 0.98rem;
+  }
+
+  /* ---------- Filter panel ---------- */
+  .filter-panel {
+    margin-top: 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.75rem;
+    background: var(--bg-elevated);
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .filter-panel__toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .filter-toggle__icon {
+    transition: transform 0.2s;
+    opacity: 0.75;
+  }
+
+  .filter-badge {
+    display: none;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 0.4rem;
+  }
+
+  .filter-panel__content {
+    padding: 1rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .filter-row--top {
+    justify-content: space-between;
+  }
+
+  .filter-search-wrap {
+    flex: 1 1 360px;
+    min-width: 260px;
+  }
+
+  .filter-sort-wrap {
+    flex: 0 0 220px;
+    min-width: 200px;
+  }
+
+  .filter-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .filter-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .filter-search__icon {
+    position: absolute;
+    left: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .filter-search__input {
+    width: 100%;
+    padding: 0.8rem 2.5rem 0.8rem 2.4rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.65rem;
+    background: var(--bg);
+    color: var(--text-main);
+    outline: none;
+  }
+
+  .filter-search__input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .filter-search__clear {
+    position: absolute;
+    right: 0.5rem;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+    color: var(--text-muted);
+    display: none;
+  }
+
+  .filter-search__clear.is-visible {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .filter-search__clear:hover {
+    background: var(--bg-elevated);
+    color: var(--text-main);
+  }
+
+  .filter-sort {
+    width: 100%;
+    padding: 0.8rem 0.75rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.65rem;
+    background: var(--bg);
+    color: var(--text-main);
+  }
+
+  .filter-dropdowns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .filter-dropdown {
+    border: 1px solid var(--border-subtle);
+    background: var(--bg);
+    border-radius: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .filter-select {
+    width: 100%;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.6rem;
+    padding: 0.4rem;
+    background: var(--bg);
+    color: var(--text-main);
+  }
+
+  .filter-dropdown__hint {
+    margin: 0.4rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .filter-row--actions {
+    margin-top: 0.85rem;
+    justify-content: flex-end;
+  }
+
+  .btn-reset-all {
+    border: 1px solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-main);
+    border-radius: 0.65rem;
+    padding: 0.65rem 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .btn-reset-all:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* Collapse behavior */
+  .filter-panel[data-collapsed="true"] .filter-panel__content {
+    display: none;
+  }
+  .filter-panel[data-collapsed="true"] .filter-toggle__icon {
+    transform: rotate(0deg);
+  }
+  .filter-panel[data-collapsed="false"] .filter-toggle__icon {
+    transform: rotate(180deg);
+  }
+
+  /* ---------- Active filters ---------- */
+  .active-filters {
+    margin-top: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+  }
+
+  .active-filters__label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .active-filters__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .active-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    color: var(--text-main);
+    border-radius: 999px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .active-filter-pill__remove {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    color: var(--text-muted);
+  }
+
+  .active-filter-pill__remove:hover {
+    color: var(--accent-strong);
+  }
+
+  /* ---------- Map toggle ---------- */
+  .map-toggle {
+    margin-top: 1rem;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    color: var(--text-main);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 700;
+    width: 100%;
+    display: none; /* shown on mobile */
+  }
+
+  .map-toggle:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* ---------- Split layout ---------- */
+  .split-container {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: start;
+  }
+
+  .map-section {
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.9rem;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-soft);
+    position: sticky;
+    top: 1rem;
+    height: calc(100vh - 2rem);
+  }
+
+  .map-view {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+  }
+
+  .map-overlay {
+    position: absolute;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    pointer-events: none;
+  }
+
+  .map-overlay__text {
+    margin: 0;
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    padding: 0.35rem 0.6rem;
+    width: fit-content;
+  }
+
+  /* ✅ Marker pulse animation (same idea as /type page) */
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 0 rgba(0,0,0,0);
+  }
+  50% {
+    /* If you have --accent-rgb globally, swap this line for the commented one below */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 10px rgba(0,0,0,0.12);
+    /* box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 8px rgba(var(--accent-rgb), 0.3); */
+  }
+}
+
+
+  /* ---------- Results ---------- */
+  .directory__results {
+    min-width: 0;
+  }
+
+  .directory__results-count {
+    margin: 0.5rem 0 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .directory__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .business-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .card.business-card {
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.9rem;
+    background: var(--bg-elevated);
+    box-shadow: var(--shadow-soft);
+    padding: 1rem 1rem 0.9rem;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    height: 100%;
+  }
+
+  .business-card-link:hover .card.business-card {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .business-card__name {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    line-height: 1.25;
+    color: var(--text-main);
+  }
+
+  .business-card__quick-info {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.45rem;
+  }
+
+  .quick-info-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .quick-info-item__icon {
+    font-size: 0.95rem;
+  }
+
+  .business-card__meta {
+    margin: 0.35rem 0 0.65rem;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  .business-card__type {
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .business-card__amenities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .amenity-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.82rem;
+    color: var(--text-main);
+  }
+
+  .amenity-tag__icon {
+    font-size: 0.95rem;
+  }
+
+  .business-card__more {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 0.2rem 0.25rem;
+  }
+
+  .business-card__action {
+    margin-top: 0.85rem;
+    font-weight: 700;
+    color: var(--accent-strong);
+  }
+
+  /* ---------- Empty state ---------- */
+  .empty-state {
+    border: 1px dashed var(--border-subtle);
+    border-radius: 1rem;
+    padding: 2rem 1.25rem;
+    text-align: center;
+    background: var(--bg-elevated);
+  }
+
+  .empty-state__icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state__title {
+    margin: 0 0 0.25rem;
+    color: var(--text-main);
+  }
+
+  .empty-state__message {
+    margin: 0 0 1rem;
+    color: var(--text-muted);
+  }
+
+  .empty-state__button {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: white;
+    border-radius: 0.75rem;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .empty-state__button:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px) {
+    .split-container {
+      grid-template-columns: 360px 1fr;
+    }
+    .directory__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .split-container {
+      grid-template-columns: 1fr;
+    }
+
+    .map-section {
+      position: relative;
+      top: auto;
+      height: 360px;
+      display: none;
+    }
+
+    .map-section.is-visible {
+      display: block;
+    }
+
+    .map-toggle {
+      display: inline-flex;
+      justify-content: center;
+    }
+
+    .directory__title {
+      font-size: 1.6rem;
+    }
+
+    .filter-dropdowns {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+
+  <script is:inline define:vars={{ mapLocations: locationsForMap }}>
+    window.addEventListener("load", function () {
+      if (typeof window.L === "undefined") return;
+
+      const markerCountEl = document.getElementById("map-marker-count");
+      const mapSection = document.getElementById("map-section");
+      const mapToggle = document.getElementById("map-toggle");
+      const mapToggleText = document.getElementById("map-toggle-text");
+
+      const map = window.L.map("map").setView([39.7392, -104.9903], 12);
+      window.L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        { maxZoom: 19 }
+      ).addTo(map);
+
+      const customIcon = window.L.divIcon({
+        className: "custom-marker",
+        html: '<div style="background: var(--accent); width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+
+      const markers = {};
+      const markerGroup = window.L.featureGroup().addTo(map);
+
+      (mapLocations || []).forEach((location) => {
+        if (!location.lat || !location.lng) return;
+        const marker = window.L.marker([location.lat, location.lng], { icon: customIcon }).addTo(markerGroup);
+
+        marker.bindPopup(`
+          <div style="padding: 0.5rem;">
+            <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
+              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
+                ${location.name}
+              </a>
+            </h3>
+            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
+              ${
+                (location.neighborhoods && location.neighborhoods.length > 0)
+                  ? location.neighborhoods.join(", ")
+                  : "Denver"
+              }
+            </p>
+          </div>
+        `);
+
+        markers[location.slug] = marker;
+      });
+
+      if (markerGroup.getBounds().isValid()) {
+        map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+      }
+
+      // ✅ Card hover → pulse matching map pin (drop-in)
+function setMarkerPulse(slug, on) {
+  const marker = markers[slug];
+  if (!marker) return;
+
+  // Leaflet inserts marker DOM after adding to map; small delay helps
+  setTimeout(() => {
+    const markerEl = marker.getElement?.();
+    if (!markerEl) return;
+
+    // Your divIcon HTML is a single inner <div> — same as /type page
+    const dot = markerEl.querySelector("div");
+    if (!dot) return;
+
+    if (on) {
+      dot.style.animation = "pulse 1s ease-in-out infinite";
+      dot.style.transform = "scale(1.5)";
+      dot.style.transition = "transform 0.2s ease";
+      markerEl.style.zIndex = "1000";
+    } else {
+      dot.style.animation = "";
+      dot.style.transform = "scale(1)";
+      markerEl.style.zIndex = "";
+    }
+  }, 10);
+}
+
+// Hook cards → markers
+document.querySelectorAll(".business-card-link").forEach((cardLink) => {
+  const slug = cardLink.dataset.slug;
+  if (!slug) return;
+
+  cardLink.addEventListener("mouseenter", () => setMarkerPulse(slug, true));
+  cardLink.addEventListener("mouseleave", () => setMarkerPulse(slug, false));
+
+  // keyboard accessibility (nice bonus)
+  cardLink.addEventListener("focus", () => setMarkerPulse(slug, true));
+  cardLink.addEventListener("blur", () => setMarkerPulse(slug, false));
+});
+
+      function updateMarkerCount() {
+        const visibleCardLinks = document.querySelectorAll(
+          '.business-card-link:not([style*="display: none"])'
+        );
+        const visibleSlugs = Array.from(visibleCardLinks).map((c) => c.dataset.slug);
+
+        let visibleCount = 0;
+        Object.entries(markers).forEach(([slug, marker]) => {
+          if (visibleSlugs.includes(slug)) {
+            markerGroup.addLayer(marker);
+            visibleCount++;
+          } else {
+            markerGroup.removeLayer(marker);
+          }
+        });
+
+        if (markerCountEl) markerCountEl.textContent = String(visibleCount);
+
+        if (markerGroup.getBounds().isValid()) {
+          map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+        }
+      }
+
+      // mobile toggle
+      if (mapToggle && mapSection && mapToggleText) {
+        mapToggle.addEventListener("click", () => {
+          const isVisible = mapSection.classList.contains("is-visible");
+          if (isVisible) {
+            mapSection.classList.remove("is-visible");
+            mapToggleText.textContent = "📍 Show Map";
+          } else {
+            mapSection.classList.add("is-visible");
+            mapToggleText.textContent = "📍 Hide Map";
+            setTimeout(() => map.invalidateSize(), 100);
+          }
+        });
+      }
+
+      window.updateMapMarkers = updateMarkerCount;
+      updateMarkerCount();
+    });
+  </script>
+
+  <script>
+    // ✅ This is your same filter logic, simplified: no neighborhood select on this page
+    const searchInput = document.getElementById("search");
+    const clearBtn = document.getElementById("search-clear");
+    const sortSelect = document.getElementById("sort");
+    const primarySelect = document.getElementById("primary-select");
+    const amenitiesSelect = document.getElementById("amenities-select");
+    const grid = document.getElementById("results-grid");
+    const countEl = document.getElementById("results-count");
+    const emptyState = document.getElementById("empty-state");
+    const filterToggle = document.getElementById("filter-toggle");
+    const filterToggleText = document.getElementById("filter-toggle-text");
+    const filterPanel = document.getElementById("filters");
+    const filterCount = document.getElementById("filter-count");
+    const activeFiltersSummary = document.getElementById("active-filters-summary");
+    const activeFiltersList = document.getElementById("active-filters-list");
+    const resetAllBtn = document.getElementById("reset-all-filters");
+    const resetFromEmpty = document.getElementById("reset-from-empty");
+
+    const cards = Array.from(document.querySelectorAll("#results-grid .business-card-link"));
+
+    function normalize(str) {
+      return (str || "").toLowerCase().trim();
+    }
+
+    function getSelectedValues(selectElement) {
+      if (!selectElement) return new Set();
+      const selected = Array.from(selectElement.selectedOptions);
+      return new Set(selected.map((opt) => normalize(opt.value)));
+    }
+
+    function updateClearButton() {
+      if (!clearBtn || !searchInput) return;
+      const hasValue = !!searchInput.value.trim();
+      clearBtn.classList.toggle("is-visible", hasValue);
+    }
+
+    function getActiveFilterCount() {
+      let count = 0;
+      if (searchInput && searchInput.value.trim()) count++;
+      if (primarySelect) count += primarySelect.selectedOptions.length;
+      if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
+      return count;
+    }
+
+    function updateFilterCount() {
+      const count = getActiveFilterCount();
+      if (filterCount) {
+        filterCount.textContent = String(count);
+        filterCount.style.display = count > 0 ? "" : "none";
+      }
+    }
+
+    function updateActiveFiltersSummary() {
+      const count = getActiveFilterCount();
+
+      if (!activeFiltersSummary || !activeFiltersList) return;
+
+      if (count === 0) {
+        activeFiltersSummary.style.display = "none";
+        activeFiltersList.innerHTML = "";
+        return;
+      }
+
+      activeFiltersSummary.style.display = "flex";
+
+      let html = "";
+
+      if (primarySelect) {
+        Array.from(primarySelect.selectedOptions).forEach((opt) => {
+          html += `<span class="active-filter-pill">
+            ${opt.text}
+            <button class="active-filter-pill__remove" data-clear="primary" data-value="${opt.value}">×</button>
+          </span>`;
+        });
+      }
+
+      if (amenitiesSelect) {
+        Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
+          html += `<span class="active-filter-pill">
+            ${opt.text}
+            <button class="active-filter-pill__remove" data-clear="amenity" data-value="${opt.value}">×</button>
+          </span>`;
+        });
+      }
+
+      activeFiltersList.innerHTML = html;
+
+      activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const clearType = btn.dataset.clear;
+          const value = btn.dataset.value;
+
+          if (clearType === "primary" && value && primarySelect) {
+            Array.from(primarySelect.options).forEach((opt) => {
+              if (opt.value === value) opt.selected = false;
+            });
+          } else if (clearType === "amenity" && value && amenitiesSelect) {
+            Array.from(amenitiesSelect.options).forEach((opt) => {
+              if (opt.value === value) opt.selected = false;
+            });
+          }
+
+          applyFiltersAndSort();
+        });
+      });
+    }
+
+    function resetAllFilters() {
+      if (searchInput) searchInput.value = "";
+      if (primarySelect) Array.from(primarySelect.options).forEach((opt) => (opt.selected = false));
+      if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
+      applyFiltersAndSort();
+    }
+
+    function applyFiltersAndSort() {
+      const q = normalize(searchInput?.value || "");
+      const sortValue = sortSelect?.value || "az";
+      const activePrimary = getSelectedValues(primarySelect);
+      const activeAmenities = getSelectedValues(amenitiesSelect);
+
+      const sorted = cards.slice().sort((a, b) => {
+        const an = a.dataset.name || "";
+        const bn = b.dataset.name || "";
+        if (sortValue === "az") return an.localeCompare(bn);
+        if (sortValue === "type") return (a.dataset.type || "").localeCompare(b.dataset.type || "") || an.localeCompare(bn);
+        return 0;
+      });
+
+      let visible = 0;
+
+      sorted.forEach((card) => {
+        const name = card.dataset.name || "";
+        const primaryData = card.dataset.primaryTypes || "";
+        const micro = card.dataset.microfilters || "";
+        const type = card.dataset.type || "";
+
+        const matchesText = !q || name.includes(q) || primaryData.includes(q) || micro.includes(q) || type.includes(q);
+
+        const matchesPrimary =
+          activePrimary.size === 0 || Array.from(activePrimary).some((v) => primaryData.includes(v));
+
+        const matchesMicro =
+          activeAmenities.size === 0 || Array.from(activeAmenities).some((v) => micro.includes(v));
+
+        const show = matchesText && matchesPrimary && matchesMicro;
+
+        card.style.display = show ? "" : "none";
+        if (show) {
+          visible++;
+          grid?.appendChild(card);
+        }
+      });
+
+      if (countEl) countEl.textContent = `Showing ${visible} place${visible === 1 ? "" : "s"}`;
+
+      if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
+      if (grid) grid.style.display = visible === 0 ? "none" : "";
+
+      updateClearButton();
+      updateFilterCount();
+      updateActiveFiltersSummary();
+
+      if (typeof window.updateMapMarkers === "function") {
+        window.updateMapMarkers();
+      }
+    }
+
+    if (filterToggle && filterPanel && filterToggleText) {
+      filterToggle.addEventListener("click", () => {
+        const isCollapsed = filterPanel.dataset.collapsed === "true";
+        filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
+        filterToggleText.textContent = isCollapsed ? "Hide Filters" : "Show Filters";
+      });
+    }
+
+    searchInput?.addEventListener("input", applyFiltersAndSort);
+    clearBtn?.addEventListener("click", () => {
+      if (searchInput) {
+        searchInput.value = "";
+        searchInput.focus();
+      }
+      applyFiltersAndSort();
+    });
+
+    primarySelect?.addEventListener("change", applyFiltersAndSort);
+    amenitiesSelect?.addEventListener("change", applyFiltersAndSort);
+    sortSelect?.addEventListener("change", applyFiltersAndSort);
+
+    resetAllBtn?.addEventListener("click", resetAllFilters);
+    resetFromEmpty?.addEventListener("click", resetAllFilters);
+
+    updateClearButton();
+    applyFiltersAndSort();
+  </script>
+</BaseLayout>

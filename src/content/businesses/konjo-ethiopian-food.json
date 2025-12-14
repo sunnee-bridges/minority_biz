@@ -1,0 +1,27 @@
+{
+  "name": "Konjo Ethiopian Food",
+  "slug": "konjo-ethiopian-food",
+  "type": "restaurant",
+  "cuisineTypes": ["African", "Ethiopian"],
+  "businessCategories": ["Restaurant", "Food Truck", "Catering"],
+  "neighborhoods": ["Union Station", "Sloan's Lake"],
+  "latitude": 39.7553,
+  "longitude": -105.0041,
+  "microfilters": [
+    "Dietary/allergy friendly",
+    "Dine-in",
+    "Delivery",
+    "Takeout",
+    "Wheelchair accessible",
+    "Parking available",
+    "Gluten-free",
+    "Soy-free",
+    "Dairy-free",
+    "Nut-free",
+    "Vegan options"
+  ],
+  "website": "https://www.konjoethiopianfood.com/food-truck",
+  "phone": "(720) 310-5551",
+  "yearEstablished": 2015,
+  "notes": "Located at Union Station and Edgewater Public Market, Konjo offers traditional Ethiopian dishes that accommodate a wide range of dietary needs as a restaurant and food truck. All menu items are gluten-free, soy-free, dairy-free, and nut-free, making it an ideal choice for those with allergies or dietary restrictions. "
+}

@@ -37,6 +37,16 @@ export function getStaticPaths() {
   }));
 }
 
+function slugForNeighborhood(n: string) {
+  return String(n || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+
 /** Helper to create URL-friendly slugs (defined again for use in page) */
 function slugForType(t) {
   if (!t) return "other";
@@ -148,6 +158,8 @@ const locationsForMap = filtered
   }));
 
 const title = `${currentTypeLabel} • Local Business Directory`;
+const displayTypeLabel = currentTypeLabel.charAt(0).toUpperCase() + currentTypeLabel.slice(1);
+
 ---
 
 <BaseLayout title={title}>
@@ -160,13 +172,13 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       <a href="/" class="directory__breadcrumb-link">Home</a>
       <span aria-hidden="true">/</span>
       <span class="directory__breadcrumb-current">
-        {currentTypeLabel}
+        {displayTypeLabel}
       </span>
     </nav>
 
     <header class="directory__head">
       <h1 class="directory__title">
-        {currentTypeLabel}
+        {displayTypeLabel}
       </h1>
       <p class="directory__subtitle">
         Explore {currentTypeLabel.toLowerCase()} — filter by neighborhood,
@@ -328,97 +340,118 @@ const title = `${currentTypeLabel} • Local Business Directory`;
         </div>
 
         <div id="results-grid" class="directory__grid">
-          {filtered.map((b) => {
-            const name = b.name || "";
-            const cuisines = b.cuisineTypes || [];
-            const entertainmentTypes = b.entertainmentTypes || [];
-            const artTypes = b.artTypes || [];
-            const neighborhoods = b.neighborhoods || [];
-            const microfilters = b.microfilters || [];
-            
-            // Use appropriate type data based on current page type
-            let displayTypes = [];
-            if (isEntertainment) {
-              displayTypes = entertainmentTypes;
-            } else if (isArt) {
-              displayTypes = artTypes;
-            } else {
-              displayTypes = cuisines;
-            }
+  {filtered.map((b) => {
+    const name = b.name || "";
+    const cuisines = b.cuisineTypes || [];
+    const entertainmentTypes = b.entertainmentTypes || [];
+    const artTypes = b.artTypes || [];
+    const neighborhoods = b.neighborhoods || [];
+    const microfilters = b.microfilters || [];
+    
+    // Use appropriate type data based on current page type
+    let displayTypes = [];
+    if (isEntertainment) {
+      displayTypes = entertainmentTypes;
+    } else if (isArt) {
+      displayTypes = artTypes;
+    } else {
+      displayTypes = cuisines;
+    }
 
-            return (
-              <article
-                class="card business-card"
-                data-slug={b.slug}
-                data-name={name.toLowerCase()}
-                data-primary-types={displayTypes.join("|").toLowerCase()}
-                data-neighborhoods={neighborhoods.join("|").toLowerCase()}
-                data-microfilters={microfilters.join("|").toLowerCase()}
-                data-lat={b.latitude}
-                data-lng={b.longitude}
-              >
-                <h2 class="business-card__name">
-                  <a href={`/business/${b.slug}/`} class="business-card__link">
-                    {name}
-                  </a>
-                </h2>
+    return (
+      <a 
+        href={`/business/${b.slug}/`} 
+        class="business-card-link"
+        data-slug={b.slug}
+        data-name={name.toLowerCase()}
+        data-primary-types={displayTypes.join("|").toLowerCase()}
+        data-neighborhoods={neighborhoods.join("|").toLowerCase()}
+        data-microfilters={microfilters.join("|").toLowerCase()}
+        data-lat={b.latitude}
+        data-lng={b.longitude}
+      >
+        <article class="card business-card">
+          <h2 class="business-card__name">
+            {name}
+          </h2>
 
-                {/* Quick info with icons */}
-                <div class="business-card__quick-info">
-                  <span class="quick-info-item">
-                    <span class="quick-info-item__icon">📍</span>
-                    {neighborhoods[0] || "Location TBD"}
+          {/* Quick info with icons */}
+          <div class="business-card__quick-info">
+           <span class="quick-info-item">
+  <span class="quick-info-item__icon">📍</span>
+
+  {neighborhoods.length > 0 ? (
+    <span class="neighborhood-chip-row">
+      {neighborhoods.slice(0, 2).map((n) => (
+        <button
+          type="button"
+          class="neighborhood-chip"
+          data-neighborhood-slug={slugForNeighborhood(n)}
+          aria-label={`View businesses in ${n}`}
+        >
+          {n}
+        </button>
+      ))}
+      {neighborhoods.length > 2 && (
+        <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
+      )}
+    </span>
+  ) : (
+    <span>{isMobile ? "Mobile" : "Location TBD"}</span>
+  )}
+</span>
+
+            {b.yearEstablished && (
+              <span class="quick-info-item">
+                <span class="quick-info-item__icon">📅</span>
+                Est. {b.yearEstablished}
+              </span>
+            )}
+          </div>
+
+          <p class="business-card__meta">
+            {displayTypes.length > 0 && (
+              <>
+                <span class="business-card__type">
+                  {primaryFacetLabel}:
+                </span>{" "}
+                <span>{displayTypes.join(", ")}</span>
+              </>
+            )}
+            {displayTypes.length === 0 && (
+              <span class="business-card__type">
+                {currentTypeLabel}
+              </span>
+            )}
+          </p>
+
+          {microfilters.length > 0 && (
+            <div class="business-card__amenities">
+              {microfilters.slice(0, 3).map((tag) => {
+                const icon = getAmenityIcon(tag);
+                return (
+                  <span class="amenity-tag" title={tag}>
+                    <span class="amenity-tag__icon">{icon}</span>
+                    <span class="amenity-tag__label">{tag}</span>
                   </span>
-                  {b.yearEstablished && (
-                    <span class="quick-info-item">
-                      <span class="quick-info-item__icon">📅</span>
-                      Est. {b.yearEstablished}
-                    </span>
-                  )}
-                </div>
+                );
+              })}
+              {microfilters.length > 3 && (
+                <span class="business-card__more">
+                  +{microfilters.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
 
-                <p class="business-card__meta">
-                  {displayTypes.length > 0 && (
-                    <>
-                      <span class="business-card__type">
-                        {primaryFacetLabel}:
-                      </span>{" "}
-                      <span>{displayTypes.join(", ")}</span>
-                    </>
-                  )}
-                  {displayTypes.length === 0 && (
-                    <span class="business-card__type">
-                      {currentTypeLabel}
-                    </span>
-                  )}
-                </p>
-
-                {microfilters.length > 0 && (
-                  <div class="business-card__amenities">
-                    {microfilters.slice(0, 3).map((tag) => {
-                      const icon = getAmenityIcon(tag);
-                      return (
-                        <span class="amenity-tag" title={tag}>
-                          <span class="amenity-tag__icon">{icon}</span>
-                          <span class="amenity-tag__label">{tag}</span>
-                        </span>
-                      );
-                    })}
-                    {microfilters.length > 3 && (
-                      <span class="business-card__more">
-                        +{microfilters.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div class="business-card__action">
-                  View Details →
-                </div>
-              </article>
-            );
-          })}
-        </div>
+          <div class="business-card__action">
+            View Details →
+          </div>
+        </article>
+      </a>
+    );
+  })}
+</div>
       </section>
     </div>
   </div>
@@ -808,6 +841,15 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       transform: translateY(-1px);
     }
 
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 0 var(--accent);
+      }
+      50% {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 8px rgba(var(--accent-rgb), 0.3);
+      }
+    }
+
     /* MAP STYLES */
 
     .map-toggle {
@@ -919,48 +961,39 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       gap: 0.9rem;
     }
 
-    .business-card {
-      padding: 1rem 1.1rem 1.1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      position: relative;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
+    .business-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
 
-    .business-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-soft);
-    }
+.business-card {
+  padding: 1rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+  height: 100%;
+}
 
-    .business-card.is-highlighted {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-soft);
-    }
+.business-card-link:hover .business-card {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
 
-    .business-card__name {
-      margin: 0 0 0.1rem;
-      font-size: 1rem;
-    }
+.business-card.is-highlighted {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
 
-    .business-card__link {
-      text-decoration: none;
-    }
-
-    .business-card__link:hover {
-      text-decoration: underline;
-      color: var(--accent-strong);
-    }
-
-    .business-card__quick-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
+.business-card__name {
+  margin: 0 0 0.1rem;
+  font-size: 1rem;
+  color: var(--text-main);
+}
 
     .quick-info-item {
       display: flex;
@@ -1042,6 +1075,41 @@ const title = `${currentTypeLabel} • Local Business Directory`;
         grid-template-columns: 1fr;
       }
     }
+
+    .neighborhood-chip-row {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.neighborhood-chip {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.neighborhood-chip:hover {
+  color: var(--accent-strong);
+}
+
+.neighborhood-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.35rem;
+}
+
+.neighborhood-more {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
   </style>
 
   <script
@@ -1098,40 +1166,43 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       const markerGroup = window.L.featureGroup().addTo(map);
 
       // Add markers
-      console.log('Adding markers...');
-      mapLocations.forEach((location, index) => {
-        if (!location.lat || !location.lng) return;
+            console.log('Adding markers...');
+mapLocations.forEach((location, index) => {
+  if (!location.lat || !location.lng) return;
 
-        console.log(`Adding marker ${index + 1}:`, location.name);
-        
-        const marker = window.L.marker([location.lat, location.lng], {
-          icon: customIcon
-        }).addTo(markerGroup);
+  console.log(`Adding marker ${index + 1}:`, location.name);
+  
+  const marker = window.L.marker([location.lat, location.lng], {
+    icon: customIcon
+  }).addTo(markerGroup);
 
-        marker.bindPopup(`
-          <div style="padding: 0.5rem;">
-            <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
-              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
-                ${location.name}
-              </a>
-            </h3>
-            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
-              ${location.neighborhoods[0] || 'Denver'}
-            </p>
-          </div>
-        `);
+  marker.bindPopup(`
+    <div style="padding: 0.5rem;">
+      <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
+        <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
+          ${location.name}
+        </a>
+      </h3>
+      <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
+        ${location.neighborhoods[0] || 'Denver'}
+      </p>
+    </div>
+  `);
 
-        markers[location.slug] = marker;
+  markers[location.slug] = marker;
 
-        marker.on('click', () => {
-          const card = document.querySelector(`[data-slug="${location.slug}"]`);
-          if (card) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            card.classList.add('is-highlighted');
-            setTimeout(() => card.classList.remove('is-highlighted'), 2000);
-          }
-        });
-      });
+  marker.on('click', () => {
+    const cardLink = document.querySelector(`.business-card-link[data-slug="${location.slug}"]`);
+    if (cardLink) {
+      cardLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const card = cardLink.querySelector('.business-card');
+      if (card) {
+        card.classList.add('is-highlighted');
+        setTimeout(() => card.classList.remove('is-highlighted'), 2000);
+      }
+    }
+  });
+});  // <-- CRITICAL: This closes the forEach loop
       
       console.log(`Added ${Object.keys(markers).length} markers total`);
 
@@ -1141,47 +1212,65 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       }
 
       function updateMarkerCount() {
-        const visibleCards = document.querySelectorAll('.business-card:not([style*="display: none"])');
-        const visibleSlugs = Array.from(visibleCards).map(card => card.dataset.slug);
-        
-        let visibleCount = 0;
-        Object.entries(markers).forEach(([slug, marker]) => {
-          if (visibleSlugs.includes(slug)) {
-            markerGroup.addLayer(marker);
-            visibleCount++;
-          } else {
-            markerGroup.removeLayer(marker);
+  const visibleCardLinks = document.querySelectorAll('.business-card-link:not([style*="display: none"])');
+  const visibleSlugs = Array.from(visibleCardLinks).map(card => card.dataset.slug);
+  
+  let visibleCount = 0;
+  Object.entries(markers).forEach(([slug, marker]) => {
+    if (visibleSlugs.includes(slug)) {
+      markerGroup.addLayer(marker);
+      visibleCount++;
+    } else {
+      markerGroup.removeLayer(marker);
+    }
+  });
+
+  if (markerCountEl) {
+    markerCountEl.textContent = visibleCount;
+  }
+
+  if (markerGroup.getBounds().isValid()) {
+    map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+  }
+}
+
+      // Card hover highlights marker
+document.querySelectorAll('.business-card-link').forEach(cardLink => {
+  cardLink.addEventListener('mouseenter', () => {
+    const slug = cardLink.dataset.slug;
+    const marker = markers[slug];
+    if (marker) {
+      setTimeout(() => {
+        const markerElement = marker.getElement();
+        if (markerElement) {
+          const markerDiv = markerElement.querySelector('div');
+          if (markerDiv) {
+            markerDiv.style.animation = 'pulse 1s ease-in-out infinite';
+            markerDiv.style.transform = 'scale(1.5)';
+            markerDiv.style.transition = 'transform 0.2s ease';
           }
-        });
-
-        if (markerCountEl) {
-          markerCountEl.textContent = visibleCount;
+          markerElement.style.zIndex = '1000';
         }
+      }, 10);
+    }
+  });
 
-        if (markerGroup.getBounds().isValid()) {
-          map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+  cardLink.addEventListener('mouseleave', () => {
+    const slug = cardLink.dataset.slug;
+    const marker = markers[slug];
+    if (marker) {
+      const markerElement = marker.getElement();
+      if (markerElement) {
+        const markerDiv = markerElement.querySelector('div');
+        if (markerDiv) {
+          markerDiv.style.animation = '';
+          markerDiv.style.transform = 'scale(1)';
         }
+        markerElement.style.zIndex = '';
       }
-
-      document.querySelectorAll('.business-card').forEach(card => {
-        card.addEventListener('mouseenter', () => {
-          const slug = card.dataset.slug;
-          const marker = markers[slug];
-          if (marker && marker.getElement()) {
-            marker.getElement().style.transform = 'scale(1.3)';
-            marker.getElement().style.zIndex = '1000';
-          }
-        });
-
-        card.addEventListener('mouseleave', () => {
-          const slug = card.dataset.slug;
-          const marker = markers[slug];
-          if (marker && marker.getElement()) {
-            marker.getElement().style.transform = 'scale(1)';
-            marker.getElement().style.zIndex = '';
-          }
-        });
-      });
+    }
+  });
+});
 
       if (mapToggle && mapSection && mapToggleText) {
         mapToggle.addEventListener('click', () => {
@@ -1205,6 +1294,37 @@ const title = `${currentTypeLabel} • Local Business Directory`;
       console.error('❌ Error initializing map:', error);
     }
   });
+
+// ✅ Make neighborhood names clickable inside a card-link (no nested <a>)
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".neighborhood-chip");
+  if (!btn) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const slug = btn.dataset.neighborhoodSlug;
+  if (!slug) return;
+
+  window.location.href = `/neighborhood/${slug}/`;
+});
+
+// keyboard support (Enter/Space)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+
+  const btn = document.activeElement?.closest?.(".neighborhood-chip");
+  if (!btn) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const slug = btn.dataset.neighborhoodSlug;
+  if (!slug) return;
+
+  window.location.href = `/neighborhood/${slug}/`;
+});
+
 </script>
 
   <script>
@@ -1227,7 +1347,7 @@ const title = `${currentTypeLabel} • Local Business Directory`;
     const resetFromEmpty = document.getElementById("reset-from-empty");
 
     const cards = Array.from(
-      document.querySelectorAll("#results-grid article")
+      document.querySelectorAll("#results-grid .business-card-link")
     ) as HTMLElement[];
 
     function normalize(str: string): string {

@@ -1,0 +1,20 @@
+{
+  "name": "Jabo's Bar-B-Q",
+  "slug": "jabos-bar-b-q",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul Food", "Southern", "BBQ"],
+  "businessCategories": ["Restaurant", "Catering"],
+  "neighborhoods": ["South Denver", "Greenwood Village"],
+  "latitude": 39.5989,
+  "longitude": -104.8719,
+  "microfilters": [
+    "Dine-in",
+    "Parking available",
+    "Takeout",
+    "Offers catering"
+  ],
+  "website": "http://www.jabosbarbeq.com/",
+  "phone": "303-799-4432",
+  "yearEstablished": 1992,
+  "notes": "Jabo's has been serving pit-smoked Louisiana-style barbecue since 1992. Husband-and-wife team Jabo and Susan create everything from scratch using family recipes with no preservatives or MSG. All meats are slow-smoked over hickory wood for authentic flavor. You might know them for their Utah Sconuts - light, airy pastry bread topped with homemade honey butter - and an impressive selection of 22 different sauces made onsite. Generous portions and a warm, family-style atmosphere make every meal feel like a home-cooked feast."
+}

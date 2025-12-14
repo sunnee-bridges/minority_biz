@@ -1,0 +1,23 @@
+{
+  "name": "Mimosas",
+  "slug": "mimosas",
+  "type": "restaurant",
+  "cuisineTypes": ["Southern", "Breakfast/Brunch"],
+  "businessCategories": ["Restaurant"],
+  "neighborhoods": ["Five Points"],
+  "latitude": 39.75551,
+  "longitude": -104.9771,
+  "microfilters": [
+    "High chairs",
+    "Wheelchair accessible entrance",
+    "Wheelchair accessible parking lot",
+    "Wheelchair accessible restroom",
+    "Wheelchair accessible seating",
+    "Bar onsite",
+    "Gender-neutral restroom"
+  ],
+  "website": "https://mimosasdenver.com/",
+  "phone": "(720)-372-7572",
+  "yearEstablished": 2020,
+  "notes": "Mimosas is a Southern-inspired breakfast and brunch restaurant located in the heart of Denver's historic Five Points neighborhood. The restaurant is a chef-driven, gourmet food concept founded in 2020. The menu is a balance of comfort and innovation, celebrating classic comfort fare with a twist. Mimosas' goal is to share their food with everyone — designed to be not just a meal, but an experience.  "
+}

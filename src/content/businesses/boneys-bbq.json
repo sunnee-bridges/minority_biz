@@ -1,0 +1,17 @@
+{
+  "name": "Boney's BBQ",
+  "slug": "boneys-bbq",
+  "type": "food truck",
+  "cuisineTypes": ["Soul Food", "BBQ", "Vegetarian"],
+  "businessCategories": ["Catering", "Food Truck"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "Veteran owned"
+  ],
+  "website": "http://www.boneysbbq.com/",
+  "phone": "(720) 642-7755",
+  "yearEstablished": 2009,
+  "notes": "Boney's is Veteran-owned business has been serving the Denver area for more than 15 years. This mobile catering service specializes in soul food and BBQ, with plenty of main dishes and side items to satisfy any craving fresh off the barbeque pit."
+}

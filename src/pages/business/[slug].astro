@@ -2,12 +2,49 @@
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
 
+// Helper function for amenity icons (same as in [type].astro)
+function getAmenityIcon(tag: string): string {
+  const icons: Record<string, string> = {
+    'takeout': '🥡',
+    'dine-in': '🍽️',
+    'outdoor seating': '🌳',
+    'delivery': '🚚',
+    'vegan options': '🌱',
+    'live entertainment': '🎵',
+    'lgbtq+ friendly': '🏳️‍🌈',
+    'wine and beer': '🍷',
+    'parking available': '🅿️',
+    'pet-friendly patio': '🐾',
+    'live music': '🎸',
+    'free admission': '🎟️',
+    'artist talks': '🎨',
+    'workshop space': '🛠️',
+    'classes available': '🎓',
+    'open studio': '🏺',
+    'kiln services': '🔥',
+    'wheel throwing': '⚙️',
+    'hand building': '✋',
+    'glazing workshops': '🎨',
+  };
+  return icons[tag.toLowerCase()] || '✓';
+}
+
 // 🔑 Tell Astro which /business/[slug]/ pages to generate
 export function getStaticPaths() {
   return businesses.map((b) => ({
     params: { slug: b.slug },
   }));
 }
+
+function slugify(str: string) {
+  return String(str || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 
 const { slug } = Astro.params;
 const business = businesses.find((b) => b.slug === slug);
@@ -16,92 +53,202 @@ if (!business) {
   throw new Error(`Business not found: ${slug}`);
 }
 
-const title = `${business.name} • Local Food Directory`;
+// Determine the business type for breadcrumb
+const businessType = business.type || 
+  (Array.isArray(business.businessCategories) && business.businessCategories[0]) || 
+  "Other";
+
+// Create type slug for breadcrumb link
+function slugForType(t: string) {
+  if (!t) return "other";
+  return String(t)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    || "other";
+}
+
+const typeSlug = slugForType(businessType);
+const displayTypeLabel = businessType.charAt(0).toUpperCase() + businessType.slice(1);
+
+// Determine which type array to display
+const isEntertainment = typeSlug === "entertainment";
+const isArt = typeSlug === "art";
+
+let displayTypes = [];
+let primaryFacetLabel = "Cuisine";
+
+if (isEntertainment) {
+  displayTypes = business.entertainmentTypes || [];
+  primaryFacetLabel = "Entertainment Type";
+} else if (isArt) {
+  displayTypes = business.artTypes || [];
+  primaryFacetLabel = "Art Type";
+} else {
+  displayTypes = business.cuisineTypes || [];
+  primaryFacetLabel = "Cuisine";
+}
+
+const title = `${business.name} • Local Business Directory`;
 ---
 
 <BaseLayout title={title}>
   <div class="business-detail">
-    {/* 🧭 Breadcrumb (no numbered list) */}
+    {/* 🧭 Breadcrumb */}
     <nav class="business-detail__breadcrumb" aria-label="Breadcrumb">
       <div class="business-detail__breadcrumb-row">
         <a href="/" class="business-detail__breadcrumb-link">Home</a>
         <span class="business-detail__breadcrumb-separator">/</span>
-        <a href="/" class="business-detail__breadcrumb-link">Directory</a>
+        <a href={`/type/${typeSlug}/`} class="business-detail__breadcrumb-link">
+          {displayTypeLabel}
+        </a>
         <span class="business-detail__breadcrumb-separator">/</span>
         <span aria-current="page">{business.name}</span>
       </div>
     </nav>
 
-    {/* “Back to results” — prefers browser history so filters/scroll are preserved */}
+    {/* "Back to results" */}
     <a
-      href="/"
+      href={`/type/${typeSlug}/`}
       class="business-detail__back"
       onclick="if (window.history.length > 1) { history.back(); return false; }"
     >
       ← Back to results
     </a>
 
-    <article class="card business-detail__card">
+    <article class="business-detail__card">
       <header class="business-detail__header">
         <h1 class="business-detail__name">
           {business.name}
         </h1>
 
-        <p class="business-detail__meta">
-          {business.cuisineTypes.join(", ")}
-          {" · "}
-          {business.businessCategories.join(", ")}
-        </p>
+        {displayTypes.length > 0 && (
+          <p class="business-detail__meta">
+            <span class="business-detail__meta-label">{primaryFacetLabel}:</span>
+            {" "}
+            {displayTypes.join(", ")}
+          </p>
+        )}
 
-        <p class="business-detail__meta">
-          {business.neighborhoods.join(", ")}
-          {business.yearEstablished && ` · Est. ${business.yearEstablished}`}
-        </p>
+        {business.businessCategories && business.businessCategories.length > 0 && (
+          <p class="business-detail__meta">
+            {business.businessCategories.join(", ")}
+          </p>
+        )}
+
+        <p class="business-detail__meta business-detail__meta--location">
+  <span class="quick-info-icon">📍</span>
+
+  {Array.isArray(business.neighborhoods) && business.neighborhoods.length > 0 ? (
+    business.neighborhoods.map((n, idx) => (
+      <>
+        <a
+          href={`/neighborhood/${slugify(n)}/`}
+          class="business-detail__neighborhood-link"
+        >
+          {n}
+        </a>
+        {idx < business.neighborhoods.length - 1 && <span>, </span>}
+      </>
+    ))
+  ) : (
+    <span>Denver</span>
+  )}
+</p>
+
+
+
+        {/* Get Directions Button */}
+        {business.latitude && business.longitude && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${business.latitude},${business.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="action-btn action-btn--primary business-detail__directions-btn"
+          >
+            <span class="action-btn__icon">📍</span>
+            <span>Get Directions</span>
+          </a>
+        )}
       </header>
 
       <section class="business-detail__body">
-        {business.website && (
-          <p class="business-detail__row">
-            <span class="business-detail__label">Website:</span>{" "}
-            <a
-              href={business.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="business-detail__link"
-            >
-              {business.website}
-            </a>
-          </p>
+        {/* Contact Info Section */}
+        {(business.website || business.phone) && (
+          <div class="business-detail__section">
+            <h2 class="business-detail__section-title">Contact Information</h2>
+            
+            {business.website && (
+              <p class="business-detail__row">
+                <span class="business-detail__label">
+                  <span class="business-detail__icon">🌐</span>
+                  Website:
+                </span>{" "}
+                <a
+                  href={business.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="business-detail__link"
+                >
+                  {business.website.replace(/^https?:\/\//, '')}
+                  <span class="external-link-icon">↗</span>
+                </a>
+              </p>
+            )}
+
+            {business.phone && (
+              <p class="business-detail__row">
+                <span class="business-detail__label">
+                  <span class="business-detail__icon">📞</span>
+                  Phone:
+                </span>{" "}
+                <a href={`tel:${business.phone}`} class="business-detail__link">
+                  {business.phone}
+                </a>
+              </p>
+            )}
+          </div>
         )}
 
-        {business.phone && (
-          <p class="business-detail__row">
-            <span class="business-detail__label">Phone:</span>{" "}
-            <a href={`tel:${business.phone}`} class="business-detail__link">
-              {business.phone}
-            </a>
-          </p>
-        )}
-
-        {business.microfilters.length > 0 && (
-          <div class="business-detail__row">
-            <p class="business-detail__section-label">
-              Amenities &amp; options
-            </p>
-            <div class="business-detail__chips">
-              {business.microfilters.map((tag) => (
-                <span class="chip chip--pill business-detail__chip">
-                  {tag}
-                </span>
-              ))}
+        {/* Amenities Section */}
+        {business.microfilters && business.microfilters.length > 0 && (
+          <div class="business-detail__section">
+            <h2 class="business-detail__section-title">
+              Amenities &amp; Options
+            </h2>
+            <div class="business-detail__amenities-grid">
+              {business.microfilters.map((tag) => {
+                const icon = getAmenityIcon(tag);
+                return (
+                  <div class="amenity-item">
+                    <span class="amenity-item__icon">{icon}</span>
+                    <span class="amenity-item__label">{tag}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
+        {/* About Section */}
         {business.notes && (
-          <p class="business-detail__notes">
-            {business.notes}
-          </p>
+          <div class="business-detail__section">
+            <h2 class="business-detail__section-title">About</h2>
+            <p class="business-detail__notes">
+              {business.notes}
+            </p>
+          </div>
+        )}
+
+        {/* Map Section */}
+        {business.latitude && business.longitude && (
+          <div class="business-detail__section">
+            <h2 class="business-detail__section-title">Location</h2>
+            <div class="business-detail__map-container">
+              <div id="detail-map" class="business-detail__map"></div>
+            </div>
+          </div>
         )}
       </section>
     </article>
@@ -109,16 +256,16 @@ const title = `${business.name} • Local Food Directory`;
 
   <style>
     .business-detail {
-      max-width: 720px;
+      max-width: 820px;
       margin: 0 auto;
-      padding-block: 1.5rem 0;
+      padding-block: 1.5rem 3rem;
     }
 
-    /* 🧭 Breadcrumb styles (no list, so no numbers) */
+    /* Breadcrumb */
     .business-detail__breadcrumb {
       font-size: 0.75rem;
       color: var(--text-muted);
-      margin-bottom: 0.3rem;
+      margin-bottom: 0.5rem;
     }
 
     .business-detail__breadcrumb-row {
@@ -131,6 +278,7 @@ const title = `${business.name} • Local Food Directory`;
     .business-detail__breadcrumb-link {
       text-decoration: none;
       color: var(--text-muted);
+      transition: color 0.15s;
     }
 
     .business-detail__breadcrumb-link:hover {
@@ -145,88 +293,255 @@ const title = `${business.name} • Local Food Directory`;
 
     .business-detail__back {
       display: inline-block;
-      margin-bottom: 0.75rem;
-      font-size: 0.78rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
       color: var(--text-muted);
       text-decoration: none;
+      transition: color 0.15s;
     }
 
     .business-detail__back:hover {
+      color: var(--accent-strong);
       text-decoration: underline;
     }
 
     .business-detail__card {
-      padding: 1.25rem 1.5rem 1.4rem;
+      padding: 2rem 2.5rem 2.5rem;
+      box-shadow: var(--shadow-soft);
     }
 
     .business-detail__header {
-      margin-bottom: 0.9rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .business-detail__directions-btn {
+      margin-top: 1rem;
+      display: inline-flex;
     }
 
     .business-detail__name {
-      margin: 0;
-      font-size: 1.6rem;
+      margin: 0 0 0.75rem;
+      font-size: 2rem;
       line-height: 1.2;
+      color: var(--text-main);
     }
 
     .business-detail__meta {
-      margin: 0.1rem 0;
+      margin: 0.35rem 0;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .business-detail__meta-label {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .business-detail__meta--location {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .business-detail__neighborhood-link {
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.business-detail__neighborhood-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+
+    .quick-info-icon {
       font-size: 0.9rem;
+    }
+
+    /* Action Button */
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .action-btn--primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .action-btn--primary:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-btn__icon {
+      font-size: 1.1rem;
+    }
+
+    /* Body Sections */
+    .business-detail__body {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .business-detail__section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .business-detail__section-title {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.85rem;
       color: var(--text-muted);
     }
 
-    .business-detail__body {
-      margin-top: 0.75rem;
-      font-size: 0.9rem;
-    }
-
     .business-detail__row {
-      margin: 0.4rem 0;
+      margin: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      flex-wrap: wrap;
     }
 
     .business-detail__label {
       font-weight: 600;
       color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 90px;
+    }
+
+    .business-detail__icon {
+      font-size: 1rem;
     }
 
     .business-detail__link {
-      text-decoration: underline;
       color: var(--accent-strong);
+      text-decoration: none;
+      transition: color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
     }
 
     .business-detail__link:hover {
       color: var(--accent);
+      text-decoration: underline;
     }
 
-    .business-detail__section-label {
-      margin: 0 0 0.25rem;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      font-weight: 600;
+    .external-link-icon {
+      font-size: 0.8rem;
+      opacity: 0.7;
     }
 
-    .business-detail__chips {
+    /* Amenities Grid */
+    .business-detail__amenities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .amenity-item {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.3rem;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      transition: all 0.15s;
     }
 
-    .business-detail__chip {
-      font-size: 0.68rem;
+    .amenity-item:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
     }
 
+    .amenity-item__icon {
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .amenity-item__label {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    /* Notes/About */
     .business-detail__notes {
-      margin-top: 0.9rem;
-      font-size: 0.9rem;
-      line-height: 1.5;
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.7;
       color: var(--text-main);
     }
 
-    @media (max-width: 640px) {
+    /* Map */
+    .business-detail__map-container {
+      border-radius: 0.75rem;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .business-detail__map {
+      width: 100%;
+      height: 400px;
+      background: var(--bg-elevated);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
       .business-detail__card {
-        padding-inline: 1rem;
+        padding: 1.5rem 1.25rem;
+      }
+
+      .business-detail__name {
+        font-size: 1.6rem;
+      }
+
+      .business-detail__directions-btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .business-detail__amenities-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .business-detail__map {
+        height: 300px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .business-detail {
+        padding-inline: 0.5rem;
+      }
+
+      .business-detail__card {
+        padding: 1.25rem 1rem;
       }
 
       .business-detail__name {
@@ -234,4 +549,66 @@ const title = `${business.name} • Local Food Directory`;
       }
     }
   </style>
+
+  {business.latitude && business.longitude && (
+    <script
+      is:inline
+      define:vars={{
+        businessLat: business.latitude,
+        businessLng: business.longitude,
+        businessName: business.name,
+        businessNeighborhood: business.neighborhoods?.[0] || 'Denver'
+      }}
+    >
+      // Initialize map when page loads
+      window.addEventListener('load', function() {
+        if (typeof window.L === 'undefined') {
+          console.error('Leaflet not loaded');
+          return;
+        }
+
+        const mapElement = document.getElementById('detail-map');
+        if (!mapElement) return;
+
+        try {
+          // Create map centered on business location
+          const map = window.L.map('detail-map').setView([businessLat, businessLng], 15);
+
+          // Add tile layer
+          window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+            maxZoom: 19
+          }).addTo(map);
+
+          // Custom marker
+          const customIcon = window.L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: var(--accent); width: 32px; height: 32px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+          });
+
+          // Add marker
+          const marker = window.L.marker([businessLat, businessLng], {
+            icon: customIcon
+          }).addTo(map);
+
+          // Create popup content
+          const popupContent = '<div style="padding: 0.5rem;">' +
+            '<h3 style="margin: 0 0 0.25rem; font-size: 0.95rem; font-weight: 600;">' +
+            businessName +
+            '</h3>' +
+            '<p style="margin: 0; font-size: 0.75rem; color: #666;">' +
+            businessNeighborhood +
+            '</p>' +
+            '</div>';
+
+          marker.bindPopup(popupContent).openPopup();
+
+        } catch (error) {
+          console.error('Error initializing map:', error);
+        }
+      });
+    </script>
+  )}
 </BaseLayout>

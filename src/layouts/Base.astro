@@ -4,53 +4,57 @@ import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 
 const {
-  title = "Local Food Directory",
+  title = "Denver Black Guide",
   description = "Directory of local restaurants, food trucks, caterers, and bakeries with filters for cuisine, neighborhood, and amenities."
 } = Astro.props;
 ---
 
 <html lang="en" data-theme="light">
   <head>
-  <meta charset="utf-8" />
-  <title>{title}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content={description} />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  
-  <!-- Add Leaflet CSS and JS (NO SPACE in version!) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
-  <!-- Slot for additional head content -->
-  <slot name="head" />
-  
-  <!-- 🌓 Set initial theme before paint -->
-  <script is:inline>
-    (function () {
-      try {
-        const stored = localStorage.getItem("theme");
-        const prefersDark =
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-        const theme = stored || (prefersDark ? "dark" : "light");
-        document.documentElement.dataset.theme = theme;
-      } catch (e) {
-        document.documentElement.dataset.theme = "light";
-      }
-    })();
-  </script>
-</head>
+    <meta charset="utf-8" />
+    <title>{title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Leaflet -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Extra head slot -->
+    <slot name="head" />
+
+    <!-- initial theme -->
+    <script is:inline>
+      (function () {
+        try {
+          const stored = localStorage.getItem("theme");
+          const prefersDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const theme = stored || (prefersDark ? "dark" : "light");
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+  </head>
 
   <body>
     <header class="site-header">
       <div class="shell site-header__inner">
         <a href="/" class="site-header__brand">
           <span class="site-header__logo" aria-hidden="true">🍽️</span>
-          <span class="site-header__title">Local Food Directory</span>
+          <span class="site-header__title">Denver Black Guide</span>
         </a>
 
         <nav class="site-header__nav" aria-label="Primary navigation">
-          <a href="/" class="site-header__link">Directory</a>
+          <a href="/about" class="site-header__link">About</a>
+          <a href="/contact" class="site-header__link">Contact</a>
 
           <button
             id="themeToggle"
@@ -66,13 +70,22 @@ const {
       </div>
     </header>
 
+    <!-- 🌄 Denver skyline hero image -->
+<div class="site-hero" aria-hidden="false">
+  <img
+    src="/denver-skyline-v1.png"
+    alt="Watercolor illustration of the Denver skyline with mountains at sunset"
+    class="site-hero__image"
+  />
+</div>
+
     <main class="shell site-main">
       <slot />
     </main>
 
     <Footer />
 
-    <!-- 🌓 Theme toggle logic -->
+    <!-- theme toggle logic -->
     <script is:inline>
       (function () {
         const root = document.documentElement;
@@ -103,7 +116,6 @@ const {
           }
         }
 
-        // Initialize from current theme
         applyTheme(getTheme());
 
         btn.addEventListener("click", () => {

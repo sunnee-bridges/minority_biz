@@ -1,0 +1,15 @@
+{
+  "name": "Novel Strand Brewing",
+  "slug": "novel-strand-brewing",
+  "type": "restaurant",
+  "cuisineTypes": ["Coffee", "Tea", "Wine", "Beer"],
+  "businessCategories": ["Restaurant"],
+  "neighborhoods": ["Baker"],
+  "latitude": 39.71838,
+  "longitude": -104.99238,
+  "microfilters": ["Wheelchair accessible restroom"],
+  "website": "https://www.novelstrand.com/",
+  "phone": "(720) 949-0246",
+  "yearEstablished": 2016,
+  "notes": "Novel Strand Brewing started as a running joke between friends sharing pints in upstate New York and became reality when they moved to Denver and opened their own brewery in 2016. Located in the Baker neighborhood, they focus on brewing the best beer they can — no gimmicks, no trends. Just carefully crafted beer along with coffee, tea, and wine in a relaxed neighborhood vibe."
+}

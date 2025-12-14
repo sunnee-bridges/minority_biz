@@ -1,0 +1,15 @@
+{
+  "name": "Smokin' Bones BBQ",
+  "slug": "smokin-bones-bbq",
+  "type": "food truck",
+  "cuisineTypes": ["Soul food", "Southern"],
+  "businessCategories": ["Catering", "Food Truck"],
+  "neighborhoods": ["Mobile", "Park Hill"],
+  "latitude": 39.77223,
+  "longitude": -104.94478,
+  "microfilters": [],
+  "website": "https://www.smokinbnz.com/",
+  "phone": "720-201-4863",
+  "yearEstablished": null,
+  "notes": "Smokin' Bones BBQ serves a signature blend of barbecue styles inspired by the great barbecue cities of Chicago, Memphis, Texas, and Kansas City. Their sauces are crafted to honor each of these regions, giving guests a rich variety of flavors in every bite. The team also puts special care into allergen awareness, making sure guests with dietary needs feel considered, informed, and safe when they order."
+}

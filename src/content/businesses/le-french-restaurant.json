@@ -1,0 +1,22 @@
+{
+  "name": "Le French Restaurant",
+  "slug": "le-french-restaurant",
+  "type": "restaurant",
+  "cuisineTypes": ["French", "Breakfast & Brunch", "African"],
+  "businessCategories": ["Restaurant", "Bistro"],
+  "neighborhoods": ["Congress Park", "South Denver"],
+  "latitude": 39.7287,
+  "longitude": -104.9024,
+  "microfilters": [
+    "Outdoor seating",
+    "Dine-in",
+    "Accepts reservations",
+    "Dietary/allergy friendly",
+    "Parking available",
+    "Valet parking"
+  ],
+  "website": "https://www.lefrenchdenver.com/",
+  "phone": "303-558-0875",
+  "yearEstablished": null,
+  "notes": "A casual chic Parisian-style bistro founded by Senegalese-French sisters Aminata and Rougui Dia, Le French specializes in French cuisine with global flavors, incorporating nods to the sisters' Senegalese heritage. Every dish is prepared from scratch using fresh ingredients sourced from local farmers. The relaxed atmosphere complements the gourmet food perfectly."
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Smokin' Nola",
+  "slug": "smokin-nola",
+  "type": "restaurant",
+  "cuisineTypes": ["Soul food", "Southern"],
+  "businessCategories": ["Catering", "Restaurant"],
+  "neighborhoods": ["Parker"],
+  "latitude": 39.51574,
+  "longitude": -104.76583,
+  "microfilters": [
+    "Dine-in",
+    "Takeout",
+    "Vegan options",
+    "Wheelchair accessible",
+    "Catering",
+    "Full bar",
+    "Happy hour"
+  ],
+  "website": "https://smokinnola.com/",
+  "phone": "(720)-600-1191",
+  "yearEstablished": null,
+  "notes": "Smokin' Nola brings the spirit of New Orleans to Parker with big, bold flavors and a laid-back, welcoming vibe. The menu is packed with Crescent City classics like jambalaya, gumbo, seafood and oyster platters, po’ boys, red beans and rice, fried okra, and rich Southern desserts like sweet potato bread pudding and bourbon pecan pie.Whether you’re dining in, grabbing takeout, or booking catering, it’s a spot designed for anyone craving authentic New Orleans comfort food close to home."
+}

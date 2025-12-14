@@ -1,0 +1,486 @@
+---
+// src/pages/contact.astro
+import BaseLayout from "../layouts/Base.astro";
+
+const title = "Contact • Denver Black-Owned Business Directory";
+const description =
+  "Get in touch about adding or updating a listing, reporting an issue, or sharing feedback about the Denver Black-Owned Business Directory.";
+---
+
+<BaseLayout {title} {description}>
+  <div class="shell contact">
+    <!-- Hero / intro -->
+    <section class="contact-hero">
+      <h1 class="contact-hero__title">Contact the Directory</h1>
+      <p class="contact-hero__subtitle">
+        Have a business to add, a listing to update, or a question about the directory?
+        Use the form below and we’ll review it as part of the next update.
+      </p>
+    </section>
+
+    <!-- Main layout -->
+    <section class="contact-grid">
+      <!-- Form card -->
+      <article class="contact-card">
+        <h2 class="contact-card__title">Send a message</h2>
+        <p class="contact-card__text">
+          Share as much detail as you can &mdash; especially for new or updated listings.
+          This helps keep information accurate and helpful for the community.
+        </p>
+
+        <form
+          name="black-directory-contact"
+          method="POST"
+          action="/contact/thanks/"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+          class="contact-form"
+        >
+          <!-- Netlify required hidden field -->
+          <input type="hidden" name="form-name" value="black-directory-contact" />
+
+          <!-- Honeypot field -->
+          <p class="contact-form__honeypot">
+            <label>
+              Don’t fill this out if you’re human:
+              <input name="bot-field" />
+            </label>
+          </p>
+
+          <!-- Reason / type -->
+          <div class="field">
+            <label class="field__label" for="reason">
+              What are you reaching out about?
+            </label>
+            <div class="field__control field__control--select">
+              <select
+                id="reason"
+                name="reason"
+                required
+                class="field__input"
+              >
+                <option value="">Select an option…</option>
+                <option value="add-business">Add a new business</option>
+                <option value="update-business">Update or correct a listing</option>
+                <option value="featured">Ask about featured placement</option>
+                <option value="general-question">General question / feedback</option>
+                <option value="other">Something else</option>
+              </select>
+              <span class="field__select-icon" aria-hidden="true">▾</span>
+            </div>
+          </div>
+
+          <!-- Contact details -->
+          <div class="field-grid">
+            <div class="field">
+              <label class="field__label" for="name">
+                Your name (optional)
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autocomplete="name"
+                class="field__input"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="email">
+                Email (so we can reply)
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autocomplete="email"
+                class="field__input"
+              />
+            </div>
+          </div>
+
+          <!-- Business details (optional but encouraged) -->
+          <div class="field-grid">
+            <div class="field">
+              <label class="field__label" for="businessName">
+                Business name
+              </label>
+              <input
+                id="businessName"
+                name="businessName"
+                type="text"
+                placeholder="e.g., Sweet Roots Cafe"
+                class="field__input"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="businessNeighborhood">
+                Neighborhood / area
+              </label>
+              <input
+                id="businessNeighborhood"
+                name="businessNeighborhood"
+                type="text"
+                placeholder="e.g., Five Points, Aurora"
+                class="field__input"
+              />
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label class="field__label" for="businessWebsite">
+                Website or social link
+              </label>
+              <input
+                id="businessWebsite"
+                name="businessWebsite"
+                type="url"
+                placeholder="e.g., website, Instagram, or Google Maps link"
+                class="field__input"
+              />
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="businessType">
+                Type of business
+              </label>
+              <input
+                id="businessType"
+                name="businessType"
+                type="text"
+                placeholder="e.g., restaurant, food truck, catering, bar"
+                class="field__input"
+              />
+            </div>
+          </div>
+
+          <!-- Message -->
+          <div class="field">
+            <label class="field__label" for="message">
+              Message
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              required
+              rows="6"
+              class="field__input field__input--textarea"
+              placeholder="Share details about your request, updates to a listing, or anything else that would be helpful to know."
+            ></textarea>
+            <p class="field__hint">
+              For new or updated listings, details like hours, accessibility,
+              and what makes the business special are especially helpful.
+            </p>
+          </div>
+
+          <!-- Submit -->
+          <div class="contact-form__actions">
+            <button type="submit" class="contact-form__button">
+              Send message
+            </button>
+            <p class="contact-form__note">
+              Messages are reviewed in batches. If a reply is needed, we’ll reach
+              out to the email you provided.
+            </p>
+          </div>
+        </form>
+      </article>
+
+      <!-- Sidebar / notes -->
+      <aside class="contact-side">
+        <div class="contact-side__card">
+          <h2 class="contact-side__title">Before you send</h2>
+          <ul class="contact-side__list">
+            <li>
+              <strong>Basic listings are free</strong> for qualifying Denver-area
+              Black-owned food and drink businesses.
+            </li>
+            <li>
+              <strong>Featured placements</strong> are paid spots that help cover
+              hosting and ongoing directory work.
+            </li>
+            <li>
+              If a business has <strong>closed or moved</strong>, you can flag it
+              here so it can be updated.
+            </li>
+          </ul>
+        </div>
+
+        <div class="contact-side__card">
+          <h2 class="contact-side__title">Prefer email?</h2>
+
+            <p class="contact-side__text">
+              You can reach us at
+              <a href="mailto:hello@pennwyn.com" class="contact-side__link">hello@pennwyn.com</a>.
+            </p>
+
+            <p class="contact-side__small">
+              Pennwyn is a subsidiary of Penniman Wynfield Studio.
+            </p>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <style>
+    .contact {
+      padding-block: 3rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    .contact-hero {
+      max-width: 48rem;
+      margin: 0 auto 0;
+      text-align: left;
+    }
+
+    .contact-hero__title {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      line-height: 1.2;
+      color: var(--text-main);
+    }
+
+    .contact-hero__subtitle {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 1.75rem;
+      align-items: flex-start;
+    }
+
+    .contact-card,
+    .contact-side__card {
+      background: var(--bg-elevated);
+      border-radius: 1rem;
+      border: 1px solid var(--border-subtle);
+      padding: 1.5rem 1.75rem;
+      box-shadow: var(--shadow-soft, 0 10px 30px rgba(0, 0, 0, 0.12));
+    }
+
+    .contact-card__title {
+      margin: 0 0 0.75rem;
+      font-size: 1.2rem;
+      color: var(--text-main);
+    }
+
+    .contact-card__text {
+      margin: 0 0 1.25rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .contact-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .contact-form__honeypot {
+      display: none;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .field__label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .field__control {
+      display: block;
+    }
+
+    .field__input {
+      width: 100%;
+      border-radius: 0.65rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page, #020617);
+      padding: 0.5rem 0.7rem;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease,
+        background-color 0.15s ease;
+    }
+
+    .field__input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .field__input:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5);
+      background-color: var(--bg-elevated);
+    }
+
+    .field__input--textarea {
+      min-height: 7rem;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .field__hint {
+      margin: 0.25rem 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.9rem 1rem;
+    }
+
+    /* Select styling with proper arrow placement */
+    .field__control--select {
+      position: relative;
+    }
+
+    .field__control--select .field__input {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 2.3rem;
+      cursor: pointer;
+    }
+
+    .field__select-icon {
+      position: absolute;
+      right: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .contact-form__actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .contact-form__button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.65rem 1.5rem;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .contact-form__button:hover {
+      background: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+
+    .contact-form__note {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      max-width: 22rem;
+    }
+
+    .contact-side {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .contact-side__title {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+      color: var(--text-main);
+    }
+
+    .contact-side__text {
+      margin: 0 0 0.35rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    .contact-side__small {
+      margin: 0.35rem 0 0;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .contact-side__list {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .contact-side__list li {
+      margin-bottom: 0.4rem;
+    }
+
+    .contact-side__link {
+      color: var(--accent);
+      text-decoration: underline;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 2px;
+    }
+
+    .contact-side__link:hover {
+      text-decoration-thickness: 2px;
+    }
+
+    @media (max-width: 900px) {
+      .contact-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .contact {
+        padding-block: 2.25rem 3rem;
+      }
+
+      .contact-hero__title {
+        font-size: 1.6rem;
+      }
+
+      .contact-hero__subtitle {
+        font-size: 0.95rem;
+      }
+
+      .contact-card,
+      .contact-side__card {
+        padding: 1.25rem 1.5rem;
+      }
+
+      .field-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</BaseLayout>

@@ -29,6 +29,17 @@ const typeCounts = allTypes.map(type => ({
   count: enhanced.filter(b => b.primaryType === type).length
 }));
 
+const restaurantOnlyTypeCounts = typeCounts.filter(
+  ({ type }) => type.toLowerCase() === "restaurant"
+);
+
+const restaurantBusinesses = enhanced.filter(
+  (b) => (b.primaryType || "").toLowerCase() === "restaurant"
+);
+
+// Example: only count restaurants
+const restaurantCount = restaurantBusinesses.length;
+
 // Helper function for type icons
 function getTypeIcon(type: string): string {
   const icons: Record<string, string> = {
@@ -70,6 +81,17 @@ function getAmenityIcon(tag: string): string {
   return icons[tag.toLowerCase()] || '✓';
 }
 
+// Helper to display category names in Title Case
+function toTitleCase(str: string): string {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+
 // Prepare data for search suggestions
 const allNeighborhoods = Array.from(
   new Set(enhanced.flatMap((b) => b.neighborhoods || []))
@@ -86,17 +108,24 @@ const allCuisines = Array.from(
 ).sort();
 ---
 
-<BaseLayout title="Denver Black-Owned Business Directory">
+<BaseLayout
+  title="Black-Owned Businesses in the Denver Metro Area | Denver Black Guide"
+  description="Discover and support Black-owned businesses across Denver neighborhoods. Browse by category, cuisine, and amenities, or search the directory."
+  image="/og-denver-black-guide.png"
+>
   <div class="homepage">
     <!-- HERO SECTION -->
     <section class="hero">
       <div class="hero__content">
         <h1 class="hero__title">
-          Denver's Black-Owned Business Directory
+          Black-Owned Businesses in the Denver Metro Area
         </h1>
         <p class="hero__subtitle">
-          Discover and support amazing local restaurants, entertainment venues, 
-          art galleries, and more in the Denver community.
+          Explore and support the Black-owned businesses that shape Denver's communities.
+        </p>
+
+        <p class="hero__helper">
+          Or <a href="/all">browse the full directory</a>.
         </p>
         
         <!-- Hero Search -->
@@ -128,22 +157,29 @@ const allCuisines = Array.from(
       <h2 class="categories__title">Browse by Category</h2>
       
       <div class="categories__grid">
-        {typeCounts.map(({ type, count }) => {
+        {restaurantOnlyTypeCounts.map(({ type, count }) => {
           const icon = getTypeIcon(type);
           const slug = slugify(type);
           
           return (
             <a href={`/type/${slug}`} class="category-card">
-              <div class="category-card__icon">{icon}</div>
-              <h3 class="category-card__name">{type}</h3>
-              <p class="category-card__count">{count} {count === 1 ? 'place' : 'places'}</p>
+              <div class="category-card__icon-wrapper">
+                <div class="category-card__icon">{icon}</div>
+              </div>
+              <div class="category-card__content">
+                <h3 class="category-card__name">{toTitleCase(type)}</h3>
+                <p class="category-card__count">
+                  {count} {count === 1 ? 'business' : 'businesses'}
+                </p>
+              </div>
+              <div class="category-card__arrow">→</div>
             </a>
           );
         })}
       </div>
 
       <div class="categories__footer">
-        <a href="/all" class="categories__view-all">
+        <a href="/categories" class="categories__view-all">
           View All Categories →
         </a>
       </div>
@@ -159,7 +195,8 @@ const allCuisines = Array.from(
           </p>
         </div>
         <a href="/all" class="featured__browse-all">
-          Browse All {enhanced.length} Businesses →
+          <!-- was enhanced.length now restaurantOnly -->
+          Browse All Businesses →
         </a>
       </div>
 
@@ -251,11 +288,7 @@ const allCuisines = Array.from(
         </div>
       )}
 
-      <div class="featured__footer">
-        <a href="/all" class="featured__view-all-button">
-          Browse All {enhanced.length} Businesses
-        </a>
-      </div>
+     
     </section>
   </div>
 
@@ -344,7 +377,7 @@ const allCuisines = Array.from(
     }
 
     .search-suggestions__header {
-      padding: 0.5rem 1rem 0.25rem 1rem; /* Less left padding - flush with container */
+      padding: 0.5rem 1rem 0.25rem 1rem;
       font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -362,7 +395,7 @@ const allCuisines = Array.from(
       display: flex;
       align-items: flex-start;
       justify-content: flex-start;
-      padding: 0.75rem 1.25rem 0.75rem 3rem; /* More left padding - clearly indented */
+      padding: 0.75rem 1.25rem 0.75rem 3rem;
       margin: 0;
       border-left: 3px solid transparent;
       cursor: pointer !important;
@@ -374,11 +407,10 @@ const allCuisines = Array.from(
       cursor: pointer !important;
     }
 
-    /* Small marker / bullet - aligned with indented items */
     .search-suggestions__item::before {
       content: "•";
       position: absolute;
-      left: 2rem; /* Adjusted to be between header and item text */
+      left: 2rem;
       top: 0.95rem;
       font-size: 0.75rem;
       color: var(--text-muted);
@@ -414,7 +446,7 @@ const allCuisines = Array.from(
       background: var(--accent-soft);
       border-left-color: var(--accent);
       transform: translateX(2px);
-      padding-left: 3rem; /* Keep same indentation on hover */
+      padding-left: 3rem;
     }
 
     .search-suggestions__item:hover .search-suggestions__text,
@@ -498,50 +530,113 @@ const allCuisines = Array.from(
 
     .categories__grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 1rem;
     }
 
     .category-card {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
-      justify-content: center;
-      padding: 2rem 1.5rem;
+      gap: 1.25rem;
+      padding: 1.5rem;
       background: var(--bg-elevated);
       border: 1px solid var(--border-subtle);
       border-radius: 1rem;
       text-decoration: none;
       transition: all 0.2s;
-      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .category-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--accent);
+      transform: scaleY(0);
+      transition: transform 0.2s;
     }
 
     .category-card:hover {
-      transform: translateY(-4px);
+      transform: translateX(4px);
       box-shadow: var(--shadow-soft);
       border-color: var(--accent);
     }
 
+    .category-card:hover::before {
+      transform: scaleY(1);
+    }
+
+    .category-card__icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      background: var(--accent-soft);
+      border-radius: 0.75rem;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .category-card:hover .category-card__icon-wrapper {
+      background: var(--accent);
+      transform: scale(1.05);
+    }
+
     .category-card__icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
+      font-size: 2rem;
+      transition: transform 0.2s;
+    }
+
+    .category-card:hover .category-card__icon {
+      transform: scale(1.1);
+    }
+
+    .category-card__content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-width: 0;
     }
 
     .category-card__name {
-      margin: 0 0 0.5rem;
-      font-size: 1.1rem;
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
       color: var(--text-main);
+      line-height: 1.3;
     }
 
     .category-card__count {
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .category-card__arrow {
+      font-size: 1.5rem;
       color: var(--text-muted);
+      opacity: 0;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .category-card:hover .category-card__arrow {
+      opacity: 1;
+      color: var(--accent);
+      transform: translateX(4px);
     }
 
     .categories__footer {
-      text-align: center;
-      padding-top: 0.5rem;
+      display: none;
+      /* text-align: center;
+      padding-top: 0.5rem; */
     }
 
     .categories__view-all {
@@ -833,15 +928,24 @@ const allCuisines = Array.from(
       }
 
       .categories__grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: 1fr;
       }
 
       .category-card {
-        padding: 1.5rem 1rem;
+        padding: 1.25rem;
+      }
+
+      .category-card__icon-wrapper {
+        width: 56px;
+        height: 56px;
       }
 
       .category-card__icon {
-        font-size: 2.5rem;
+        font-size: 1.75rem;
+      }
+
+      .category-card__name {
+        font-size: 1.1rem;
       }
 
       .featured__header {
@@ -981,7 +1085,6 @@ const allCuisines = Array.from(
     const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
     const highlightedName = highlightMatch(b.name, query);
     
-    // Reduced padding for last item
     const spacingStyle = index === matchingBusinesses.length - 1 
       ? "padding-bottom:0.45rem;" 
       : "padding-bottom:0.35rem;";
@@ -999,7 +1102,6 @@ const allCuisines = Array.from(
 }
 
         // Cuisines section
-        // Cuisines section
 if (matchingCuisines.length > 0) {
   html +=
     '<div class="search-suggestions__section">' +
@@ -1009,7 +1111,6 @@ if (matchingCuisines.length > 0) {
     const itemIndex = matchingBusinesses.length + index;
     const highlightedCuisine = highlightMatch(c, query);
     
-    // Add extra padding to the last item
     const spacingStyle = index === matchingCuisines.length - 1 
       ? "padding-bottom:0.75rem;" 
       : "padding-bottom:0.35rem;";
@@ -1036,7 +1137,6 @@ if (matchingCuisines.length > 0) {
       matchingBusinesses.length + matchingCuisines.length + index;
     const highlightedNeighborhood = highlightMatch(n, query);
     
-    // Add extra padding to the last item, less for others
     const spacingStyle = index === matchingNeighborhoods.length - 1 
       ? "padding-bottom:0.5rem;" 
       : "padding-bottom:0.35rem;";
@@ -1183,9 +1283,8 @@ if (matchingCuisines.length > 0) {
         });
       }
 
-      // Delegated click handler - BOTH click and mousedown
+      // Delegated click handler
       if (suggestionsEl) {
-        // Primary handler - click
         suggestionsEl.addEventListener("click", (event) => {
           const target = event.target;
           if (!(target instanceof Element)) return;
@@ -1197,15 +1296,12 @@ if (matchingCuisines.length > 0) {
           }
         });
 
-        // Backup handler - mousedown (fires earlier)
         suggestionsEl.addEventListener("mousedown", (event) => {
           const target = event.target;
           if (!(target instanceof Element)) return;
           const item = target.closest(".search-suggestions__item");
           if (item) {
             event.preventDefault();
-            // Don't call handleSuggestionClick here to avoid double-firing
-            // Just prevent default to stop any interference
           }
         });
       }

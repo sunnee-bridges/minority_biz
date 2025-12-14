@@ -301,3 +301,56 @@ a {
   background: color-mix(in oklab, var(--accent-soft) 70%, var(--chip-bg));
   border-color: color-mix(in oklab, var(--accent) 35%, var(--chip-border));
 }
+
+:root {
+  /* Your existing variables */
+  --accent-rgb: 59, 130, 246; /* RGB values of your accent color */
+}
+
+[data-theme="dark"] {
+  --accent-rgb: 96, 165, 250; /* Lighter for dark mode */
+}
+
+/* HERO IMAGE BAND */
+
+.site-hero{
+  width: 100%;
+  height: clamp(200px, 22vw, 320px); /* slightly taller band */
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-header);
+}
+
+.site-hero__image{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  /* show more sky/mountains, keep some buildings */
+  object-position: center 45%;
+}
+
+.hero__helper{
+  margin: -1rem 0 1.25rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.hero__helper a{
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hero__helper a:hover{
+  text-decoration: underline;
+}
+
+
+
+
+/* Optional: slight tweak in dark mode */
+[data-theme="dark"] .site-hero__image {
+  filter: brightness(0.9) contrast(1.05);
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Endless Grind Coffee",
+  "slug": "endless-grind-coffee",
+  "type": "restaurant",
+  "cuisineTypes": ["Coffee & Tea", "Dessert", "Breakfast & Brunch", "African"],
+  "businessCategories": ["Restaurant", "Cafe"],
+  "neighborhoods": ["South Aurora"],
+  "latitude": 39.6103,
+  "longitude": -104.7958,
+  "microfilters": [
+    "Curbside pickup",
+    "LGBTQ+ friendly",
+    "Vegan options",
+    "Kids' menu",
+    "Wine and beer"
+  ],
+  "website": "https://www.endlessgrindcoffee.com/",
+  "phone": "303-284-5359",
+  "yearEstablished": 2017,
+  "notes": "Endless Grind Coffee is a family-friendly cafe serving coffee, tea, wine, African-inspired cuisine, breakfast, brunch, and desserts. Locally owned and operated, the company specializes in roasting organic and fair-trade coffee in-house for their customers. Endless Grind is a welcoming safe space committed to inclusivity. "
+}

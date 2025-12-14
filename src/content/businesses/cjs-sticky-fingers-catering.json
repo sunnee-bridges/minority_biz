@@ -1,0 +1,17 @@
+{
+  "name": "CJ's Sticky Fingers Catering",
+  "slug": "cjs-sticky-fingers-catering",
+  "type": "food truck",
+  "cuisineTypes": ["BBQ", "Soul Food"],
+  "businessCategories": ["Food Truck", "Catering"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "Curbside pickup"
+  ],
+  "website": "https://cjsstickyfingers69.wixsite.com/mysite",
+  "phone": "720-371-7478",
+  "yearEstablished": null,
+  "notes": "CJ's is a mobile BBQ and soul food catering business inspired by Detroit home cooking and Kansas City BBQ traditions. CJ learned the art of soul food from his mother Mary Lou, who fed her seven children and the community with greens, mac and cheese, fried chicken, and amazing BBQ. After perfecting his craft in Kansas City at the world-famous Gates BBQ, he knew this was his calling. CJ now serves what he calls \"just real good food\" throughout the Denver area."
+}

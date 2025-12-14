@@ -1,0 +1,22 @@
+{
+  "name": "Taste the Love Cooking",
+  "slug": "taste-the-love-cooking",
+  "type": "catering",
+  "cuisineTypes": ["Soul food", "Barbecue"],
+  "businessCategories": ["Catering"],
+  "neighborhoods": ["Mobile"],
+  "latitude": null,
+  "longitude": null,
+  "microfilters": [
+    "Delivery",
+    "Dietary/allergy friendly",
+    "Gluten-free options",
+    "Dairy-free options",
+    "Vegan options",
+    "Vegetarian options"
+  ],
+  "website": "https://www.tastethelovecooking.com/",
+  "phone": "720-636-3238",
+  "yearEstablished": null,
+  "notes": "TTaste the Love Cooking is led by Angela, a Kansas City, Missouri native bringing her own style of barbecue and soul food to the Denver area. Her cooking is inspired by childhood memories of big family gatherings where everything — from appetizers to dessert — was cooked on the grill, and Sunday dinners at a local barbecue spot where the weekly specials were always a fun surprise. She now shares that same warm, home-style experience with her customers."
+}
