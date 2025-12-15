@@ -157,14 +157,96 @@ const locationsForMap = filtered
     type: b.primaryType,
   }));
 
-const title = `${currentTypeLabel} • Local Business Directory`;
 const displayTypeLabel = currentTypeLabel.charAt(0).toUpperCase() + currentTypeLabel.slice(1);
 
+/* --------------------------
+   SEO (added, no UI changes)
+--------------------------- */
+const pageTitle = `${displayTypeLabel} • Local Business Directory`;
+const pageDescription =
+  `Explore Black-owned ${currentTypeLabel.toLowerCase()} businesses in the Denver metro area. Filter by neighborhood${
+    primaryTypes.length ? `, ${primaryFacetLabel.toLowerCase()}` : ""
+  }, and amenities.`;
+const pageImage = "/og-denver-black-guide.png";
+
+const origin = Astro.site ?? Astro.url.origin;
+const canonical = new URL(Astro.url.pathname, origin).toString();
+const absoluteImage = new URL(pageImage, origin).toString();
+
+const listItems = filtered.slice(0, 100).map((b, i) => ({
+  "@type": "ListItem",
+  position: i + 1,
+  name: b.name,
+  url: new URL(`/business/${b.slug}/`, origin).toString(),
+}));
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Denver Black Guide",
+      url: new URL("/", origin).toString(),
+      logo: absoluteImage,
+    },
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: absoluteImage,
+      },
+      breadcrumb: {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: new URL("/", origin).toString(),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: displayTypeLabel,
+            item: canonical,
+          },
+        ],
+      },
+    },
+    {
+      "@type": "ItemList",
+      name: `${displayTypeLabel} businesses in Denver`,
+      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      numberOfItems: filtered.length,
+      itemListElement: listItems,
+    },
+  ],
+};
 ---
 
-<BaseLayout title={title}>
-  <!-- Add Leaflet CSS in the head -->
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
+>
+  <!-- ✅ SEO injected into Base.astro via <slot name="head" /> -->
+  <Fragment slot="head">
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="author" content="Denver Black Guide" />
 
+    <meta property="og:site_name" content="Denver Black Guide" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image:alt" content={`Denver Black Guide ${displayTypeLabel} directory preview`} />
+    <meta name="twitter:image:alt" content={`Denver Black Guide ${displayTypeLabel} directory preview`} />
+
+    <script type="application/ld+json" is:inline>
+      {JSON.stringify(jsonLd)}
+    </script>
+  </Fragment>
 
   <div class="directory">
     <!-- Breadcrumb -->
@@ -340,121 +422,124 @@ const displayTypeLabel = currentTypeLabel.charAt(0).toUpperCase() + currentTypeL
         </div>
 
         <div id="results-grid" class="directory__grid">
-  {filtered.map((b) => {
-    const name = b.name || "";
-    const cuisines = b.cuisineTypes || [];
-    const entertainmentTypes = b.entertainmentTypes || [];
-    const artTypes = b.artTypes || [];
-    const neighborhoods = b.neighborhoods || [];
-    const microfilters = b.microfilters || [];
-    
-    // Use appropriate type data based on current page type
-    let displayTypes = [];
-    if (isEntertainment) {
-      displayTypes = entertainmentTypes;
-    } else if (isArt) {
-      displayTypes = artTypes;
-    } else {
-      displayTypes = cuisines;
-    }
+          {filtered.map((b) => {
+            const name = b.name || "";
+            const cuisines = b.cuisineTypes || [];
+            const entertainmentTypes = b.entertainmentTypes || [];
+            const artTypes = b.artTypes || [];
+            const neighborhoods = b.neighborhoods || [];
+            const microfilters = b.microfilters || [];
+            
+            // Use appropriate type data based on current page type
+            let displayTypes = [];
+            if (isEntertainment) {
+              displayTypes = entertainmentTypes;
+            } else if (isArt) {
+              displayTypes = artTypes;
+            } else {
+              displayTypes = cuisines;
+            }
 
-    return (
-      <a 
-        href={`/business/${b.slug}/`} 
-        class="business-card-link"
-        data-slug={b.slug}
-        data-name={name.toLowerCase()}
-        data-primary-types={displayTypes.join("|").toLowerCase()}
-        data-neighborhoods={neighborhoods.join("|").toLowerCase()}
-        data-microfilters={microfilters.join("|").toLowerCase()}
-        data-lat={b.latitude}
-        data-lng={b.longitude}
-      >
-        <article class="card business-card">
-          <h2 class="business-card__name">
-            {name}
-          </h2>
+            return (
+              <a 
+                href={`/business/${b.slug}/`} 
+                class="business-card-link"
+                data-slug={b.slug}
+                data-name={name.toLowerCase()}
+                data-primary-types={displayTypes.join("|").toLowerCase()}
+                data-neighborhoods={neighborhoods.join("|").toLowerCase()}
+                data-microfilters={microfilters.join("|").toLowerCase()}
+                data-lat={b.latitude}
+                data-lng={b.longitude}
+              >
+                <article class="card business-card">
+                  <h2 class="business-card__name">
+                    {name}
+                  </h2>
 
-          {/* Quick info with icons */}
-          <div class="business-card__quick-info">
-           <span class="quick-info-item">
-  <span class="quick-info-item__icon">📍</span>
+                  {/* Quick info with icons */}
+                  <div class="business-card__quick-info">
+                    <span class="quick-info-item">
+                      <span class="quick-info-item__icon">📍</span>
 
-  {neighborhoods.length > 0 ? (
-    <span class="neighborhood-chip-row">
-      {neighborhoods.slice(0, 2).map((n) => (
-        <button
-          type="button"
-          class="neighborhood-chip"
-          data-neighborhood-slug={slugForNeighborhood(n)}
-          aria-label={`View businesses in ${n}`}
-        >
-          {n}
-        </button>
-      ))}
-      {neighborhoods.length > 2 && (
-        <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
-      )}
-    </span>
-  ) : (
-    <span>{isMobile ? "Mobile" : "Location TBD"}</span>
-  )}
-</span>
+                      {neighborhoods.length > 0 ? (
+                        <span class="neighborhood-chip-row">
+                          {neighborhoods.slice(0, 2).map((n) => (
+                            <button
+                              type="button"
+                              class="neighborhood-chip"
+                              data-neighborhood-slug={slugForNeighborhood(n)}
+                              aria-label={`View businesses in ${n}`}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                          {neighborhoods.length > 2 && (
+                            <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span>{"Location TBD"}</span>
+                      )}
+                    </span>
 
-            {b.yearEstablished && (
-              <span class="quick-info-item">
-                <span class="quick-info-item__icon">📅</span>
-                Est. {b.yearEstablished}
-              </span>
-            )}
-          </div>
+                    {b.yearEstablished && (
+                      <span class="quick-info-item">
+                        <span class="quick-info-item__icon">📅</span>
+                        Est. {b.yearEstablished}
+                      </span>
+                    )}
+                  </div>
 
-          <p class="business-card__meta">
-            {displayTypes.length > 0 && (
-              <>
-                <span class="business-card__type">
-                  {primaryFacetLabel}:
-                </span>{" "}
-                <span>{displayTypes.join(", ")}</span>
-              </>
-            )}
-            {displayTypes.length === 0 && (
-              <span class="business-card__type">
-                {currentTypeLabel}
-              </span>
-            )}
-          </p>
+                  <p class="business-card__meta">
+                    {displayTypes.length > 0 && (
+                      <>
+                        <span class="business-card__type">
+                          {primaryFacetLabel}:
+                        </span>{" "}
+                        <span>{displayTypes.join(", ")}</span>
+                      </>
+                    )}
+                    {displayTypes.length === 0 && (
+                      <span class="business-card__type">
+                        {currentTypeLabel}
+                      </span>
+                    )}
+                  </p>
 
-          {microfilters.length > 0 && (
-            <div class="business-card__amenities">
-              {microfilters.slice(0, 3).map((tag) => {
-                const icon = getAmenityIcon(tag);
-                return (
-                  <span class="amenity-tag" title={tag}>
-                    <span class="amenity-tag__icon">{icon}</span>
-                    <span class="amenity-tag__label">{tag}</span>
-                  </span>
-                );
-              })}
-              {microfilters.length > 3 && (
-                <span class="business-card__more">
-                  +{microfilters.length - 3} more
-                </span>
-              )}
-            </div>
-          )}
+                  {microfilters.length > 0 && (
+                    <div class="business-card__amenities">
+                      {microfilters.slice(0, 3).map((tag) => {
+                        const icon = getAmenityIcon(tag);
+                        return (
+                          <span class="amenity-tag" title={tag}>
+                            <span class="amenity-tag__icon">{icon}</span>
+                            <span class="amenity-tag__label">{tag}</span>
+                          </span>
+                        );
+                      })}
+                      {microfilters.length > 3 && (
+                        <span class="business-card__more">
+                          +{microfilters.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-          <div class="business-card__action">
-            View Details →
-          </div>
-        </article>
-      </a>
-    );
-  })}
-</div>
+                  <div class="business-card__action">
+                    View Details →
+                  </div>
+                </article>
+              </a>
+            );
+          })}
+        </div>
       </section>
     </div>
   </div>
+
+
+
 
   <style>
     .directory {

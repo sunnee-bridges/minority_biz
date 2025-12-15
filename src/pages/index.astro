@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../layouts/Base.astro";
+import SearchSuggestions from "../components/SearchSuggestions.astro";
+
 import { businesses } from "../lib/businesses";
 
 /**
@@ -24,21 +26,16 @@ const allTypes = Array.from(
   new Set(enhanced.map((b) => b.primaryType))
 ).sort();
 
-const typeCounts = allTypes.map(type => ({
-  type,
-  count: enhanced.filter(b => b.primaryType === type).length
-}));
+const typeCounts = allTypes
+  .map(type => ({ type, count: enhanced.filter(b => b.primaryType === type).length }))
+  .filter(x => x.count > 0);
 
-const restaurantOnlyTypeCounts = typeCounts.filter(
-  ({ type }) => type.toLowerCase() === "restaurant"
+const typeCountsForHomepage = typeCounts.filter(
+  ({ type }) => type && type.toLowerCase() !== "other"
 );
 
-const restaurantBusinesses = enhanced.filter(
-  (b) => (b.primaryType || "").toLowerCase() === "restaurant"
-);
+const businessCount = enhanced.length;
 
-// Example: only count restaurants
-const restaurantCount = restaurantBusinesses.length;
 
 // Helper function for type icons
 function getTypeIcon(type: string): string {
@@ -106,13 +103,75 @@ const allCuisines = Array.from(
     ])
   )
 ).sort();
+
+/* --------------------------
+   SEO (added, no UI changes)
+--------------------------- */
+const pageTitle = "Black-Owned Businesses in the Denver Metro Area | Denver Black Guide";
+const pageDescription =
+  "Discover and support Black-owned businesses across Denver neighborhoods. Browse by category, cuisine, and amenities, or search the directory.";
+const pageImage = "/og-denver-black-guide.png";
+
+const origin = Astro.site ?? Astro.url.origin;
+const canonical = new URL(Astro.url.pathname, origin).toString();
+const absoluteImage = new URL(pageImage, origin).toString();
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Denver Black Guide",
+      url: canonical,
+      // If you ever add a real logo file, swap this:
+      logo: absoluteImage,
+    },
+    {
+      "@type": "WebSite",
+      name: "Denver Black Guide",
+      url: canonical,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${new URL("/all", origin).toString()}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: absoluteImage,
+      },
+    },
+  ],
+};
 ---
 
 <BaseLayout
-  title="Black-Owned Businesses in the Denver Metro Area | Denver Black Guide"
-  description="Discover and support Black-owned businesses across Denver neighborhoods. Browse by category, cuisine, and amenities, or search the directory."
-  image="/og-denver-black-guide.png"
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
 >
+  <!-- ✅ SEO injected into Base.astro via <slot name="head" /> -->
+  <Fragment slot="head">
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="author" content="Denver Black Guide" />
+
+    <!-- Optional: adds clarity without duplicating existing OG tags -->
+    <meta property="og:site_name" content="Denver Black Guide" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image:alt" content="Denver Black Guide directory preview image" />
+    <meta name="twitter:image:alt" content="Denver Black Guide directory preview image" />
+
+    <!-- Structured data (JSON-LD) -->
+    <script type="application/ld+json" is:inline>
+      {JSON.stringify(jsonLd)}
+    </script>
+  </Fragment>
+
   <div class="homepage">
     <!-- HERO SECTION -->
     <section class="hero">
@@ -148,6 +207,26 @@ const allCuisines = Array.from(
           <div id="search-suggestions" class="search-suggestions" style="display: none;">
             <!-- Populated by JavaScript -->
           </div>
+          <SearchSuggestions
+  inputId="hero-search"
+  panelId="search-suggestions"
+  buttonSelector=".hero__search-button"
+  mode="hero"
+  allPath="/all"
+  businessPath="/business"
+  searchData={enhanced.map((b) => ({
+    name: b.name,
+    slug: b.slug,
+    type: b.primaryType,
+    neighborhoods: b.neighborhoods || [],
+    cuisines: [
+      ...(b.cuisineTypes || []),
+      ...(b.entertainmentTypes || []),
+      ...(b.artTypes || []),
+    ],
+  }))}
+/>
+
         </div>
       </div>
     </section>
@@ -157,7 +236,7 @@ const allCuisines = Array.from(
       <h2 class="categories__title">Browse by Category</h2>
       
       <div class="categories__grid">
-        {restaurantOnlyTypeCounts.map(({ type, count }) => {
+        {typeCountsForHomepage.map(({ type, count }) => {
           const icon = getTypeIcon(type);
           const slug = slugify(type);
           
@@ -971,356 +1050,5 @@ const allCuisines = Array.from(
     }
   </style>
 
-  <script
-    is:inline
-    define:vars={{
-      searchData: enhanced.map((b) => ({
-        name: b.name,
-        slug: b.slug,
-        type: b.primaryType,
-        neighborhoods: b.neighborhoods || [],
-        cuisines: [
-          ...(b.cuisineTypes || []),
-          ...(b.entertainmentTypes || []),
-          ...(b.artTypes || []),
-        ],
-      })),
-    }}
-  >
-    // Hero search functionality with live suggestions
-    (function () {
-      const heroSearch = document.getElementById("hero-search");
-      const heroButton = document.querySelector(".hero__search-button");
-      const suggestionsEl = document.getElementById("search-suggestions");
-
-      // Data injected from server
-      const businesses = Array.isArray(searchData) ? searchData : [];
-
-      // Build neighborhood & cuisine sets
-      const neighborhoods = new Set();
-      const cuisines = new Set();
-
-      businesses.forEach((b) => {
-        (b.neighborhoods || []).forEach((n) => {
-          if (n && n !== "Location TBD") neighborhoods.add(n);
-        });
-        (b.cuisines || []).forEach((c) => {
-          if (c) cuisines.add(c);
-        });
-      });
-
-      let currentFocusIndex = -1;
-
-      function normalize(str) {
-        return (str || "").toLowerCase().trim();
-      }
-
-      function handleSearch() {
-        if (!heroSearch) return;
-        const query = heroSearch.value.trim();
-        if (query) {
-          window.location.href = `/all?q=${encodeURIComponent(query)}`;
-        } else {
-          window.location.href = "/all";
-        }
-      }
-
-      function highlightMatch(text, query) {
-        if (!text || !query) return text;
-        const lowerText = text.toLowerCase();
-        const lowerQuery = query.toLowerCase();
-        const idx = lowerText.indexOf(lowerQuery);
-        if (idx === -1) return text;
-
-        const before = text.slice(0, idx);
-        const match = text.slice(idx, idx + query.length);
-        const after = text.slice(idx + query.length);
-
-        return (
-          before +
-          '<strong style="font-weight:700;color:var(--accent-strong);">' +
-          match +
-          "</strong>" +
-          after
-        );
-      }
-
-      function showSuggestions(query) {
-        if (!suggestionsEl) return;
-
-        if (!query || query.length < 2) {
-          hideSuggestions();
-          return;
-        }
-
-        const qNorm = normalize(query);
-        currentFocusIndex = -1;
-
-        // Businesses
-        const matchingBusinesses = businesses
-          .filter((b) => normalize(b.name).includes(qNorm))
-          .slice(0, 5);
-
-        // Cuisines
-        const matchingCuisines = Array.from(cuisines)
-          .filter((c) => normalize(c).includes(qNorm))
-          .slice(0, 5);
-
-        // Neighborhoods
-        const matchingNeighborhoods = Array.from(neighborhoods)
-          .filter((n) => normalize(n).includes(qNorm))
-          .slice(0, 5);
-
-        let html = "";
-
-        // Businesses section
-        if (matchingBusinesses.length > 0) {
-  html +=
-    '<div class="search-suggestions__section">' +
-    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
-  
-  matchingBusinesses.forEach((b, index) => {
-    const cuisineText =
-      (b.cuisines || []).slice(0, 2).join(", ") || b.type;
-    const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
-    const highlightedName = highlightMatch(b.name, query);
-    
-    const spacingStyle = index === matchingBusinesses.length - 1 
-      ? "padding-bottom:0.45rem;" 
-      : "padding-bottom:0.35rem;";
-    
-    html +=
-      `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-      '<div class="search-suggestions__content" style="text-align:left;">' +
-      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
-      `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
-      "</div>" +
-      "</div>";
-  });
-  
-  html += "</div>";
-}
-
-        // Cuisines section
-if (matchingCuisines.length > 0) {
-  html +=
-    '<div class="search-suggestions__section">' +
-    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
-
-  matchingCuisines.forEach((c, index) => {
-    const itemIndex = matchingBusinesses.length + index;
-    const highlightedCuisine = highlightMatch(c, query);
-    
-    const spacingStyle = index === matchingCuisines.length - 1 
-      ? "padding-bottom:0.75rem;" 
-      : "padding-bottom:0.35rem;";
-
-    html +=
-      `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-      '<div class="search-suggestions__content" style="text-align:left;">' +
-      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
-      "</div>" +
-      "</div>";
-  });
-
-  html += "</div>";
-}
-
-        // Neighborhoods section
-        if (matchingNeighborhoods.length > 0) {
-  html +=
-    '<div class="search-suggestions__section">' +
-    '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
-  
-  matchingNeighborhoods.forEach((n, index) => {
-    const itemIndex =
-      matchingBusinesses.length + matchingCuisines.length + index;
-    const highlightedNeighborhood = highlightMatch(n, query);
-    
-    const spacingStyle = index === matchingNeighborhoods.length - 1 
-      ? "padding-bottom:0.5rem;" 
-      : "padding-bottom:0.35rem;";
-    
-    html +=
-      `<div class="search-suggestions__item" data-type="neighborhood" data-value="${n}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-      '<div class="search-suggestions__content" style="text-align:left;">' +
-      `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedNeighborhood}</div>` +
-      "</div>" +
-      "</div>";
-  });
-  
-  html += "</div>";
-}
-
-        if (!html) {
-          html =
-            '<div class="search-suggestions__empty">No results found</div>';
-        }
-
-        suggestionsEl.innerHTML = html;
-        suggestionsEl.style.display = "block";
-      }
-
-      function hideSuggestions() {
-        if (!suggestionsEl) return;
-        suggestionsEl.style.display = "none";
-        currentFocusIndex = -1;
-      }
-
-      function handleSuggestionClick(item) {
-        if (!item) return;
-
-        const type = item.getAttribute("data-type");
-        const slug = item.getAttribute("data-slug");
-        const value = item.getAttribute("data-value");
-
-        hideSuggestions();
-
-        if (type === "business" && slug) {
-          window.location.href = `/business/${slug}`;
-        } else if (type === "cuisine" && value) {
-          window.location.href = `/all?q=${encodeURIComponent(value)}`;
-        } else if (type === "neighborhood" && value) {
-          const neighborhoodSlug = value.toLowerCase().replace(/\s+/g, "-");
-          window.location.href = `/all?neighborhood=${encodeURIComponent(
-            neighborhoodSlug
-          )}`;
-        } else {
-          window.location.href = "/all";
-        }
-      }
-
-      function navigateSuggestions(direction) {
-        if (!suggestionsEl) return;
-        const items = suggestionsEl.querySelectorAll(
-          ".search-suggestions__item"
-        );
-        if (!items || items.length === 0) return;
-
-        if (currentFocusIndex >= 0 && currentFocusIndex < items.length) {
-          items[currentFocusIndex].classList.remove(
-            "search-suggestions__item--active"
-          );
-        }
-
-        if (direction === "down") {
-          currentFocusIndex = (currentFocusIndex + 1) % items.length;
-        } else {
-          currentFocusIndex =
-            currentFocusIndex <= 0 ? items.length - 1 : currentFocusIndex - 1;
-        }
-
-        const activeItem = items[currentFocusIndex];
-        activeItem.classList.add("search-suggestions__item--active");
-        activeItem.scrollIntoView({ block: "nearest" });
-      }
-
-      function selectCurrentSuggestion() {
-        if (!suggestionsEl) {
-          handleSearch();
-          return;
-        }
-        const items = suggestionsEl.querySelectorAll(
-          ".search-suggestions__item"
-        );
-        if (
-          items &&
-          currentFocusIndex >= 0 &&
-          currentFocusIndex < items.length
-        ) {
-          handleSuggestionClick(items[currentFocusIndex]);
-        } else {
-          handleSearch();
-        }
-      }
-
-      // Wire up events
-      if (heroButton) {
-        heroButton.addEventListener("click", handleSearch);
-      }
-
-      if (heroSearch) {
-        heroSearch.addEventListener("input", (event) => {
-          const query = event.target.value;
-          showSuggestions(query);
-        });
-
-        heroSearch.addEventListener("focus", () => {
-          if (heroSearch.value.length >= 2) {
-            showSuggestions(heroSearch.value);
-          }
-        });
-
-        heroSearch.addEventListener("keydown", (event) => {
-          if (!suggestionsEl) return;
-          const isOpen = suggestionsEl.style.display === "block";
-
-          if (isOpen) {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              navigateSuggestions("down");
-              return;
-            }
-            if (event.key === "ArrowUp") {
-              event.preventDefault();
-              navigateSuggestions("up");
-              return;
-            }
-            if (event.key === "Enter") {
-              event.preventDefault();
-              selectCurrentSuggestion();
-              return;
-            }
-            if (event.key === "Escape") {
-              hideSuggestions();
-              return;
-            }
-          }
-
-          if (event.key === "Enter") {
-            handleSearch();
-          }
-        });
-      }
-
-      // Delegated click handler
-      if (suggestionsEl) {
-        suggestionsEl.addEventListener("click", (event) => {
-          const target = event.target;
-          if (!(target instanceof Element)) return;
-          const item = target.closest(".search-suggestions__item");
-          if (item) {
-            event.preventDefault();
-            event.stopPropagation();
-            handleSuggestionClick(item);
-          }
-        });
-
-        suggestionsEl.addEventListener("mousedown", (event) => {
-          const target = event.target;
-          if (!(target instanceof Element)) return;
-          const item = target.closest(".search-suggestions__item");
-          if (item) {
-            event.preventDefault();
-          }
-        });
-      }
-
-      // Close suggestions when clicking outside
-      document.addEventListener("click", (event) => {
-        const target = event.target;
-        if (!(target instanceof Node)) return;
-
-        if (
-          suggestionsEl &&
-          heroSearch &&
-          (suggestionsEl.contains(target) || heroSearch.contains(target))
-        ) {
-          return;
-        }
-
-        hideSuggestions();
-      });
-    })();
-  </script>
+ 
 </BaseLayout>

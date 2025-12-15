@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/Base.astro";
+import SearchSuggestions from "../components/SearchSuggestions.astro";
 import { businesses } from "../lib/businesses";
 
 /**
@@ -19,23 +20,9 @@ const neighborhoodFromUrl = (params.get("neighborhood") || "").toLowerCase();
 const sortFromUrl = params.get("sort") || "az";
 const qFromUrl = params.get("q") || "";
 
+const allBusinesses = enhanced;
 
 
-//remove when have more than restaurant categories -- REMOVE
-const restaurantBusinesses = enhanced.filter(
-  (b) => (b.primaryType || "").toLowerCase() === "restaurant"
-); 
-
-const allTypes = Array.from(
-  new Set(restaurantBusinesses.map((b) => b.primaryType))
-).sort();
-
-const allNeighborhoods = Array.from(
-  new Set(restaurantBusinesses.flatMap((b) => b.neighborhoods || []))
-).sort();
-
-/*
- remove comment to display all businesses
 const allTypes = Array.from(
   new Set(enhanced.map((b) => b.primaryType))
 ).sort();
@@ -43,8 +30,6 @@ const allTypes = Array.from(
 const allNeighborhoods = Array.from(
   new Set(enhanced.flatMap((b) => b.neighborhoods || []))
 ).sort();
-
-*/
 
 
 // Collect BOTH cuisineTypes and entertainmentTypes and artTypes
@@ -58,9 +43,31 @@ const allCuisines = Array.from(
   )
 ).sort();
 
-const allMicrofilters = Array.from(
-  new Set(enhanced.flatMap((b) => b.microfilters || []))
-).sort();
+function normalizeTag(s: string) {
+  return String(s || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+// Build a map: normalizedKey -> displayLabel
+const microfilterMap = new Map<string, string>();
+
+enhanced.flatMap((b) => b.microfilters || []).forEach((tag) => {
+  const key = normalizeTag(tag);
+  if (!key) return;
+
+  // Keep first “pretty” label we see
+  if (!microfilterMap.has(key)) {
+    microfilterMap.set(key, String(tag).trim().replace(/\s+/g, " "));
+  }
+});
+
+// Now you get stable value + label
+const allMicrofilters = Array.from(microfilterMap.entries())
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
 
 // Helper function for type icons
 function getTypeIcon(type: string): string {
@@ -82,13 +89,32 @@ function slugify(str: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+// Helper function for neighborhood slugs (for clickable chips)
+function slugForNeighborhood(n: string) {
+  return String(n || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function normalizeTag(s) {
+  return String(s || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+
+
 // Helper function for amenity icons
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
-    "takeout": "🥡",
+    takeout: "🥡",
     "dine-in": "🍽️",
     "outdoor seating": "🌳",
-    "delivery": "🚚",
+    delivery: "🚚",
     "vegan options": "🌱",
     "live entertainment": "🎵",
     "lgbtq+ friendly": "🏳️‍🌈",
@@ -99,11 +125,101 @@ function getAmenityIcon(tag: string): string {
   };
   return icons[tag.toLowerCase()] || "✓";
 }
+
+/* --------------------------
+   SEO (kept)
+--------------------------- */
+const pageTitle = "All Businesses • Denver Black Guide";
+const pageDescription =
+  "Browse the Denver Black Guide directory. Filter Black-owned businesses by neighborhood, cuisine, and amenities—or search by name.";
+
+const pageImage = "/og-denver-black-guide.png";
+
+// Canonical should NOT include filters/query to avoid duplicate indexation
+const origin = Astro.site ?? Astro.url.origin;
+const canonical = new URL(Astro.url.pathname, origin).toString();
+const absoluteImage = new URL(pageImage, origin).toString();
+
+// Common SEO practice: don't index internal search/filter result URLs
+const isFiltered =
+  !!qFromUrl ||
+  !!neighborhoodFromUrl ||
+  (sortFromUrl && sortFromUrl !== "az");
+
+const robots = isFiltered ? "noindex,follow" : "index,follow";
+
+// ItemList (cap to keep JSON-LD payload reasonable)
+const listItems = allBusinesses.slice(0, 100).map((b, i) => ({
+  "@type": "ListItem",
+  position: i + 1,
+  name: b.name,
+  url: new URL(`/business/${b.slug}/`, origin).toString(),
+}));
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Denver Black Guide",
+      url: new URL("/", origin).toString(),
+      logo: absoluteImage,
+    },
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: absoluteImage,
+      },
+      breadcrumb: {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: new URL("/", origin).toString(),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "All businesses",
+            item: canonical,
+          },
+        ],
+      },
+    },
+    {
+      "@type": "ItemList",
+      name: "Denver Black Guide directory",
+      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      numberOfItems: allBusinesses.length,
+      itemListElement: listItems,
+    },
+  ],
+};
 ---
 
-<BaseLayout title="All Businesses • Denver Directory">
+<BaseLayout title={pageTitle} description={pageDescription} image={pageImage}>
+  <Fragment slot="head">
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content={robots} />
+    <meta name="author" content="Denver Black Guide" />
+
+    <meta property="og:site_name" content="Denver Black Guide" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image:alt" content="Denver Black Guide directory preview" />
+    <meta name="twitter:image:alt" content="Denver Black Guide directory preview" />
+
+    <script type="application/ld+json" is:inline>
+      {JSON.stringify(jsonLd)}
+    </script>
+  </Fragment>
+
   <div class="directory">
-    <!-- Breadcrumb using global styles -->
     <nav aria-label="Breadcrumb" class="breadcrumb">
       <ol class="breadcrumb__list">
         <li class="breadcrumb__item">
@@ -117,15 +233,11 @@ function getAmenityIcon(tag: string): string {
     </nav>
 
     <header class="directory__head">
-      <h1 class="directory__title">
-        All Businesses
-      </h1>
+      <h1 class="directory__title">All Businesses</h1>
 
-      <!-- Quick stats -->
-      <!-- changed enhanced.length to restauranntBusinesses -->
       <div class="directory__stats">
         <span class="stat">
-          <strong>{restaurantBusinesses.length}</strong> businesses
+          <strong>{allBusinesses.length}</strong> businesses
         </span>
         <span class="stat-separator">·</span>
         <span class="stat">
@@ -138,14 +250,13 @@ function getAmenityIcon(tag: string): string {
       </div>
 
       <p class="directory__subtitle">
-        Browse our complete directory with advanced filters — find exactly 
-        what you're looking for by type, neighborhood, cuisine, and amenities.
+        Browse our complete directory with advanced filters — find exactly what you're
+        looking for by type, neighborhood, cuisine, and amenities.
       </p>
     </header>
 
     <!-- FILTERS / CONTROLS -->
     <section class="filter-panel" id="filters" data-collapsed="true">
-      <!-- Mobile filter toggle -->
       <button class="filter-panel__toggle" id="filter-toggle" type="button">
         <span id="filter-toggle-text">Show filters</span>
         <span class="filter-badge" id="filter-count">0</span>
@@ -153,27 +264,14 @@ function getAmenityIcon(tag: string): string {
       </button>
 
       <div class="filter-panel__content">
-        <!-- Top row: search + sort -->
         <div class="filter-row filter-row--top">
           <div class="filter-search-wrap">
-            <label for="search" class="filter-label">
-              Search
-            </label>
+            <label for="search" class="filter-label">Search</label>
             <div class="filter-search">
-              <svg
-                class="filter-search__icon"
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-              >
-                <path
-                  d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
+              <svg class="filter-search__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               </svg>
+
               <input
                 id="search"
                 name="directory-search"
@@ -185,45 +283,50 @@ function getAmenityIcon(tag: string): string {
                 spellcheck="false"
                 value={qFromUrl}
               />
-              <button
-                type="button"
-                id="search-clear"
-                class="filter-search__clear"
-                aria-label="Clear search"
-              >
+
+              <button type="button" id="search-clear" class="filter-search__clear" aria-label="Clear search">
                 ✕
               </button>
+
+              <!-- ✅ Live suggestions dropdown (must be inside .filter-search) -->
+  <div id="all-search-suggestions" class="search-suggestions" style="display:none;"></div>
+
+  <!-- ✅ Attach behavior -->
+  <SearchSuggestions
+     mode="filter"
+    inputId="search"
+    panelId="all-search-suggestions"
+    neighborhoodMode="slug"
+    searchData={enhanced.map((b) => ({
+      name: b.name,
+      slug: b.slug,
+      type: b.primaryType,
+      neighborhoods: b.neighborhoods || [],
+      cuisines: [
+        ...(b.cuisineTypes || []),
+        ...(b.entertainmentTypes || []),
+        ...(b.artTypes || []),
+      ],
+    }))}
+  />
             </div>
-            <p class="filter-search__hint">
-              Try: "soul food", "takeout", "Five Points", "live music"
-            </p>
+
+            <p class="filter-search__hint">Try: "soul food", "takeout", "Five Points", "live music"</p>
           </div>
 
           <div class="filter-sort-wrap">
-            <label for="sort" class="filter-label">
-              Sort by
-            </label>
+            <label for="sort" class="filter-label">Sort by</label>
             <select id="sort" class="filter-sort">
-              <option value="az" selected={sortFromUrl === "az"}>
-                A–Z (Name)
-              </option>
-              <option
-                value="neighborhood"
-                selected={sortFromUrl === "neighborhood"}
-              >
-                Neighborhood
-              </option>
-              <option value="type" selected={sortFromUrl === "type"}>
-                Type
-              </option>
+              <option value="az" selected={sortFromUrl === "az"}>A–Z (Name)</option>
+              <option value="neighborhood" selected={sortFromUrl === "neighborhood"}>Neighborhood</option>
+              <option value="type" selected={sortFromUrl === "type"}>Type</option>
             </select>
           </div>
         </div>
 
-        <!-- Type (LINKS to dedicated type pages) -->
         <div class="filter-row">
           <span class="filter-label filter-label--pill">Browse by type</span>
-          <div class="filter-chips">
+          <div class="filter-chips filter-chips--scroll">
             <a href="/" class="chip chip--link chip--active">
               <span class="chip__icon">🏠</span>
               All
@@ -242,72 +345,47 @@ function getAmenityIcon(tag: string): string {
           </div>
         </div>
 
-        <!-- Filter dropdowns in a grid -->
+
+
+
         <div class="filter-dropdowns">
-          <!-- Neighborhood dropdown -->
           <div class="filter-dropdown">
-            <label for="neighborhood-select" class="filter-label">
-              Neighborhood
-            </label>
+            <label for="neighborhood-select" class="filter-label">Neighborhood</label>
             <select id="neighborhood-select" class="filter-select">
               <option value="">All neighborhoods</option>
               {allNeighborhoods.map((n) => (
-                <option
-                  value={n.toLowerCase()}
-                  selected={neighborhoodFromUrl === n.toLowerCase()}
-                >
+                <option value={n.toLowerCase()} selected={neighborhoodFromUrl === n.toLowerCase()}>
                   {n}
                 </option>
               ))}
             </select>
           </div>
 
-          <!-- Cuisine/Entertainment/Art dropdown (multi-select) -->
           {allCuisines.length > 0 && (
             <div class="filter-dropdown">
-              <label for="cuisine-select" class="filter-label">
-                Cuisine / entertainment / art
-              </label>
-              <select
-                id="cuisine-select"
-                class="filter-select"
-                multiple
-                size="4"
-              >
+              <label for="cuisine-select" class="filter-label">Cuisine / entertainment / art</label>
+              <select id="cuisine-select" class="filter-select" multiple size="4">
                 {allCuisines.map((c) => (
                   <option value={c.toLowerCase()}>{c}</option>
                 ))}
               </select>
-              <p class="filter-dropdown__hint">
-                Hold Ctrl/Cmd to select multiple
-              </p>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
             </div>
           )}
 
-          <!-- Amenities dropdown (multi-select) -->
           {allMicrofilters.length > 0 && (
             <div class="filter-dropdown">
-              <label for="amenities-select" class="filter-label">
-                Amenities &amp; options
-              </label>
-              <select
-                id="amenities-select"
-                class="filter-select"
-                multiple
-                size="4"
-              >
-                {allMicrofilters.map((m) => (
-                  <option value={m.toLowerCase()}>{m}</option>
+              <label for="amenities-select" class="filter-label">Amenities &amp; options</label>
+              <select id="amenities-select" class="filter-select" multiple size="4">
+                {allMicrofilters.map(({ value, label }) => (
+                  <option value={value}>{label}</option>
                 ))}
               </select>
-              <p class="filter-dropdown__hint">
-                Hold Ctrl/Cmd to select multiple
-              </p>
+              <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
             </div>
           )}
         </div>
 
-        <!-- Reset button -->
         <div class="filter-row filter-row--actions">
           <button type="button" id="reset-all-filters" class="btn-reset-all">
             Clear all filters
@@ -316,40 +394,26 @@ function getAmenityIcon(tag: string): string {
       </div>
     </section>
 
-    <!-- Active filters summary -->
-    <div
-      id="active-filters-summary"
-      class="active-filters"
-      style="display: none;"
-    >
+    <div id="active-filters-summary" class="active-filters" style="display:none;">
       <span class="active-filters__label">Active</span>
-      <div id="active-filters-list" class="active-filters__list">
-        <!-- Populated by JavaScript -->
-      </div>
+      <div id="active-filters-list" class="active-filters__list"></div>
     </div>
 
     <!-- RESULTS -->
-    <!-- was Showing enhanced.length place enhanced.length but only display restaurant -->
     <section aria-label="Business results" class="directory__results">
       <p id="results-count" class="directory__results-count">
-        Showing {restaurantBusinesses.length} place{restaurantBusinesses.length === 1 ? "" : "s"}
+        Showing {allBusinesses.length} place{allBusinesses.length === 1 ? "" : "s"}
       </p>
 
-      <!-- Empty state (hidden by default) -->
-      <div id="empty-state" class="empty-state" style="display: none;">
+      <div id="empty-state" class="empty-state" style="display:none;">
         <div class="empty-state__icon">🔍</div>
         <h3 class="empty-state__title">No businesses found</h3>
-        <p class="empty-state__message">
-          Try adjusting your filters or search terms.
-        </p>
-        <button id="reset-from-empty" class="empty-state__button">
-          Clear all filters
-        </button>
+        <p class="empty-state__message">Try adjusting your filters or search terms.</p>
+        <button id="reset-from-empty" class="empty-state__button">Clear all filters</button>
       </div>
 
-      <!-- was enhanced.map to -->
       <div id="results-grid" class="directory__grid">
-        {restaurantBusinesses.map((b) => {
+        {allBusinesses.map((b) => {
           const type = b.primaryType;
           const name = b.name || "";
           const cuisines = b.cuisineTypes || [];
@@ -358,38 +422,47 @@ function getAmenityIcon(tag: string): string {
           const neighborhoods = b.neighborhoods || [];
           const microfilters = b.microfilters || [];
 
-          // Combine for display and filtering
-          const allTypeLabels = [
-            ...cuisines,
-            ...entertainmentTypes,
-            ...artTypes,
-          ];
+          const allTypeLabels = [...cuisines, ...entertainmentTypes, ...artTypes];
 
           return (
-            <article
-              class="card business-card"
+            <a
+              href={`/business/${b.slug}/`}
+              class="business-card-link"
+              data-slug={b.slug}
               data-name={name.toLowerCase()}
               data-type={String(type).toLowerCase()}
               data-cuisines={allTypeLabels.join("|").toLowerCase()}
               data-neighborhoods={neighborhoods.join("|").toLowerCase()}
               data-microfilters={microfilters.join("|").toLowerCase()}
             >
-              <header>
-                <h2 class="business-card__name">
-                  <a
-                    href={`/business/${b.slug}/`}
-                    class="business-card__link"
-                  >
-                    {name}
-                  </a>
-                </h2>
+              <article class="card business-card">
+                <h2 class="business-card__name">{name}</h2>
 
-                {/* Quick info with icons */}
                 <div class="business-card__quick-info">
                   <span class="quick-info-item">
                     <span class="quick-info-item__icon">📍</span>
-                    {neighborhoods[0] || "Location TBD"}
+
+                    {neighborhoods.length > 0 ? (
+                      <span class="neighborhood-chip-row">
+                        {neighborhoods.slice(0, 2).map((n) => (
+                          <button
+                            type="button"
+                            class="neighborhood-chip"
+                            data-neighborhood-slug={slugForNeighborhood(n)}
+                            aria-label={`View businesses in ${n}`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                        {neighborhoods.length > 2 && (
+                          <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span>Location TBD</span>
+                    )}
                   </span>
+
                   {b.yearEstablished && (
                     <span class="quick-info-item">
                       <span class="quick-info-item__icon">📅</span>
@@ -397,50 +470,40 @@ function getAmenityIcon(tag: string): string {
                     </span>
                   )}
                 </div>
-              </header>
 
-              <p class="business-card__meta">
-                <span class="business-card__type">{type}</span>
-                {allTypeLabels.length > 0 && (
-                  <>
-                    {" · "}
-                    <span>
-                      {allTypeLabels.slice(0, 2).join(", ")}
-                      {allTypeLabels.length > 2 &&
-                        ` +${allTypeLabels.length - 2}`}
-                    </span>
-                  </>
-                )}
-              </p>
-
-              {microfilters.length > 0 && (
-                <div class="business-card__amenities">
-                  {microfilters.slice(0, 3).map((tag) => {
-                    const icon = getAmenityIcon(tag);
-                    return (
-                      <span class="amenity-tag" title={tag}>
-                        <span class="amenity-tag__icon">{icon}</span>
-                        <span class="amenity-tag__label">{tag}</span>
+                <p class="business-card__meta">
+                  <span class="business-card__type">{type}</span>
+                  {allTypeLabels.length > 0 && (
+                    <>
+                      {" · "}
+                      <span>
+                        {allTypeLabels.slice(0, 2).join(", ")}
+                        {allTypeLabels.length > 2 && ` +${allTypeLabels.length - 2}`}
                       </span>
-                    );
-                  })}
-                  {microfilters.length > 3 && (
-                    <span class="business-card__more">
-                      +{microfilters.length - 3} more
-                    </span>
+                    </>
                   )}
-                </div>
-              )}
+                </p>
 
-              <div class="business-card__footer">
-                <a
-                  href={`/business/${b.slug}/`}
-                  class="business-card__action-link"
-                >
-                  View details →
-                </a>
-              </div>
-            </article>
+                {microfilters.length > 0 && (
+                  <div class="business-card__amenities">
+                    {microfilters.slice(0, 3).map((tag) => {
+                      const icon = getAmenityIcon(tag);
+                      return (
+                        <span class="amenity-tag" title={tag}>
+                          <span class="amenity-tag__icon">{icon}</span>
+                          <span class="amenity-tag__label">{tag}</span>
+                        </span>
+                      );
+                    })}
+                    {microfilters.length > 3 && (
+                      <span class="business-card__more">+{microfilters.length - 3} more</span>
+                    )}
+                  </div>
+                )}
+
+                <div class="business-card__action">View Details →</div>
+              </article>
+            </a>
           );
         })}
       </div>
@@ -448,424 +511,703 @@ function getAmenityIcon(tag: string): string {
   </div>
 
   <style>
-    .directory {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
+    /* (Keep your existing styles — below are the pieces that make it match [type].astro cards) */
 
-    .directory__head {
-      margin-bottom: 0.25rem;
-    }
+    /* ====== FILTER PANEL + DROPDOWNS (match [type].astro) ====== */
 
-    .directory__title {
-      margin: 0 0 0.5rem;
-      font-size: 1.6rem;
-      line-height: 1.2;
-    }
+.directory {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 
-    .directory__stats {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
+.directory__head {
+  margin-bottom: 0.25rem;
+}
 
-    .stat strong {
-      color: var(--text-main);
-      font-weight: 600;
-    }
+.directory__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
 
-    .stat-separator {
-      opacity: 0.5;
-    }
+.directory__stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
 
-    .directory__subtitle {
-      margin: 0;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      max-width: 42rem;
-    }
+.stat strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
 
-    /* FILTER PANEL */
+.stat-separator {
+  opacity: 0.5;
+}
 
-    .filter-panel {
-      border-radius: 0.9rem;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-elevated);
-      box-shadow: var(--shadow-soft);
-      padding: 0.9rem 1rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
+.directory__subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 42rem;
+}
 
-    .filter-panel__toggle {
-      display: none;
-      width: 100%;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem 1rem;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-main);
-      gap: 0.75rem;
-    }
+/* FILTER PANEL */
+.filter-panel {
+  border-radius: 0.9rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-soft);
+  padding: 0.9rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 
-    .filter-badge {
-      background: var(--accent);
-      color: white;
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      min-width: 1.5rem;
-      text-align: center;
-    }
+.filter-panel__toggle {
+  display: none;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  gap: 0.75rem;
+}
 
-    .filter-toggle__icon {
-      font-size: 0.75rem;
-      transition: transform 0.2s;
-    }
+.filter-badge {
+  background: var(--accent);
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 1.5rem;
+  text-align: center;
+}
 
-    .filter-panel[data-collapsed="false"] .filter-toggle__icon {
-      transform: rotate(180deg);
-    }
+.filter-toggle__icon {
+  font-size: 0.75rem;
+  transition: transform 0.2s;
+}
 
-    @media (max-width: 768px) {
-      .filter-panel__toggle {
-        display: flex;
-      }
+.filter-panel[data-collapsed="false"] .filter-toggle__icon {
+  transform: rotate(180deg);
+}
 
-      .filter-panel[data-collapsed="true"] .filter-panel__content {
-        display: none;
-      }
+@media (max-width: 768px) {
+  .filter-panel__toggle {
+    display: flex;
+  }
 
-      .filter-panel {
-        padding: 0;
-      }
+  .filter-panel[data-collapsed="true"] .filter-panel__content {
+    display: none;
+  }
 
-      .filter-panel__content {
-        padding: 0.9rem 1rem 1rem;
-      }
-    }
+  .filter-panel {
+    padding: 0;
+  }
 
-    .filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem 0.6rem;
-      align-items: flex-start;
-    }
+  .filter-panel__content {
+    padding: 0.9rem 1rem 1rem;
+  }
+}
 
-    .filter-row--top {
-      align-items: flex-end;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  align-items: flex-start;
+}
 
-    .filter-row--actions {
-      justify-content: flex-end;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--border-subtle);
-    }
+.filter-row--top {
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
 
-    .filter-search-wrap {
-      flex: 1 1 220px;
-      min-width: 0;
-    }
+.filter-row--actions {
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
 
-    .filter-sort-wrap {
-      flex: 0 0 auto;
-      min-width: 150px;
-    }
+.filter-search-wrap {
+  flex: 1 1 220px;
+  min-width: 0;
+}
 
-    .filter-label {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 0.35rem;
-    }
+.filter-sort-wrap {
+  flex: 0 0 auto;
+  min-width: 150px;
+}
 
-    .filter-label--pill {
-      margin-top: 0.25rem;
-      min-width: 75px;
-    }
+.filter-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem; /* matches [type].astro tighter label spacing */
+}
 
-    .filter-search {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
+.filter-label--pill {
+  margin-top: 0.25rem;
+  min-width: 75px;
+}
 
-    .filter-search__icon {
-      position: absolute;
-      left: 0.75rem;
-      color: var(--text-muted);
-      pointer-events: none;
-      opacity: 0.7;
-    }
+.filter-search {
+  position: relative;
+  overflow: visible;
+}
 
-    .filter-search__input {
-      width: 100%;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      padding: 0.4rem 2rem 0.4rem 2.5rem;
-      font-size: 0.85rem;
-    }
+.filter-search__icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0.7;
+}
 
-    .filter-search__input:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-    }
+.filter-search__input {
+  width: 100%;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  padding: 0.4rem 2rem 0.4rem 2.5rem;
+  font-size: 0.85rem;
+}
 
-    .filter-search__clear {
-      position: absolute;
-      right: 0.4rem;
-      border: none;
-      background: transparent;
-      font-size: 0.8rem;
-      cursor: pointer;
-      color: var(--text-muted);
-      padding: 0.1rem;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.15s;
-    }
+.filter-search__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
-    .filter-search__clear.is-visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
+.filter-search__clear {
+  position: absolute;
+  right: 0.4rem;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0.1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
 
-    .filter-search__clear:hover {
-      color: var(--accent-strong);
-    }
+.filter-search__clear.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
 
-    .filter-search__hint {
-      margin: 0.35rem 0 0;
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
+.filter-search__clear:hover {
+  color: var(--accent-strong);
+}
 
-    .filter-sort {
-      width: 100%;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
-    }
+.filter-search__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
 
-    /* FILTER DROPDOWNS */
+.filter-sort {
+  width: 100%;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
 
-    .filter-dropdowns {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      margin-top: 0.5rem;
-    }
+/* FILTER DROPDOWNS */
+.filter-dropdowns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
 
-    .filter-dropdown {
-      display: flex;
-      flex-direction: column;
-    }
+.filter-dropdown {
+  display: flex;
+  flex-direction: column;
+}
 
-    .filter-select {
-      width: 100%;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      font-size: 0.85rem;
-      color: var(--text-main);
-      cursor: pointer;
-    }
+.filter-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  font-size: 0.85rem;
+  color: var(--text-main);
+  cursor: pointer;
+}
 
-    .filter-select[multiple] {
-      min-height: 120px;
-      padding: 0.25rem;
-    }
+.filter-select[multiple] {
+  min-height: 120px;
+  padding: 0.25rem;
+}
 
-    .filter-select option {
-      padding: 0.4rem 0.5rem;
-      border-radius: 0.25rem;
-      margin: 0.1rem 0;
-    }
+.filter-select option {
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.25rem;
+  margin: 0.1rem 0;
+}
 
-    .filter-select option:checked {
-      background: var(--accent-soft);
-      color: var(--accent-strong);
-    }
+.filter-select option:checked {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
 
-    .filter-select:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-    }
+.filter-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
-    .filter-dropdown__hint {
-      margin: 0.25rem 0 0;
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
+.filter-dropdown__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
 
-    .filter-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
 
-    .chip__icon {
-      font-size: 0.9rem;
-      margin-right: 0.25rem;
-    }
+.filter-chips--scroll {
+  max-height: 80px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
 
-    .btn-reset-all {
-      padding: 0.4rem 1rem;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: transparent;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
+/* LIVE SUGGESTION STYLES (same as homepage) */
+#all-search-suggestions.search-suggestions {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  width: 100%;
 
-    .btn-reset-all:hover {
-      border-color: var(--accent);
-      color: var(--accent-strong);
-      background: var(--accent-soft);
-    }
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-subtle);
+  border-radius: 0.875rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  max-height: 420px;
+  overflow-y: auto;
+  z-index: 9999;
 
-    /* ACTIVE FILTERS SUMMARY */
+  pointer-events: auto;
+  text-align: left !important;
+}
 
-    .active-filters {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      background: var(--bg-elevated);
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-subtle);
-      flex-wrap: wrap;
-    }
+#all-search-suggestions.search-suggestions * {
+  text-align: left !important;
+}
 
-    .active-filters__label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
+#all-search-suggestions .search-suggestions__section {
+  padding: 0.5rem 0;
+}
 
-    .active-filters__list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      flex: 1;
-    }
+#all-search-suggestions .search-suggestions__section:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
 
-    .active-filter-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.65rem;
-      background: var(--accent-soft);
-      border: 1px solid var(--accent);
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      color: var(--accent-strong);
-    }
+#all-search-suggestions .search-suggestions__header {
+  padding: 0.5rem 1rem 0.25rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  cursor: default;
+}
 
-    .active-filter-pill__remove {
-      background: none;
-      border: none;
+#all-search-suggestions .search-suggestions__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0.75rem 1.25rem 0.75rem 3rem;
+  margin: 0;
+  border-left: 3px solid transparent;
+  cursor: pointer !important;
+  background: var(--bg-elevated);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+#all-search-suggestions .search-suggestions__item::before {
+  content: "•";
+  position: absolute;
+  left: 2rem;
+  top: 0.95rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+#all-search-suggestions .search-suggestions__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+#all-search-suggestions .search-suggestions__text {
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  width: 100%;
+  display: block;
+}
+
+#all-search-suggestions .search-suggestions__meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  width: 100%;
+  display: block;
+}
+
+#all-search-suggestions .search-suggestions__item:hover,
+#all-search-suggestions .search-suggestions__item--active {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  transform: translateX(2px);
+}
+
+#all-search-suggestions .search-suggestions__item:hover .search-suggestions__text,
+#all-search-suggestions .search-suggestions__item--active .search-suggestions__text {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+#all-search-suggestions .search-suggestions__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.btn-reset-all {
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-reset-all:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+/* ACTIVE FILTERS */
+.active-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-elevated);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.active-filters__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.active-filters__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.active-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  color: var(--accent-strong);
+}
+
+.active-filter-pill__remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.active-filter-pill__remove:hover {
+  opacity: 1;
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-state__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: var(--text-main);
+}
+
+.empty-state__message {
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.empty-state__button {
+  padding: 0.6rem 1.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.empty-state__button:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+/* ====== RESULTS GRID + CARDS (your existing card styling, kept) ====== */
+
+.directory__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.directory__results-count {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.directory__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.9rem;
+}
+
+/* ✅ Match [type].astro clickable-card wrapper behavior */
+.business-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.business-card {
+  padding: 1rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+  height: 100%;
+}
+
+.business-card-link:hover .business-card {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.business-card__name {
+  margin: 0 0 0.1rem;
+  font-size: 1rem;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.business-card__quick-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.quick-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.quick-info-item__icon {
+  font-size: 0.85rem;
+}
+
+.business-card__meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.business-card__type {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.business-card__amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.amenity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--text-main);
+}
+
+.amenity-tag__icon {
+  font-size: 0.85rem;
+}
+
+.business-card__more {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0.5rem;
+}
+
+/* ✅ Match [type].astro “hover reveal” action */
+.business-card__action {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.business-card-link:hover .business-card__action {
+  opacity: 1;
+}
+
+/* ✅ Neighborhood chip styling (same as your type page) */
+.neighborhood-chip-row {
+  display: inline-flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.neighborhood-chip {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.neighborhood-chip:hover {
+  color: var(--accent-strong);
+}
+
+.neighborhood-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.35rem;
+}
+
+.neighborhood-more {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .filter-panel {
+    padding-inline: 0;
+  }
+
+  .directory__title {
+    font-size: 1.4rem;
+  }
+
+  .directory__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-dropdowns {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+    
+
+    /* ✅ Match [type].astro clickable-card wrapper behavior */
+    .business-card-link {
+      text-decoration: none;
       color: inherit;
-      cursor: pointer;
-      font-size: 0.9rem;
-      padding: 0;
-      line-height: 1;
-      opacity: 0.7;
+      display: block;
     }
-
-    .active-filter-pill__remove:hover {
-      opacity: 1;
-    }
-
-    /* EMPTY STATE */
-
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-    }
-
-    .empty-state__icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    .empty-state__title {
-      margin: 0 0 0.5rem;
-      font-size: 1.25rem;
-      color: var(--text-main);
-    }
-
-    .empty-state__message {
-      margin: 0 0 1.5rem;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .empty-state__button {
-      padding: 0.6rem 1.5rem;
-      border-radius: 9999px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: white;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .empty-state__button:hover {
-      background: var(--accent-strong);
-      transform: translateY(-1px);
-    }
-
-    /* RESULTS */
-
-    .directory__results {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .directory__results-count {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .directory__grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 0.9rem;
-    }
-
-    /* BUSINESS CARD */
 
     .business-card {
       padding: 1rem 1.1rem 1.1rem;
@@ -874,26 +1216,19 @@ function getAmenityIcon(tag: string): string {
       gap: 0.5rem;
       position: relative;
       transition: transform 0.15s, box-shadow 0.15s;
+      height: 100%;
     }
 
-    .business-card:hover {
+    .business-card-link:hover .business-card {
       transform: translateY(-2px);
       box-shadow: var(--shadow-soft);
     }
 
     .business-card__name {
-      margin: 0;
+      margin: 0 0 0.1rem;
       font-size: 1rem;
+      color: var(--text-main);
       line-height: 1.3;
-    }
-
-    .business-card__link {
-      text-decoration: none;
-    }
-
-    .business-card__link:hover {
-      text-decoration: underline;
-      color: var(--accent-strong);
     }
 
     .business-card__quick-info {
@@ -955,49 +1290,58 @@ function getAmenityIcon(tag: string): string {
       padding: 0.2rem 0.5rem;
     }
 
-    .business-card__footer {
-      margin-top: 0.35rem;
-      padding-top: 0.4rem;
-      display: flex;
-      justify-content: flex-end;
-      border-top: 1px solid var(--border-subtle);
-    }
-
-    .business-card__action-link {
+    /* ✅ Match [type].astro “hover reveal” action */
+    .business-card__action {
+      margin-top: auto;
+      padding-top: 0.5rem;
       font-size: 0.8rem;
       color: var(--accent);
       font-weight: 500;
-      text-decoration: none;
+      opacity: 0;
+      transition: opacity 0.15s;
     }
 
-    .business-card__action-link:hover {
+    .business-card-link:hover .business-card__action {
+      opacity: 1;
+    }
+
+    /* ✅ Neighborhood chip styling (same as your type page) */
+    .neighborhood-chip-row {
+      display: inline-flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .neighborhood-chip {
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.8rem;
       text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .neighborhood-chip:hover {
       color: var(--accent-strong);
     }
 
-    @media (max-width: 640px) {
-      .filter-panel {
-        padding-inline: 0;
-      }
+    .neighborhood-chip:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 0.35rem;
+    }
 
-      .directory__title {
-        font-size: 1.4rem;
-      }
-
-      .directory__grid {
-        grid-template-columns: 1fr;
-      }
-
-      .filter-dropdowns {
-        grid-template-columns: 1fr;
-      }
+    .neighborhood-more {
+      font-size: 0.75rem;
+      color: var(--text-muted);
     }
   </style>
 
-  <script
-    is:inline
-    define:vars={{ neighborhoodFromUrl, sortFromUrl, qFromUrl }}
-  >
+  <script is:inline define:vars={{ neighborhoodFromUrl, sortFromUrl, qFromUrl }}>
     (function () {
       const searchInput = document.getElementById("search");
       const clearBtn = document.getElementById("search-clear");
@@ -1012,15 +1356,13 @@ function getAmenityIcon(tag: string): string {
       const filterToggleText = document.getElementById("filter-toggle-text");
       const filterPanel = document.getElementById("filters");
       const filterCount = document.getElementById("filter-count");
-      const activeFiltersSummary = document.getElementById(
-        "active-filters-summary"
-      );
+      const activeFiltersSummary = document.getElementById("active-filters-summary");
       const activeFiltersList = document.getElementById("active-filters-list");
       const resetAllBtn = document.getElementById("reset-all-filters");
       const resetFromEmpty = document.getElementById("reset-from-empty");
 
       const cards = Array.from(
-        document.querySelectorAll("#results-grid article")
+        document.querySelectorAll("#results-grid .business-card-link")
       );
 
       function normalize(str) {
@@ -1036,11 +1378,8 @@ function getAmenityIcon(tag: string): string {
       function updateClearButton() {
         if (!clearBtn || !searchInput) return;
         const hasValue = !!searchInput.value.trim();
-        if (hasValue) {
-          clearBtn.classList.add("is-visible");
-        } else {
-          clearBtn.classList.remove("is-visible");
-        }
+        if (hasValue) clearBtn.classList.add("is-visible");
+        else clearBtn.classList.remove("is-visible");
       }
 
       function getActiveFilterCount() {
@@ -1064,31 +1403,23 @@ function getAmenityIcon(tag: string): string {
         const count = getActiveFilterCount();
 
         if (count === 0) {
-          if (activeFiltersSummary) {
-            activeFiltersSummary.style.display = "none";
-          }
+          if (activeFiltersSummary) activeFiltersSummary.style.display = "none";
           return;
         }
 
-        if (activeFiltersSummary) {
-          activeFiltersSummary.style.display = "flex";
-        }
-
+        if (activeFiltersSummary) activeFiltersSummary.style.display = "flex";
         if (!activeFiltersList) return;
 
         let html = "";
 
-        // Neighborhood
         if (neighborhoodSelect && neighborhoodSelect.value) {
-          const label =
-            neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
+          const label = neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
           html += `<span class="active-filter-pill">
             📍 ${label}
             <button class="active-filter-pill__remove" data-clear="neighborhood">×</button>
           </span>`;
         }
 
-        // Cuisines
         if (cuisineSelect) {
           Array.from(cuisineSelect.selectedOptions).forEach((opt) => {
             html += `<span class="active-filter-pill">
@@ -1098,7 +1429,6 @@ function getAmenityIcon(tag: string): string {
           });
         }
 
-        // Amenities
         if (amenitiesSelect) {
           Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
             html += `<span class="active-filter-pill">
@@ -1110,7 +1440,6 @@ function getAmenityIcon(tag: string): string {
 
         activeFiltersList.innerHTML = html;
 
-        // Attach event listeners
         activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
           btn.addEventListener("click", () => {
             const clearType = btn.dataset.clear;
@@ -1136,26 +1465,15 @@ function getAmenityIcon(tag: string): string {
       function resetAllFilters() {
         if (searchInput) searchInput.value = "";
         if (neighborhoodSelect) neighborhoodSelect.value = "";
-        if (cuisineSelect) {
-          Array.from(cuisineSelect.options).forEach(
-            (opt) => (opt.selected = false)
-          );
-        }
-        if (amenitiesSelect) {
-          Array.from(amenitiesSelect.options).forEach(
-            (opt) => (opt.selected = false)
-          );
-        }
-
+        if (cuisineSelect) Array.from(cuisineSelect.options).forEach((opt) => (opt.selected = false));
+        if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
         applyFiltersAndSort();
       }
 
       function applyFiltersAndSort() {
         const q = normalize(searchInput ? searchInput.value : "");
         const sortValue = sortSelect ? sortSelect.value : "az";
-        const activeNeighborhood = neighborhoodSelect
-          ? normalize(neighborhoodSelect.value)
-          : "";
+        const activeNeighborhood = neighborhoodSelect ? normalize(neighborhoodSelect.value) : "";
         const activeCuisines = getSelectedValues(cuisineSelect);
         const activeAmenities = getSelectedValues(amenitiesSelect);
 
@@ -1163,9 +1481,7 @@ function getAmenityIcon(tag: string): string {
           const an = a.dataset.name || "";
           const bn = b.dataset.name || "";
 
-          if (sortValue === "az") {
-            return an.localeCompare(bn);
-          }
+          if (sortValue === "az") return an.localeCompare(bn);
 
           if (sortValue === "neighborhood") {
             const anb = (a.dataset.neighborhoods || "").split("|")[0] || "";
@@ -1190,7 +1506,6 @@ function getAmenityIcon(tag: string): string {
           const neighborhoods = card.dataset.neighborhoods || "";
           const micro = card.dataset.microfilters || "";
 
-          // Text search: OR across name, cuisines, neighborhoods, amenities
           const matchesText =
             !q ||
             name.includes(q) ||
@@ -1198,26 +1513,18 @@ function getAmenityIcon(tag: string): string {
             neighborhoods.includes(q) ||
             micro.includes(q);
 
-          // Neighborhood: single-select, AND with other groups
           const matchesNeighborhood =
             !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
 
-          // Cuisines: multi-select, OR within the group
           const matchesCuisine =
             activeCuisines.size === 0 ||
             Array.from(activeCuisines).some((c) => cuisines.includes(c));
 
-          // Amenities: multi-select, OR within the group
           const matchesAmenity =
             activeAmenities.size === 0 ||
             Array.from(activeAmenities).some((m) => micro.includes(m));
 
-          // Final decision: AND across groups
-          const show =
-            matchesText &&
-            matchesNeighborhood &&
-            matchesCuisine &&
-            matchesAmenity;
+          const show = matchesText && matchesNeighborhood && matchesCuisine && matchesAmenity;
 
           card.style.display = show ? "" : "none";
 
@@ -1227,18 +1534,9 @@ function getAmenityIcon(tag: string): string {
           }
         });
 
-        if (countEl) {
-          countEl.textContent = `Showing ${visible} place${
-            visible === 1 ? "" : "s"
-          }`;
-        }
-
-        if (emptyState) {
-          emptyState.style.display = visible === 0 ? "block" : "none";
-        }
-        if (grid) {
-          grid.style.display = visible === 0 ? "none" : "";
-        }
+        if (countEl) countEl.textContent = `Showing ${visible} place${visible === 1 ? "" : "s"}`;
+        if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
+        if (grid) grid.style.display = visible === 0 ? "none" : "";
 
         updateClearButton();
         updateFilterCount();
@@ -1250,16 +1548,12 @@ function getAmenityIcon(tag: string): string {
         filterToggle.addEventListener("click", () => {
           const isCollapsed = filterPanel.dataset.collapsed === "true";
           filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
-          filterToggleText.textContent = isCollapsed
-            ? "Hide filters"
-            : "Show filters";
+          filterToggleText.textContent = isCollapsed ? "Hide filters" : "Show filters";
         });
       }
 
-      // Event listeners
-      if (searchInput) {
-        searchInput.addEventListener("input", applyFiltersAndSort);
-      }
+      // Standard listeners
+      if (searchInput) searchInput.addEventListener("input", applyFiltersAndSort);
 
       if (clearBtn && searchInput) {
         clearBtn.addEventListener("click", () => {
@@ -1269,39 +1563,47 @@ function getAmenityIcon(tag: string): string {
         });
       }
 
-      if (neighborhoodSelect) {
-        neighborhoodSelect.addEventListener("change", applyFiltersAndSort);
-      }
+      if (neighborhoodSelect) neighborhoodSelect.addEventListener("change", applyFiltersAndSort);
+      if (cuisineSelect) cuisineSelect.addEventListener("change", applyFiltersAndSort);
+      if (amenitiesSelect) amenitiesSelect.addEventListener("change", applyFiltersAndSort);
+      if (sortSelect) sortSelect.addEventListener("change", applyFiltersAndSort);
 
-      if (cuisineSelect) {
-        cuisineSelect.addEventListener("change", applyFiltersAndSort);
-      }
+      if (resetAllBtn) resetAllBtn.addEventListener("click", resetAllFilters);
+      if (resetFromEmpty) resetFromEmpty.addEventListener("click", resetAllFilters);
 
-      if (amenitiesSelect) {
-        amenitiesSelect.addEventListener("change", applyFiltersAndSort);
-      }
+      if (sortSelect && sortFromUrl) sortSelect.value = sortFromUrl;
 
-      if (sortSelect) {
-        sortSelect.addEventListener("change", applyFiltersAndSort);
-      }
-
-      if (resetAllBtn) {
-        resetAllBtn.addEventListener("click", resetAllFilters);
-      }
-      if (resetFromEmpty) {
-        resetFromEmpty.addEventListener("click", resetAllFilters);
-      }
-
-      // Initial sync from URL vars
-      if (sortSelect && sortFromUrl) {
-        sortSelect.value = sortFromUrl;
-      }
-
-      // Make sure clear button initial state matches URL q param
       updateClearButton();
-
-      // First render
       applyFiltersAndSort();
+
+      // ✅ Neighborhood chips (no nested <a>, prevent card navigation)
+      document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".neighborhood-chip");
+        if (!btn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const slug = btn.dataset.neighborhoodSlug;
+        if (!slug) return;
+
+        window.location.href = `/neighborhood/${slug}/`;
+      });
+
+      // keyboard support (Enter/Space)
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const btn = document.activeElement?.closest?.(".neighborhood-chip");
+        if (!btn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const slug = btn.dataset.neighborhoodSlug;
+        if (!slug) return;
+
+        window.location.href = `/neighborhood/${slug}/`;
+      });
     })();
   </script>
 </BaseLayout>

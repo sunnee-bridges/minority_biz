@@ -1,0 +1,475 @@
+---
+type SuggestionBusiness = {
+  name: string;
+  slug: string;
+  type?: string;
+  neighborhoods?: string[];
+  cuisines?: string[];
+};
+
+const {
+  searchData = [],
+  inputId,
+  panelId,
+  buttonSelector = null,
+  allPath = "/all",
+  businessPath = "/business",
+  neighborhoodPath = "/neighborhood",
+  minChars = 2,
+
+  // ✅ NEW: "navigate" (hero) vs "filter" (/all)
+  mode = "navigate", // "navigate" | "filter"
+} = Astro.props as {
+  searchData: SuggestionBusiness[];
+  inputId: string;
+  panelId: string;
+  buttonSelector?: string | null;
+  allPath?: string;
+  businessPath?: string;
+  neighborhoodPath?: string;
+  minChars?: number;
+  mode?: "navigate" | "filter";
+};
+---
+
+<style is:global>
+  /* LIVE SUGGESTION STYLES (global so it applies to the panel div in parent pages) */
+  .search-suggestions {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border: 2px solid var(--border-subtle);
+    border-radius: 0.875rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    max-height: 420px;
+    overflow-y: auto;
+    z-index: 9999;
+    pointer-events: auto;
+    text-align: left !important;
+  }
+
+  .search-suggestions * { text-align: left !important; }
+
+  .search-suggestions__section {
+    padding: 0.5rem 0;
+    text-align: left !important;
+  }
+
+  .search-suggestions__section:not(:last-child) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .search-suggestions__header {
+    padding: 0.5rem 1rem 0.25rem 1rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    cursor: default;
+  }
+
+  .search-suggestions__item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0.75rem 1.25rem 0.75rem 3rem;
+    margin: 0;
+    border-left: 3px solid transparent;
+    cursor: pointer !important;
+    background: var(--bg-elevated);
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+  }
+
+  .search-suggestions__item * { cursor: pointer !important; }
+
+  .search-suggestions__item::before {
+    content: "•";
+    position: absolute;
+    left: 2rem;
+    top: 0.95rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .search-suggestions__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    width: 100%;
+  }
+
+  .search-suggestions__text {
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.3;
+    width: 100%;
+    display: block;
+  }
+
+  .search-suggestions__meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    width: 100%;
+    display: block;
+  }
+
+  .search-suggestions__item:hover,
+  .search-suggestions__item--active {
+    background: var(--accent-soft);
+    border-left-color: var(--accent);
+    transform: translateX(2px);
+    padding-left: 3rem;
+  }
+
+  .search-suggestions__item:hover .search-suggestions__text,
+  .search-suggestions__item--active .search-suggestions__text {
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 2px;
+  }
+
+  .search-suggestions__item:active {
+    background: var(--accent);
+    border-left-color: var(--accent-strong);
+    transform: scale(0.99);
+  }
+
+  .search-suggestions__item:active .search-suggestions__text { color: white; }
+
+  .search-suggestions__item:active .search-suggestions__meta {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .search-suggestions__empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+</style>
+
+<script
+  is:inline
+  define:vars={{
+    searchData,
+    inputId,
+    panelId,
+    buttonSelector,
+    allPath,
+    businessPath,
+    neighborhoodPath,
+    minChars,
+    mode,
+  }}
+>
+  (function () {
+    const inputEl = document.getElementById(inputId);
+    const buttonEl = buttonSelector ? document.querySelector(buttonSelector) : null;
+    const suggestionsEl = document.getElementById(panelId);
+
+    const businesses = Array.isArray(searchData) ? searchData : [];
+
+    const neighborhoods = new Set();
+    const cuisines = new Set();
+
+    businesses.forEach((b) => {
+      (b.neighborhoods || []).forEach((n) => {
+        if (n && n !== "Location TBD") neighborhoods.add(n);
+      });
+      (b.cuisines || []).forEach((c) => {
+        if (c) cuisines.add(c);
+      });
+    });
+
+    let currentFocusIndex = -1;
+
+    function normalize(str) {
+      return (str || "").toLowerCase().trim();
+    }
+
+    function slugifyNeighborhood(value) {
+      return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/&/g, "and")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+    }
+
+    function applyFilterValue(value) {
+      if (!inputEl) return;
+      inputEl.value = value || "";
+      // Trigger the /all filter logic (listens to "input")
+      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+      inputEl.focus();
+    }
+
+    function handleSearch() {
+      if (!inputEl) return;
+
+      // ✅ On /all, Enter should just filter, not navigate/reload.
+      if (mode === "filter") {
+        applyFilterValue(inputEl.value);
+        hideSuggestions();
+        return;
+      }
+
+      const query = inputEl.value.trim();
+      if (query) window.location.href = `${allPath}?q=${encodeURIComponent(query)}`;
+      else window.location.href = allPath;
+    }
+
+    function highlightMatch(text, query) {
+      if (!text || !query) return text;
+      const lowerText = text.toLowerCase();
+      const lowerQuery = query.toLowerCase();
+      const idx = lowerText.indexOf(lowerQuery);
+      if (idx === -1) return text;
+
+      const before = text.slice(0, idx);
+      const match = text.slice(idx, idx + query.length);
+      const after = text.slice(idx + query.length);
+
+      return (
+        before +
+        '<strong style="font-weight:700;color:var(--accent-strong);">' +
+        match +
+        "</strong>" +
+        after
+      );
+    }
+
+    function showSuggestions(query) {
+      if (!suggestionsEl) return;
+
+      if (!query || query.length < minChars) {
+        hideSuggestions();
+        return;
+      }
+
+      const qNorm = normalize(query);
+      currentFocusIndex = -1;
+
+      const matchingBusinesses = businesses
+        .filter((b) => normalize(b.name).includes(qNorm))
+        .slice(0, 5);
+
+      const matchingCuisines = Array.from(cuisines)
+        .filter((c) => normalize(c).includes(qNorm))
+        .slice(0, 5);
+
+      const matchingNeighborhoods = Array.from(neighborhoods)
+        .filter((n) => normalize(n).includes(qNorm))
+        .slice(0, 5);
+
+      let html = "";
+
+      if (matchingBusinesses.length > 0) {
+        html +=
+          '<div class="search-suggestions__section">' +
+          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
+
+        matchingBusinesses.forEach((b, index) => {
+          const cuisineText = (b.cuisines || []).slice(0, 2).join(", ") || b.type;
+          const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
+          const highlightedName = highlightMatch(b.name, query);
+
+          const spacingStyle =
+            index === matchingBusinesses.length - 1
+              ? "padding-bottom:0.45rem;"
+              : "padding-bottom:0.35rem;";
+
+          html +=
+            `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+            '<div class="search-suggestions__content" style="text-align:left;">' +
+            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
+            `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
+            "</div></div>";
+        });
+
+        html += "</div>";
+      }
+
+      if (matchingCuisines.length > 0) {
+        html +=
+          '<div class="search-suggestions__section">' +
+          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
+
+        matchingCuisines.forEach((c, index) => {
+          const itemIndex = matchingBusinesses.length + index;
+          const highlightedCuisine = highlightMatch(c, query);
+
+          const spacingStyle =
+            index === matchingCuisines.length - 1
+              ? "padding-bottom:0.75rem;"
+              : "padding-bottom:0.35rem;";
+
+          html +=
+            `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+            '<div class="search-suggestions__content" style="text-align:left;">' +
+            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
+            "</div></div>";
+        });
+
+        html += "</div>";
+      }
+
+      if (matchingNeighborhoods.length > 0) {
+        html +=
+          '<div class="search-suggestions__section">' +
+          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
+
+        matchingNeighborhoods.forEach((n, index) => {
+          const itemIndex = matchingBusinesses.length + matchingCuisines.length + index;
+          const highlightedNeighborhood = highlightMatch(n, query);
+
+          const spacingStyle =
+            index === matchingNeighborhoods.length - 1
+              ? "padding-bottom:0.5rem;"
+              : "padding-bottom:0.35rem;";
+
+          html +=
+            `<div class="search-suggestions__item" data-type="neighborhood" data-value="${n}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+            '<div class="search-suggestions__content" style="text-align:left;">' +
+            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedNeighborhood}</div>` +
+            "</div></div>";
+        });
+
+        html += "</div>";
+      }
+
+      if (!html) html = '<div class="search-suggestions__empty">No results found</div>';
+
+      suggestionsEl.innerHTML = html;
+      suggestionsEl.style.display = "block";
+    }
+
+    function hideSuggestions() {
+      if (!suggestionsEl) return;
+      suggestionsEl.style.display = "none";
+      currentFocusIndex = -1;
+    }
+
+    function handleSuggestionClick(item) {
+      if (!item) return;
+
+      const type = item.getAttribute("data-type");
+      const slug = item.getAttribute("data-slug");
+      const value = item.getAttribute("data-value");
+
+      hideSuggestions();
+
+      // Always navigate for a specific business
+      if (type === "business" && slug) {
+        window.location.href = `${businessPath}/${slug}`;
+        return;
+      }
+
+      // ✅ FILTER MODE: clicking cuisine/neighborhood refines results on /all
+      if (mode === "filter") {
+        if (type === "cuisine" && value) applyFilterValue(value);
+        if (type === "neighborhood" && value) applyFilterValue(value);
+        return;
+      }
+
+      // ✅ NAVIGATE MODE: matches hero behavior
+      if (type === "cuisine" && value) {
+        window.location.href = `${allPath}?q=${encodeURIComponent(value)}`;
+      } else if (type === "neighborhood" && value) {
+        const nSlug = slugifyNeighborhood(value);
+        window.location.href = `${neighborhoodPath}/${nSlug}/`;
+      } else {
+        window.location.href = allPath;
+      }
+    }
+
+    function navigateSuggestions(direction) {
+      if (!suggestionsEl) return;
+      const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
+      if (!items || items.length === 0) return;
+
+      if (currentFocusIndex >= 0 && currentFocusIndex < items.length) {
+        items[currentFocusIndex].classList.remove("search-suggestions__item--active");
+      }
+
+      if (direction === "down") currentFocusIndex = (currentFocusIndex + 1) % items.length;
+      else currentFocusIndex = currentFocusIndex <= 0 ? items.length - 1 : currentFocusIndex - 1;
+
+      const activeItem = items[currentFocusIndex];
+      activeItem.classList.add("search-suggestions__item--active");
+      activeItem.scrollIntoView({ block: "nearest" });
+    }
+
+    function selectCurrentSuggestion() {
+      if (!suggestionsEl) return handleSearch();
+      const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
+      if (items && currentFocusIndex >= 0 && currentFocusIndex < items.length) {
+        handleSuggestionClick(items[currentFocusIndex]);
+      } else {
+        handleSearch();
+      }
+    }
+
+    if (buttonEl) buttonEl.addEventListener("click", handleSearch);
+
+    if (inputEl) {
+      inputEl.addEventListener("input", (event) => showSuggestions(event.target.value));
+
+      inputEl.addEventListener("focus", () => {
+        if (inputEl.value.length >= minChars) showSuggestions(inputEl.value);
+      });
+
+      inputEl.addEventListener("keydown", (event) => {
+        if (!suggestionsEl) return;
+        const isOpen = suggestionsEl.style.display === "block";
+
+        if (isOpen) {
+          if (event.key === "ArrowDown") { event.preventDefault(); navigateSuggestions("down"); return; }
+          if (event.key === "ArrowUp") { event.preventDefault(); navigateSuggestions("up"); return; }
+          if (event.key === "Enter") { event.preventDefault(); selectCurrentSuggestion(); return; }
+          if (event.key === "Escape") { hideSuggestions(); return; }
+        }
+
+        if (event.key === "Enter") handleSearch();
+      });
+    }
+
+    if (suggestionsEl) {
+      suggestionsEl.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const item = target.closest(".search-suggestions__item");
+        if (!item) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handleSuggestionClick(item);
+      });
+
+      suggestionsEl.addEventListener("mousedown", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const item = target.closest(".search-suggestions__item");
+        if (item) event.preventDefault();
+      });
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (suggestionsEl && inputEl && (suggestionsEl.contains(target) || inputEl.contains(target))) return;
+      hideSuggestions();
+    });
+  })();
+</script>

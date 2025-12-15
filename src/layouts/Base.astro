@@ -5,8 +5,18 @@ import Footer from "../components/Footer.astro";
 
 const {
   title = "Denver Black Guide",
-  description = "Directory of local restaurants, food trucks, caterers, and bakeries with filters for cuisine, neighborhood, and amenities."
+  description = "A community-driven directory to discover and support Black-owned businesses in the Denver metro area.",
+  image = "/og-denver-black-guide.png", // safe fallback
+  canonical: canonicalProp,
+  jsonLd,
+  robots = "index,follow,max-image-preview:large",
 } = Astro.props;
+
+const canonical = canonicalProp
+  ? canonicalProp
+  : new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
+
+const absoluteImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
 ---
 
 <html lang="en" data-theme="light">
@@ -15,7 +25,42 @@ const {
     <title>{title}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta name="robots" content={robots} />
+
+    <link rel="canonical" href={canonical} />
+
+    <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={absoluteImage} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={absoluteImage} />
+
+    <!-- Structured data (override per-page by passing `jsonLd`) -->
+    {jsonLd ? (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    ) : (
+      <script type="application/ld+json" is:inline>
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Denver Black Guide",
+          url: canonical,
+        })}
+      </script>
+    )}
 
     <!-- Leaflet -->
     <link
@@ -71,13 +116,13 @@ const {
     </header>
 
     <!-- 🌄 Denver skyline hero image -->
-<div class="site-hero" aria-hidden="false">
-  <img
-    src="/denver-skyline-v1.png"
-    alt="Watercolor illustration of the Denver skyline with mountains at sunset"
-    class="site-hero__image"
-  />
-</div>
+    <div class="site-hero" aria-hidden="false">
+      <img
+        src="/denver-skyline-v1.png"
+        alt="Watercolor illustration of the Denver skyline with mountains at sunset"
+        class="site-hero__image"
+      />
+    </div>
 
     <main class="shell site-main">
       <slot />
