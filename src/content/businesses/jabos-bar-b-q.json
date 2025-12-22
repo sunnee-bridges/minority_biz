@@ -1,6 +1,6 @@
 {
-  "name": "Jabo's Bar-B-Q",
-  "slug": "jabos-bar-b-q",
+  "name": "Jabo's Bar-BE-Q",
+  "slug": "jabos-bar-be-q",
   "type": "restaurant",
   "cuisineTypes": ["Soul Food", "Southern", "BBQ"],
   "businessCategories": ["Restaurant", "Catering"],

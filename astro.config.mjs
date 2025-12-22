@@ -1,9 +1,13 @@
-// @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig } from "astro/config";
+import sitemap from "@astrojs/sitemap";
 
-import sitemap from '@astrojs/sitemap';
+const site =
+  process.env.URL ||               // prod
+  process.env.DEPLOY_PRIME_URL ||  // deploy previews
+  "https://YOUR-SITE.netlify.app";
 
-// https://astro.build/config
 export default defineConfig({
-  integrations: [sitemap()]
+  site,
+  trailingSlash: "never",
+  integrations: [sitemap()],
 });

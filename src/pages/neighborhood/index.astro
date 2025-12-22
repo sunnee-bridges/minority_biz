@@ -1,0 +1,708 @@
+---
+import BaseLayout from "../../layouts/Base.astro";
+import { businesses } from "../../lib/businesses";
+import { Fragment } from "astro/jsx-runtime";
+
+/** URL-friendly slug (neighborhood) */
+function neighborhoodSlug(n: string): string {
+  return String(n || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+/** Title-case helper */
+function titleCase(str: string): string {
+  return String(str || "")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Build neighborhood list + counts */
+const counts = new Map<string, number>();
+
+for (const b of businesses) {
+  const arr = Array.isArray(b.neighborhoods) ? b.neighborhoods : [];
+  for (const n of arr) {
+    const name = String(n || "").trim();
+    if (!name) continue;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  }
+}
+
+/**
+ * Dedupe by slug so we don't create duplicate links if the data has
+ * "Five Points" vs "Five  Points" etc.
+ */
+const slugToName = new Map<string, string>();
+const slugToCount = new Map<string, number>();
+
+for (const [name, count] of counts.entries()) {
+  const slug = neighborhoodSlug(name);
+  if (!slug) continue;
+
+  // Keep the first name we see for that slug (stable)
+  if (!slugToName.has(slug)) slugToName.set(slug, name);
+
+  // Sum counts under the same slug
+  slugToCount.set(slug, (slugToCount.get(slug) || 0) + count);
+}
+
+// Optional: ensure "Mobile" exists as a bucket link
+if (!slugToName.has("mobile")) {
+  slugToName.set("mobile", "Mobile");
+  slugToCount.set("mobile", slugToCount.get("mobile") || 0);
+}
+
+const neighborhoods = Array.from(slugToName.entries())
+  .map(([slug, name]) => ({
+    slug,
+    name: titleCase(name),
+    rawName: name,
+    count: slugToCount.get(slug) || 0,
+  }))
+  .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+/* --------------------------
+   SEO / JSON-LD
+--------------------------- */
+const pageImage = "/og-denver-black-guide.png";
+const pageTitle = "Denver Neighborhoods • Denver Black Guide";
+const pageDescription =
+  "Browse Denver neighborhoods and explore Black-owned businesses by area. Use neighborhood pages to filter listings and view locations on the map.";
+
+const origin = Astro.site ?? Astro.url.origin;
+const canonical = new URL(Astro.url.pathname, origin).toString();
+const absoluteImage = new URL(pageImage, origin).toString();
+
+const breadcrumbItems = [
+  { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
+  { "@type": "ListItem", position: 2, name: "Neighborhoods", item: canonical },
+];
+
+const itemList = neighborhoods.slice(0, 200).map((n, idx) => ({
+  "@type": "ListItem",
+  position: idx + 1,
+  name: n.name,
+  url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
+}));
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "Denver Black Guide",
+      url: new URL("/", origin).toString(),
+      logo: absoluteImage,
+    },
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
+      breadcrumb: { "@type": "BreadcrumbList", itemListElement: breadcrumbItems },
+    },
+    {
+      "@type": "ItemList",
+      name: "Denver neighborhoods",
+      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      numberOfItems: neighborhoods.length,
+      itemListElement: itemList,
+    },
+  ],
+};
+---
+
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
+  canonical={canonical}
+  jsonLd={jsonLd}
+>
+  <Fragment slot="head">
+    <meta name="author" content="Denver Black Guide" />
+    <meta property="og:site_name" content="Denver Black Guide" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image:alt" content="Denver Black Guide directory preview" />
+    <meta name="twitter:image:alt" content="Denver Black Guide directory preview" />
+  </Fragment>
+
+  <div class="directory">
+    <nav aria-label="Breadcrumb" class="directory__breadcrumb">
+      <a href="/" class="directory__breadcrumb-link">Home</a>
+      <span aria-hidden="true">/</span>
+      <span class="directory__breadcrumb-current">Neighborhoods</span>
+    </nav>
+
+    <header class="directory__head">
+      <h1 class="directory__title">Denver Neighborhoods</h1>
+      <p class="directory__subtitle">
+        Browse neighborhood pages to explore Black-owned businesses by area and view listings on a map.
+      </p>
+      <p class="directory__subtitle" style="margin-top: 0.5rem;">
+        Showing <strong id="visible-count">{neighborhoods.length}</strong> neighborhood{neighborhoods.length === 1 ? "" : "s"}.
+      </p>
+    </header>
+
+    <!-- Filter panel (matches your /type look & feel) -->
+    <section class="filter-panel" aria-label="Neighborhood filters" data-collapsed="false" id="filters">
+      <div class="filter-panel__content">
+        <div class="filter-row filter-row--top">
+          <div class="filter-search-wrap">
+            <label for="neighborhood-search" class="filter-label">Search</label>
+            <div class="filter-search">
+              <svg class="filter-search__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+
+              <input
+                id="neighborhood-search"
+                type="search"
+                class="filter-search__input"
+                placeholder="Try: Five Points, Park Hill, mobile"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+              />
+
+              <button
+                type="button"
+                id="neighborhood-search-clear"
+                class="filter-search__clear"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="filter-sort-wrap">
+            <label for="sort" class="filter-label">Sort by</label>
+            <select id="sort" class="filter-sort">
+              <option value="count">Most listings</option>
+              <option value="az">A–Z</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-dropdowns">
+          <div class="filter-dropdown">
+            <label class="filter-label">Multi-select neighborhoods</label>
+
+            <div class="multi-check">
+              <div class="multi-check__actions">
+                <button type="button" class="multi-check__btn" id="select-all">Select all</button>
+                <button type="button" class="multi-check__btn" id="clear-all">Clear</button>
+              </div>
+
+              <div class="multi-check__list" id="neighborhood-checks">
+                {neighborhoods.map((n) => (
+                  <label class="multi-check__item">
+                    <input
+                      class="multi-check__box"
+                      type="checkbox"
+                      value={n.slug}
+                      data-name={n.name.toLowerCase()}
+                      data-count={n.count}
+                    />
+                    <span class="multi-check__text">
+                      {n.name}
+                      <span class="multi-check__muted">
+                        {n.slug === "mobile" ? " • Mobile & pop-up" : ` • ${n.count}`}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <p class="filter-dropdown__hint">
+                No Cmd/Ctrl needed — just check what you want.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-row filter-row--actions">
+          <button type="button" class="btn-reset-all" id="reset-all">Clear all filters</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Neighborhood cards -->
+    <section class="neighborhoods">
+      <div class="neighborhoods__grid" id="neighborhood-grid">
+        {neighborhoods.map((n) => (
+          <a
+            class="neighborhood-card"
+            href={`/neighborhood/${n.slug}`}
+            data-slug={n.slug}
+            data-name={n.name.toLowerCase()}
+            data-count={n.count}
+          >
+            <div class="neighborhood-card__name">{n.name}</div>
+            <div class="neighborhood-card__meta">
+              {n.slug === "mobile"
+                ? "Mobile & pop-up"
+                : `${n.count} listing${n.count === 1 ? "" : "s"}`}
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div id="empty-state" class="empty-state" style="display:none;">
+        <div class="empty-state__icon">🔍</div>
+        <h3 class="empty-state__title">No neighborhoods found</h3>
+        <p class="empty-state__message">Try adjusting your search or selections.</p>
+        <button id="reset-from-empty" class="empty-state__button">Clear all filters</button>
+      </div>
+    </section>
+  </div>
+
+  <style>
+    .directory {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .directory__breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      flex-wrap: wrap;
+    }
+    .directory__breadcrumb-link {
+      text-decoration: none;
+      color: inherit;
+    }
+    .directory__breadcrumb-link:hover {
+      text-decoration: underline;
+    }
+    .directory__breadcrumb-current {
+      font-weight: 600;
+    }
+
+    .directory__head {
+      margin-bottom: 0.25rem;
+    }
+
+    .directory__title {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.2;
+    }
+
+    .directory__subtitle {
+      margin: 0.35rem 0 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 42rem;
+    }
+
+    /* Filter panel (same look as /type) */
+    .filter-panel {
+      border-radius: 0.9rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+      padding: 0.9rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.6rem;
+      align-items: flex-start;
+    }
+    .filter-row--top {
+      align-items: flex-end;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .filter-row--actions {
+      justify-content: flex-end;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .filter-search-wrap {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+    .filter-sort-wrap {
+      flex: 0 0 auto;
+      min-width: 160px;
+    }
+
+    .filter-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .filter-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .filter-search__icon {
+      position: absolute;
+      left: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      opacity: 0.7;
+    }
+    .filter-search__input {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.4rem 2rem 0.4rem 2.5rem;
+      font-size: 0.85rem;
+    }
+    .filter-search__input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .filter-search__clear {
+      position: absolute;
+      right: 0.4rem;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+    .filter-search__clear.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .filter-sort {
+      width: 100%;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .filter-dropdowns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-reset-all {
+      padding: 0.4rem 1rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-reset-all:hover {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+
+    /* Checkbox multi-select */
+    .multi-check {
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .multi-check__actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .multi-check__btn {
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border-radius: 9999px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .multi-check__btn:hover {
+      border-color: var(--accent);
+    }
+
+    .multi-check__list {
+      max-height: 220px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding-right: 0.25rem;
+    }
+
+    .multi-check__item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 0.4rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .multi-check__item:hover {
+      background: var(--bg-elevated);
+    }
+
+    .multi-check__box {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .multi-check__text {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      display: inline-flex;
+      gap: 0.25rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .multi-check__muted {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .filter-dropdown__hint {
+      margin: 0.35rem 0 0;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Neighborhood cards */
+    .neighborhoods__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .neighborhood-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      border-radius: 0.9rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+      padding: 1rem 1.1rem;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+
+    .neighborhood-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+      border-color: var(--accent);
+    }
+
+    .neighborhood-card__name {
+      font-weight: 700;
+      font-size: 1rem;
+      margin: 0 0 0.25rem;
+      color: var(--text-main);
+    }
+
+    .neighborhood-card__meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Empty state (same language as your other pages) */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.9rem;
+      background: var(--bg-elevated);
+      margin-top: 1rem;
+    }
+    .empty-state__icon {
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .empty-state__title {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .empty-state__message {
+      margin: 0.35rem 0 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .empty-state__button {
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 9999px;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+    }
+    .empty-state__button:hover {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+    }
+  </style>
+
+  <script>
+    const searchInput = document.getElementById("neighborhood-search");
+    const clearBtn = document.getElementById("neighborhood-search-clear");
+    const sortSelect = document.getElementById("sort");
+    const grid = document.getElementById("neighborhood-grid");
+    const visibleCount = document.getElementById("visible-count");
+
+    const checksWrap = document.getElementById("neighborhood-checks");
+    const checkboxes = Array.from(checksWrap?.querySelectorAll('input[type="checkbox"]') || []);
+    const cards = Array.from(document.querySelectorAll(".neighborhood-card"));
+
+    const selectAllBtn = document.getElementById("select-all");
+    const clearAllBtn = document.getElementById("clear-all");
+    const resetAllBtn = document.getElementById("reset-all");
+    const emptyState = document.getElementById("empty-state");
+    const resetFromEmpty = document.getElementById("reset-from-empty");
+
+    function normalize(str) {
+      return (str || "").toLowerCase().trim();
+    }
+
+    function updateClearButton() {
+      if (!clearBtn || !searchInput) return;
+      const hasValue = !!searchInput.value.trim();
+      clearBtn.classList.toggle("is-visible", hasValue);
+    }
+
+    function getSelectedSlugs() {
+      const selected = checkboxes.filter((c) => c.checked).map((c) => c.value);
+      return new Set(selected);
+    }
+
+    function applyFilters() {
+      const q = normalize(searchInput?.value || "");
+      const selected = getSelectedSlugs();
+      const sortMode = sortSelect?.value || "count";
+
+      // filter
+      let visible = 0;
+      const visibleCards = [];
+
+      cards.forEach((card) => {
+        const name = card.dataset.name || "";
+        const slug = card.dataset.slug || "";
+        const count = Number(card.dataset.count || "0");
+
+        const matchesText = !q || name.includes(q) || slug.includes(q);
+        const matchesSelected = selected.size === 0 || selected.has(slug);
+
+        const show = matchesText && matchesSelected;
+        card.style.display = show ? "" : "none";
+
+        if (show) {
+          visible++;
+          visibleCards.push({ card, name, count });
+        }
+      });
+
+      // sort visible cards
+      visibleCards.sort((a, b) => {
+        if (sortMode === "az") return a.name.localeCompare(b.name);
+        // count desc
+        return b.count - a.count || a.name.localeCompare(b.name);
+      });
+
+      // re-append in sorted order
+      if (grid) {
+        visibleCards.forEach((x) => grid.appendChild(x.card));
+      }
+
+      if (visibleCount) visibleCount.textContent = String(visible);
+
+      if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
+      if (grid) grid.style.display = visible === 0 ? "none" : "";
+
+      updateClearButton();
+    }
+
+    function resetAll() {
+      if (searchInput) searchInput.value = "";
+      checkboxes.forEach((c) => (c.checked = false));
+      if (sortSelect) sortSelect.value = "count";
+      applyFilters();
+    }
+
+    // events
+    searchInput?.addEventListener("input", applyFilters);
+
+    clearBtn?.addEventListener("click", () => {
+      if (!searchInput) return;
+      searchInput.value = "";
+      searchInput.focus();
+      applyFilters();
+    });
+
+    sortSelect?.addEventListener("change", applyFilters);
+
+    checkboxes.forEach((c) => c.addEventListener("change", applyFilters));
+
+    selectAllBtn?.addEventListener("click", () => {
+      checkboxes.forEach((c) => (c.checked = true));
+      applyFilters();
+    });
+
+    clearAllBtn?.addEventListener("click", () => {
+      checkboxes.forEach((c) => (c.checked = false));
+      applyFilters();
+    });
+
+    resetAllBtn?.addEventListener("click", resetAll);
+    resetFromEmpty?.addEventListener("click", resetAll);
+
+    // initial
+    updateClearButton();
+    applyFilters();
+  </script>
+</BaseLayout>

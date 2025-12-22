@@ -1,43 +1,22 @@
 ---
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
+import { slugForType, slugForNeighborhood } from "../../lib/slugs.js";
 
-// 🔥 CRITICAL: Tell Astro which pages to generate
-export function getStaticPaths() {
-  /** Helper to create URL-friendly slugs */
-  function slugForType(t) {
-    if (!t) return "other";
-    return String(t)
+/** Helper to create URL-friendly slugs */
+function slugForType(t: string): string {
+  if (!t) return "other";
+  return (
+    String(t)
       .toLowerCase()
       .trim()
+      .replace(/&/g, "and")
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      || "other";
-  }
-  
-  // Enhance businesses with primaryType
-  const enhanced = businesses.map((b) => ({
-    ...b,
-    primaryType:
-      b.type ||
-      (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
-      "Other",
-  }));
-
-  // Get all unique types
-  const allTypes = Array.from(
-    new Set(enhanced.map((b) => b.primaryType))
+      .replace(/(^-|-$)/g, "") || "other"
   );
-
-  // Create a path for each type
-  return allTypes.map((typeLabel) => ({
-    params: { 
-      type: slugForType(typeLabel)
-    },
-  }));
 }
 
-function slugForNeighborhood(n: string) {
+function slugForNeighborhood(n: string): string {
   return String(n || "")
     .toLowerCase()
     .trim()
@@ -46,37 +25,48 @@ function slugForNeighborhood(n: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-
-/** Helper to create URL-friendly slugs (defined again for use in page) */
-function slugForType(t) {
-  if (!t) return "other";
-  return String(t)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    || "other";
-}
-
 // Helper function for amenity icons
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
-    'takeout': '🥡',
-    'dine-in': '🍽️',
-    'outdoor seating': '🌳',
-    'delivery': '🚚',
-    'vegan options': '🌱',
-    'live entertainment': '🎵',
-    'lgbtq+ friendly': '🏳️‍🌈',
-    'wine and beer': '🍷',
-    'parking available': '🅿️',
-    'pet-friendly patio': '🐾',
-    'live music': '🎸',
-    'free admission': '🎟️',
-    'artist talks': '🎨',
-    'workshop space': '🛠️',
+    takeout: "🥡",
+    "dine-in": "🍽️",
+    "outdoor seating": "🌳",
+    delivery: "🚚",
+    "vegan options": "🌱",
+    "live entertainment": "🎵",
+    "lgbtq+ friendly": "🏳️‍🌈",
+    "wine and beer": "🍷",
+    "parking available": "🅿️",
+    "pet-friendly patio": "🐾",
+    "live music": "🎸",
+    "free admission": "🎟️",
+    "artist talks": "🎨",
+    "workshop space": "🛠️",
   };
-  return icons[tag.toLowerCase()] || '✓';
+  return icons[String(tag || "").toLowerCase()] || "✓";
+}
+
+// 🔥 Tell Astro which /type/[type]/ pages to generate
+export function getStaticPaths() {
+  const enhanced = businesses.map((b) => ({
+    ...b,
+    primaryType:
+      b.type ||
+      (Array.isArray(b.businessCategories) && b.businessCategories[0]) ||
+      "Other",
+  }));
+
+  const allTypeLabels = Array.from(new Set(enhanced.map((b) => b.primaryType))).filter(Boolean);
+
+  const slugToLabel = new Map<string, string>();
+  for (const label of allTypeLabels) {
+    const slug = slugForType(label); // ✅ now defined
+    if (!slugToLabel.has(slug)) slugToLabel.set(slug, label);
+  }
+
+  return Array.from(slugToLabel.keys()).map((slug) => ({
+    params: { type: slug },
+  }));
 }
 
 // Get the URL parameter
@@ -93,9 +83,7 @@ const enhanced = businesses.map((b) => ({
 }));
 
 // Filter businesses that match this type slug
-const filtered = enhanced.filter(
-  (b) => slugForType(b.primaryType) === typeParam
-);
+const filtered = enhanced.filter((b) => slugForType(b.primaryType) === typeParam);
 
 if (!filtered.length) {
   return Astro.redirect("/");
@@ -110,45 +98,34 @@ const isEntertainment = typeSlug === "entertainment";
 const isArt = typeSlug === "art";
 
 // Build filter lists from this type only
-const allNeighborhoods = Array.from(
-  new Set(filtered.flatMap((b) => b.neighborhoods || []))
-).sort();
+const allNeighborhoods = Array.from(new Set(filtered.flatMap((b) => b.neighborhoods || []))).sort();
 
 // Use appropriate field based on type
-let primaryTypes = [];
+let primaryTypes: string[] = [];
 if (isEntertainment) {
   primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.entertainmentTypes || []))).sort();
 } else if (isArt) {
   primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.artTypes || []))).sort();
 } else {
-  // Default to cuisineTypes for restaurant and other food-related types
   primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.cuisineTypes || []))).sort();
 }
 
-const allMicrofilters = Array.from(
-  new Set(filtered.flatMap((b) => b.microfilters || []))
-).sort();
+const allMicrofilters = Array.from(new Set(filtered.flatMap((b) => b.microfilters || []))).sort();
 
 // Customize label based on type
 let primaryFacetLabel = "Cuisine";
-if (isEntertainment) {
-  primaryFacetLabel = "Entertainment Type";
-} else if (isArt) {
-  primaryFacetLabel = "Art Type";
-}
+if (isEntertainment) primaryFacetLabel = "Entertainment Type";
+if (isArt) primaryFacetLabel = "Art Type";
 
 // Customize search placeholder
 let searchPlaceholder = "Try: soul food, brunch, Park Hill";
-if (isEntertainment) {
-  searchPlaceholder = "Try: jazz, live music, Five Points, LGBTQ+ friendly";
-} else if (isArt) {
-  searchPlaceholder = "Try: contemporary, sculpture, downtown, free admission";
-}
+if (isEntertainment) searchPlaceholder = "Try: jazz, live music, Five Points, LGBTQ+ friendly";
+if (isArt) searchPlaceholder = "Try: contemporary, sculpture, downtown, free admission";
 
 // Prepare location data for the map
 const locationsForMap = filtered
-  .filter(b => b.latitude && b.longitude)
-  .map(b => ({
+  .filter((b) => b.latitude && b.longitude)
+  .map((b) => ({
     slug: b.slug,
     name: b.name,
     lat: b.latitude,
@@ -160,13 +137,13 @@ const locationsForMap = filtered
 const displayTypeLabel = currentTypeLabel.charAt(0).toUpperCase() + currentTypeLabel.slice(1);
 
 /* --------------------------
-   SEO (added, no UI changes)
+   SEO / JSON-LD
+   (PASS via BaseLayout props — no inline JSON.stringify here)
 --------------------------- */
 const pageTitle = `${displayTypeLabel} • Local Business Directory`;
-const pageDescription =
-  `Explore Black-owned ${currentTypeLabel.toLowerCase()} businesses in the Denver metro area. Filter by neighborhood${
-    primaryTypes.length ? `, ${primaryFacetLabel.toLowerCase()}` : ""
-  }, and amenities.`;
+const pageDescription = `Explore Black-owned ${currentTypeLabel.toLowerCase()} businesses in the Denver metro area. Filter by neighborhood${
+  primaryTypes.length ? `, ${primaryFacetLabel.toLowerCase()}` : ""
+}, and amenities.`;
 const pageImage = "/og-denver-black-guide.png";
 
 const origin = Astro.site ?? Astro.url.origin;
@@ -231,21 +208,22 @@ const jsonLd = {
   title={pageTitle}
   description={pageDescription}
   image={pageImage}
+  canonical={canonical}
+  jsonLd={jsonLd}
 >
-  <!-- ✅ SEO injected into Base.astro via <slot name="head" /> -->
+  <!-- Optional extra SEO head bits (no JSON-LD here) -->
   <Fragment slot="head">
-    <link rel="canonical" href={canonical} />
-    <meta name="robots" content="index,follow,max-image-preview:large" />
     <meta name="author" content="Denver Black Guide" />
-
     <meta property="og:site_name" content="Denver Black Guide" />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:image:alt" content={`Denver Black Guide ${displayTypeLabel} directory preview`} />
-    <meta name="twitter:image:alt" content={`Denver Black Guide ${displayTypeLabel} directory preview`} />
-
-    <script type="application/ld+json" is:inline>
-      {JSON.stringify(jsonLd)}
-    </script>
+    <meta
+      property="og:image:alt"
+      content={`Denver Black Guide ${displayTypeLabel} directory preview`}
+    />
+    <meta
+      name="twitter:image:alt"
+      content={`Denver Black Guide ${displayTypeLabel} directory preview`}
+    />
   </Fragment>
 
   <div class="directory">
@@ -253,15 +231,11 @@ const jsonLd = {
     <nav aria-label="Breadcrumb" class="directory__breadcrumb">
       <a href="/" class="directory__breadcrumb-link">Home</a>
       <span aria-hidden="true">/</span>
-      <span class="directory__breadcrumb-current">
-        {displayTypeLabel}
-      </span>
+      <span class="directory__breadcrumb-current">{displayTypeLabel}</span>
     </nav>
 
     <header class="directory__head">
-      <h1 class="directory__title">
-        {displayTypeLabel}
-      </h1>
+      <h1 class="directory__title">{displayTypeLabel}</h1>
       <p class="directory__subtitle">
         Explore {currentTypeLabel.toLowerCase()} — filter by neighborhood,
         {primaryTypes.length ? ` ${primaryFacetLabel.toLowerCase()},` : ""} and
@@ -270,7 +244,12 @@ const jsonLd = {
     </header>
 
     <!-- FILTERS -->
-    <section class="filter-panel" id="filters" aria-label={`${currentTypeLabel} filters`} data-collapsed="true">
+    <section
+      class="filter-panel"
+      id="filters"
+      aria-label={`${currentTypeLabel} filters`}
+      data-collapsed="true"
+    >
       <!-- Mobile filter toggle -->
       <button class="filter-panel__toggle" id="filter-toggle" type="button">
         <span id="filter-toggle-text">Show Filters</span>
@@ -282,12 +261,21 @@ const jsonLd = {
         <!-- Top row: search + sort -->
         <div class="filter-row filter-row--top">
           <div class="filter-search-wrap">
-            <label for="search" class="filter-label">
-              Search
-            </label>
+            <label for="search" class="filter-label">Search</label>
             <div class="filter-search">
-              <svg class="filter-search__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <svg
+                class="filter-search__icon"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM14 14l-3-3"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
               </svg>
               <input
                 id="search"
@@ -311,9 +299,7 @@ const jsonLd = {
           </div>
 
           <div class="filter-sort-wrap">
-            <label for="sort" class="filter-label">
-              Sort by
-            </label>
+            <label for="sort" class="filter-label">Sort by</label>
             <select id="sort" class="filter-sort">
               <option value="az">A–Z (Name)</option>
               <option value="neighborhood">Neighborhood</option>
@@ -321,9 +307,8 @@ const jsonLd = {
           </div>
         </div>
 
-        <!-- Filter dropdowns in a grid -->
+        <!-- Filter dropdowns -->
         <div class="filter-dropdowns">
-          <!-- Neighborhood dropdown -->
           {allNeighborhoods.length > 0 && (
             <div class="filter-dropdown">
               <label for="neighborhood-select" class="filter-label">
@@ -338,7 +323,6 @@ const jsonLd = {
             </div>
           )}
 
-          <!-- Primary facet: Cuisine, Entertainment Type, or Art Type (multi-select) -->
           {primaryTypes.length > 0 && (
             <div class="filter-dropdown">
               <label for="primary-select" class="filter-label">
@@ -353,7 +337,6 @@ const jsonLd = {
             </div>
           )}
 
-          <!-- Amenities dropdown (multi-select) -->
           {allMicrofilters.length > 0 && (
             <div class="filter-dropdown">
               <label for="amenities-select" class="filter-label">
@@ -369,7 +352,6 @@ const jsonLd = {
           )}
         </div>
 
-        <!-- Reset button -->
         <div class="filter-row filter-row--actions">
           <button type="button" id="reset-all-filters" class="btn-reset-all">
             Clear all filters
@@ -381,9 +363,7 @@ const jsonLd = {
     <!-- Active filters summary -->
     <div id="active-filters-summary" class="active-filters" style="display: none;">
       <span class="active-filters__label">Active:</span>
-      <div id="active-filters-list" class="active-filters__list">
-        <!-- Populated by JavaScript -->
-      </div>
+      <div id="active-filters-list" class="active-filters__list"></div>
     </div>
 
     <!-- Map Toggle for Mobile -->
@@ -391,9 +371,9 @@ const jsonLd = {
       <span id="map-toggle-text">📍 Show Map</span>
     </button>
 
-    <!-- Split View Container -->
+    <!-- Split View -->
     <div class="split-container" id="split-container">
-      <!-- Map Section -->
+      <!-- Map -->
       <section class="map-section" id="map-section" aria-label="Map view">
         <div id="map" class="map-view"></div>
         <div class="map-overlay">
@@ -403,22 +383,17 @@ const jsonLd = {
         </div>
       </section>
 
-      <!-- RESULTS -->
+      <!-- Results -->
       <section aria-label={`${currentTypeLabel} results`} class="directory__results">
         <p id="results-count" class="directory__results-count">
           Showing {filtered.length} place{filtered.length === 1 ? "" : "s"}
         </p>
 
-        <!-- Empty state -->
         <div id="empty-state" class="empty-state" style="display: none;">
           <div class="empty-state__icon">🔍</div>
           <h3 class="empty-state__title">No businesses found</h3>
-          <p class="empty-state__message">
-            Try adjusting your filters or search terms
-          </p>
-          <button id="reset-from-empty" class="empty-state__button">
-            Clear all filters
-          </button>
+          <p class="empty-state__message">Try adjusting your filters or search terms</p>
+          <button id="reset-from-empty" class="empty-state__button">Clear all filters</button>
         </div>
 
         <div id="results-grid" class="directory__grid">
@@ -429,20 +404,15 @@ const jsonLd = {
             const artTypes = b.artTypes || [];
             const neighborhoods = b.neighborhoods || [];
             const microfilters = b.microfilters || [];
-            
-            // Use appropriate type data based on current page type
-            let displayTypes = [];
-            if (isEntertainment) {
-              displayTypes = entertainmentTypes;
-            } else if (isArt) {
-              displayTypes = artTypes;
-            } else {
-              displayTypes = cuisines;
-            }
+
+            let displayTypes: string[] = [];
+            if (isEntertainment) displayTypes = entertainmentTypes;
+            else if (isArt) displayTypes = artTypes;
+            else displayTypes = cuisines;
 
             return (
-              <a 
-                href={`/business/${b.slug}/`} 
+              <a
+                href={`/business/${b.slug}`}
                 class="business-card-link"
                 data-slug={b.slug}
                 data-name={name.toLowerCase()}
@@ -453,11 +423,8 @@ const jsonLd = {
                 data-lng={b.longitude}
               >
                 <article class="card business-card">
-                  <h2 class="business-card__name">
-                    {name}
-                  </h2>
+                  <h2 class="business-card__name">{name}</h2>
 
-                  {/* Quick info with icons */}
                   <div class="business-card__quick-info">
                     <span class="quick-info-item">
                       <span class="quick-info-item__icon">📍</span>
@@ -475,7 +442,9 @@ const jsonLd = {
                             </button>
                           ))}
                           {neighborhoods.length > 2 && (
-                            <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
+                            <span class="neighborhood-more">
+                              +{neighborhoods.length - 2}
+                            </span>
                           )}
                         </span>
                       ) : (
@@ -492,18 +461,13 @@ const jsonLd = {
                   </div>
 
                   <p class="business-card__meta">
-                    {displayTypes.length > 0 && (
+                    {displayTypes.length > 0 ? (
                       <>
-                        <span class="business-card__type">
-                          {primaryFacetLabel}:
-                        </span>{" "}
+                        <span class="business-card__type">{primaryFacetLabel}:</span>{" "}
                         <span>{displayTypes.join(", ")}</span>
                       </>
-                    )}
-                    {displayTypes.length === 0 && (
-                      <span class="business-card__type">
-                        {currentTypeLabel}
-                      </span>
+                    ) : (
+                      <span class="business-card__type">{currentTypeLabel}</span>
                     )}
                   </p>
 
@@ -526,9 +490,7 @@ const jsonLd = {
                     </div>
                   )}
 
-                  <div class="business-card__action">
-                    View Details →
-                  </div>
+                  <div class="business-card__action">View Details →</div>
                 </article>
               </a>
             );
@@ -538,10 +500,8 @@ const jsonLd = {
     </div>
   </div>
 
-
-
-
   <style>
+    /* (Your CSS unchanged — pasted from your current file) */
     .directory {
       display: flex;
       flex-direction: column;
@@ -686,11 +646,6 @@ const jsonLd = {
       margin-bottom: 0.15rem;
     }
 
-    .filter-label--pill {
-      margin-top: 0.25rem;
-      min-width: 75px;
-    }
-
     .filter-search {
       position: relative;
       display: flex;
@@ -738,10 +693,6 @@ const jsonLd = {
       pointer-events: auto;
     }
 
-    .filter-search__clear:hover {
-      color: var(--accent-strong);
-    }
-
     .filter-sort {
       width: 100%;
       border-radius: 9999px;
@@ -751,18 +702,11 @@ const jsonLd = {
       font-size: 0.8rem;
     }
 
-    /* FILTER DROPDOWNS */
-
     .filter-dropdowns {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1rem;
       margin-top: 0.5rem;
-    }
-
-    .filter-dropdown {
-      display: flex;
-      flex-direction: column;
     }
 
     .filter-select {
@@ -781,39 +725,11 @@ const jsonLd = {
       padding: 0.25rem;
     }
 
-    .filter-select option {
-      padding: 0.4rem 0.5rem;
-      border-radius: 0.25rem;
-      margin: 0.1rem 0;
-    }
-
-    .filter-select option:checked {
-      background: var(--accent-soft);
-      color: var(--accent-strong);
-    }
-
-    .filter-select:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-    }
-
     .filter-dropdown__hint {
       margin: 0.25rem 0 0;
       font-size: 0.65rem;
       color: var(--text-muted);
       font-style: italic;
-    }
-
-    .filter-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-    }
-
-    .filter-chips--scroll {
-      max-height: 80px;
-      overflow-y: auto;
-      padding-right: 0.25rem;
     }
 
     .btn-reset-all {
@@ -859,83 +775,20 @@ const jsonLd = {
       flex: 1;
     }
 
-    .active-filter-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.65rem;
-      background: var(--accent-soft);
-      border: 1px solid var(--accent);
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      color: var(--accent-strong);
-    }
-
-    .active-filter-pill__remove {
-      background: none;
-      border: none;
-      color: inherit;
-      cursor: pointer;
-      font-size: 0.9rem;
-      padding: 0;
-      line-height: 1;
-      opacity: 0.7;
-    }
-
-    .active-filter-pill__remove:hover {
-      opacity: 1;
-    }
-
     .empty-state {
       text-align: center;
       padding: 3rem 1rem;
     }
 
-    .empty-state__icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    .empty-state__title {
-      margin: 0 0 0.5rem;
-      font-size: 1.25rem;
-      color: var(--text-main);
-    }
-
-    .empty-state__message {
-      margin: 0 0 1.5rem;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .empty-state__button {
-      padding: 0.6rem 1.5rem;
-      border-radius: 9999px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: white;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .empty-state__button:hover {
-      background: var(--accent-strong);
-      transform: translateY(-1px);
-    }
-
     @keyframes pulse {
-      0%, 100% {
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 0 var(--accent);
+      0%,
+      100% {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(0,0,0,0);
       }
       50% {
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 8px rgba(var(--accent-rgb), 0.3);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(0, 0, 0, 0.12);
       }
     }
-
-    /* MAP STYLES */
 
     .map-toggle {
       display: none;
@@ -1020,13 +873,6 @@ const jsonLd = {
       z-index: 1000;
     }
 
-    .map-overlay__text {
-      margin: 0;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
     .directory__results {
       display: flex;
       flex-direction: column;
@@ -1047,38 +893,38 @@ const jsonLd = {
     }
 
     .business-card-link {
-  text-decoration: none;
-  color: inherit;
-  display: block;
-}
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
 
-.business-card {
-  padding: 1rem 1.1rem 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  position: relative;
-  transition: transform 0.15s, box-shadow 0.15s;
-  height: 100%;
-}
+    .business-card {
+      padding: 1rem 1.1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+      height: 100%;
+    }
 
-.business-card-link:hover .business-card {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-}
+    .business-card-link:hover .business-card {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
 
-.business-card.is-highlighted {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-soft);
-}
+    .business-card.is-highlighted {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+    }
 
-.business-card__name {
-  margin: 0 0 0.1rem;
-  font-size: 1rem;
-  color: var(--text-main);
-}
+    .business-card__name {
+      margin: 0 0 0.1rem;
+      font-size: 1rem;
+      color: var(--text-main);
+    }
 
     .quick-info-item {
       display: flex;
@@ -1143,229 +989,174 @@ const jsonLd = {
       opacity: 1;
     }
 
-    @media (max-width: 640px) {
-      .filter-panel {
-        padding-inline: 0;
-      }
-
-      .directory__title {
-        font-size: 1.4rem;
-      }
-
-      .directory__grid {
-        grid-template-columns: 1fr;
-      }
-
-      .filter-dropdowns {
-        grid-template-columns: 1fr;
-      }
+    .neighborhood-chip-row {
+      display: inline-flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
-    .neighborhood-chip-row {
-  display: inline-flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
+    .neighborhood-chip {
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
 
-.neighborhood-chip {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.8rem;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
+    .neighborhood-chip:hover {
+      color: var(--accent-strong);
+    }
 
-.neighborhood-chip:hover {
-  color: var(--accent-strong);
-}
+    .neighborhood-chip:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 0.35rem;
+    }
 
-.neighborhood-chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 0.35rem;
-}
-
-.neighborhood-more {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
+    .neighborhood-more {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
   </style>
 
-  <script
-  is:inline
-  define:vars={{
-    mapLocations: locationsForMap
-  }}
->
-  // MAP FUNCTIONALITY - Wait for page load
-  window.addEventListener('load', function() {
-    console.log('Page loaded, initializing map...');
-    console.log('Map locations:', mapLocations);
-    console.log('Leaflet available?', typeof window.L);
-    
-    if (typeof window.L === 'undefined') {
-      console.error('Leaflet not loaded!');
-      return;
-    }
+  <script is:inline define:vars={{ mapLocations: locationsForMap }}>
+    // Initialize map on load
+    window.addEventListener("load", function () {
+      if (typeof window.L === "undefined") return;
 
-    const mapElement = document.getElementById('map');
-    const mapToggle = document.getElementById('map-toggle');
-    const mapToggleText = document.getElementById('map-toggle-text');
-    const mapSection = document.getElementById('map-section');
-    const markerCountEl = document.getElementById('map-marker-count');
+      const markerCountEl = document.getElementById("map-marker-count");
+      const mapSection = document.getElementById("map-section");
+      const mapToggle = document.getElementById("map-toggle");
+      const mapToggleText = document.getElementById("map-toggle-text");
 
-    if (!mapElement) {
-      console.error('Map element not found');
-      return;
-    }
-    
-    console.log('Creating map...');
+      const map = window.L.map("map").setView([39.7392, -104.9903], 12);
+      window.L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        { maxZoom: 19 }
+      ).addTo(map);
 
-    try {
-      // Initialize map centered on Denver
-      const map = window.L.map('map').setView([39.7392, -104.9903], 12);
-      console.log('Map created successfully');
-
-      // Add Carto Voyager tile layer
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
-        maxZoom: 19
-      }).addTo(map);
-      console.log('Tile layer added');
-
-      // Custom marker icon
       const customIcon = window.L.divIcon({
-        className: 'custom-marker',
+        className: "custom-marker",
         html: '<div style="background: var(--accent); width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
         iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        iconAnchor: [12, 12],
       });
 
       const markers = {};
       const markerGroup = window.L.featureGroup().addTo(map);
 
-      // Add markers
-            console.log('Adding markers...');
-mapLocations.forEach((location, index) => {
-  if (!location.lat || !location.lng) return;
+      (mapLocations || []).forEach((location) => {
+        if (!location.lat || !location.lng) return;
 
-  console.log(`Adding marker ${index + 1}:`, location.name);
-  
-  const marker = window.L.marker([location.lat, location.lng], {
-    icon: customIcon
-  }).addTo(markerGroup);
+        const marker = window.L.marker([location.lat, location.lng], { icon: customIcon }).addTo(markerGroup);
 
-  marker.bindPopup(`
-    <div style="padding: 0.5rem;">
-      <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
-        <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
-          ${location.name}
-        </a>
-      </h3>
-      <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
-        ${location.neighborhoods[0] || 'Denver'}
-      </p>
-    </div>
-  `);
+        marker.bindPopup(`
+          <div style="padding: 0.5rem;">
+            <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
+              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
+                ${location.name}
+              </a>
+            </h3>
+            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
+              ${
+                (location.neighborhoods && location.neighborhoods.length > 0)
+                  ? location.neighborhoods[0]
+                  : "Denver"
+              }
+            </p>
+          </div>
+        `);
 
-  markers[location.slug] = marker;
+        markers[location.slug] = marker;
 
-  marker.on('click', () => {
-    const cardLink = document.querySelector(`.business-card-link[data-slug="${location.slug}"]`);
-    if (cardLink) {
-      cardLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const card = cardLink.querySelector('.business-card');
-      if (card) {
-        card.classList.add('is-highlighted');
-        setTimeout(() => card.classList.remove('is-highlighted'), 2000);
-      }
-    }
-  });
-});  // <-- CRITICAL: This closes the forEach loop
-      
-      console.log(`Added ${Object.keys(markers).length} markers total`);
+        marker.on("click", () => {
+          const cardLink = document.querySelector(`.business-card-link[data-slug="${location.slug}"]`);
+          if (cardLink) {
+            cardLink.scrollIntoView({ behavior: "smooth", block: "center" });
+            const card = cardLink.querySelector(".business-card");
+            if (card) {
+              card.classList.add("is-highlighted");
+              setTimeout(() => card.classList.remove("is-highlighted"), 2000);
+            }
+          }
+        });
+      });
 
       if (markerGroup.getBounds().isValid()) {
         map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
-        console.log('Map fitted to bounds');
       }
 
       function updateMarkerCount() {
-  const visibleCardLinks = document.querySelectorAll('.business-card-link:not([style*="display: none"])');
-  const visibleSlugs = Array.from(visibleCardLinks).map(card => card.dataset.slug);
-  
-  let visibleCount = 0;
-  Object.entries(markers).forEach(([slug, marker]) => {
-    if (visibleSlugs.includes(slug)) {
-      markerGroup.addLayer(marker);
-      visibleCount++;
-    } else {
-      markerGroup.removeLayer(marker);
-    }
-  });
+        const visibleCardLinks = document.querySelectorAll(
+          '.business-card-link:not([style*="display: none"])'
+        );
+        const visibleSlugs = Array.from(visibleCardLinks).map((c) => c.dataset.slug);
 
-  if (markerCountEl) {
-    markerCountEl.textContent = visibleCount;
-  }
+        let visibleCount = 0;
+        Object.entries(markers).forEach(([slug, marker]) => {
+          if (visibleSlugs.includes(slug)) {
+            markerGroup.addLayer(marker);
+            visibleCount++;
+          } else {
+            markerGroup.removeLayer(marker);
+          }
+        });
 
-  if (markerGroup.getBounds().isValid()) {
-    map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
-  }
-}
+        if (markerCountEl) markerCountEl.textContent = String(visibleCount);
+
+        if (markerGroup.getBounds().isValid()) {
+          map.fitBounds(markerGroup.getBounds(), { padding: [50, 50] });
+        }
+      }
 
       // Card hover highlights marker
-document.querySelectorAll('.business-card-link').forEach(cardLink => {
-  cardLink.addEventListener('mouseenter', () => {
-    const slug = cardLink.dataset.slug;
-    const marker = markers[slug];
-    if (marker) {
-      setTimeout(() => {
-        const markerElement = marker.getElement();
-        if (markerElement) {
-          const markerDiv = markerElement.querySelector('div');
-          if (markerDiv) {
-            markerDiv.style.animation = 'pulse 1s ease-in-out infinite';
-            markerDiv.style.transform = 'scale(1.5)';
-            markerDiv.style.transition = 'transform 0.2s ease';
-          }
-          markerElement.style.zIndex = '1000';
-        }
-      }, 10);
-    }
-  });
+      document.querySelectorAll(".business-card-link").forEach((cardLink) => {
+        const slug = cardLink.dataset.slug;
+        if (!slug) return;
 
-  cardLink.addEventListener('mouseleave', () => {
-    const slug = cardLink.dataset.slug;
-    const marker = markers[slug];
-    if (marker) {
-      const markerElement = marker.getElement();
-      if (markerElement) {
-        const markerDiv = markerElement.querySelector('div');
-        if (markerDiv) {
-          markerDiv.style.animation = '';
-          markerDiv.style.transform = 'scale(1)';
-        }
-        markerElement.style.zIndex = '';
-      }
-    }
-  });
-});
+        function setPulse(on) {
+          const marker = markers[slug];
+          if (!marker) return;
+          setTimeout(() => {
+            const markerEl = marker.getElement?.();
+            if (!markerEl) return;
+            const dot = markerEl.querySelector("div");
+            if (!dot) return;
 
+            if (on) {
+              dot.style.animation = "pulse 1s ease-in-out infinite";
+              dot.style.transform = "scale(1.5)";
+              dot.style.transition = "transform 0.2s ease";
+              markerEl.style.zIndex = "1000";
+            } else {
+              dot.style.animation = "";
+              dot.style.transform = "scale(1)";
+              markerEl.style.zIndex = "";
+            }
+          }, 10);
+        }
+
+        cardLink.addEventListener("mouseenter", () => setPulse(true));
+        cardLink.addEventListener("mouseleave", () => setPulse(false));
+        cardLink.addEventListener("focus", () => setPulse(true));
+        cardLink.addEventListener("blur", () => setPulse(false));
+      });
+
+      // Mobile toggle
       if (mapToggle && mapSection && mapToggleText) {
-        mapToggle.addEventListener('click', () => {
-          const isVisible = mapSection.classList.contains('is-visible');
+        mapToggle.addEventListener("click", () => {
+          const isVisible = mapSection.classList.contains("is-visible");
           if (isVisible) {
-            mapSection.classList.remove('is-visible');
-            mapToggleText.textContent = '📍 Show Map';
+            mapSection.classList.remove("is-visible");
+            mapToggleText.textContent = "📍 Show Map";
           } else {
-            mapSection.classList.add('is-visible');
-            mapToggleText.textContent = '📍 Hide Map';
+            mapSection.classList.add("is-visible");
+            mapToggleText.textContent = "📍 Hide Map";
             setTimeout(() => map.invalidateSize(), 100);
           }
         });
@@ -1373,55 +1164,49 @@ document.querySelectorAll('.business-card-link').forEach(cardLink => {
 
       window.updateMapMarkers = updateMarkerCount;
       updateMarkerCount();
-      console.log('✅ Map initialization complete!');
-      
-    } catch (error) {
-      console.error('❌ Error initializing map:', error);
-    }
-  });
+    });
 
-// ✅ Make neighborhood names clickable inside a card-link (no nested <a>)
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".neighborhood-chip");
-  if (!btn) return;
+    // ✅ Make neighborhood names clickable inside a card-link (no nested <a>)
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".neighborhood-chip");
+      if (!btn) return;
 
-  e.preventDefault();
-  e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
 
-  const slug = btn.dataset.neighborhoodSlug;
-  if (!slug) return;
+      const slug = btn.dataset.neighborhoodSlug;
+      if (!slug) return;
 
-  window.location.href = `/neighborhood/${slug}/`;
-});
+      window.location.href = `/neighborhood/${slug}/`;
+    });
 
-// keyboard support (Enter/Space)
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Enter" && e.key !== " ") return;
+    // keyboard support (Enter/Space)
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
 
-  const btn = document.activeElement?.closest?.(".neighborhood-chip");
-  if (!btn) return;
+      const btn = document.activeElement?.closest?.(".neighborhood-chip");
+      if (!btn) return;
 
-  e.preventDefault();
-  e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
 
-  const slug = btn.dataset.neighborhoodSlug;
-  if (!slug) return;
+      const slug = btn.dataset.neighborhoodSlug;
+      if (!slug) return;
 
-  window.location.href = `/neighborhood/${slug}/`;
-});
-
-</script>
+      window.location.href = `/neighborhood/${slug}/`;
+    });
+  </script>
 
   <script>
-    const searchInput = document.getElementById("search") as HTMLInputElement;
-    const clearBtn = document.getElementById("search-clear") as HTMLButtonElement;
-    const sortSelect = document.getElementById("sort") as HTMLSelectElement;
-    const neighborhoodSelect = document.getElementById("neighborhood-select") as HTMLSelectElement;
-    const primarySelect = document.getElementById("primary-select") as HTMLSelectElement;
-    const amenitiesSelect = document.getElementById("amenities-select") as HTMLSelectElement;
-    const grid = document.getElementById("results-grid") as HTMLElement;
-    const countEl = document.getElementById("results-count") as HTMLElement;
-    const emptyState = document.getElementById("empty-state") as HTMLElement;
+    const searchInput = document.getElementById("search");
+    const clearBtn = document.getElementById("search-clear");
+    const sortSelect = document.getElementById("sort");
+    const neighborhoodSelect = document.getElementById("neighborhood-select");
+    const primarySelect = document.getElementById("primary-select");
+    const amenitiesSelect = document.getElementById("amenities-select");
+    const grid = document.getElementById("results-grid");
+    const countEl = document.getElementById("results-count");
+    const emptyState = document.getElementById("empty-state");
     const filterToggle = document.getElementById("filter-toggle");
     const filterToggleText = document.getElementById("filter-toggle-text");
     const filterPanel = document.getElementById("filters");
@@ -1431,28 +1216,22 @@ document.addEventListener("keydown", (e) => {
     const resetAllBtn = document.getElementById("reset-all-filters");
     const resetFromEmpty = document.getElementById("reset-from-empty");
 
-    const cards = Array.from(
-      document.querySelectorAll("#results-grid .business-card-link")
-    ) as HTMLElement[];
+    const cards = Array.from(document.querySelectorAll("#results-grid .business-card-link"));
 
-    function normalize(str: string): string {
-      return (str || "").toLowerCase();
+    function normalize(str) {
+      return (str || "").toLowerCase().trim();
     }
 
-    function getSelectedValues(selectElement: HTMLSelectElement | null): Set<string> {
+    function getSelectedValues(selectElement) {
       if (!selectElement) return new Set();
-      const selected = Array.from(selectElement.selectedOptions);
-      return new Set(selected.map(opt => normalize(opt.value)));
+      const selected = Array.from(selectElement.selectedOptions || []);
+      return new Set(selected.map((opt) => normalize(opt.value)));
     }
 
     function updateClearButton() {
       if (!clearBtn || !searchInput) return;
       const hasValue = !!searchInput.value.trim();
-      if (hasValue) {
-        clearBtn.classList.add("is-visible");
-      } else {
-        clearBtn.classList.remove("is-visible");
-      }
+      clearBtn.classList.toggle("is-visible", hasValue);
     }
 
     function getActiveFilterCount() {
@@ -1467,30 +1246,25 @@ document.addEventListener("keydown", (e) => {
     function updateFilterCount() {
       const count = getActiveFilterCount();
       if (filterCount) {
-        filterCount.textContent = count.toString();
+        filterCount.textContent = String(count);
         filterCount.style.display = count > 0 ? "" : "none";
       }
     }
 
     function updateActiveFiltersSummary() {
       const count = getActiveFilterCount();
-      
+      if (!activeFiltersSummary || !activeFiltersList) return;
+
       if (count === 0) {
-        if (activeFiltersSummary) {
-          activeFiltersSummary.style.display = "none";
-        }
+        activeFiltersSummary.style.display = "none";
+        activeFiltersList.innerHTML = "";
         return;
       }
 
-      if (activeFiltersSummary) {
-        activeFiltersSummary.style.display = "flex";
-      }
-
-      if (!activeFiltersList) return;
+      activeFiltersSummary.style.display = "flex";
 
       let html = "";
 
-      // Neighborhood
       if (neighborhoodSelect && neighborhoodSelect.value) {
         const label = neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
         html += `<span class="active-filter-pill">
@@ -1499,9 +1273,8 @@ document.addEventListener("keydown", (e) => {
         </span>`;
       }
 
-      // Primary types
       if (primarySelect) {
-        Array.from(primarySelect.selectedOptions).forEach(opt => {
+        Array.from(primarySelect.selectedOptions).forEach((opt) => {
           html += `<span class="active-filter-pill">
             ${opt.text}
             <button class="active-filter-pill__remove" data-clear="primary" data-value="${opt.value}">×</button>
@@ -1509,9 +1282,8 @@ document.addEventListener("keydown", (e) => {
         });
       }
 
-      // Amenities
       if (amenitiesSelect) {
-        Array.from(amenitiesSelect.selectedOptions).forEach(opt => {
+        Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
           html += `<span class="active-filter-pill">
             ${opt.text}
             <button class="active-filter-pill__remove" data-clear="amenity" data-value="${opt.value}">×</button>
@@ -1521,20 +1293,19 @@ document.addEventListener("keydown", (e) => {
 
       activeFiltersList.innerHTML = html;
 
-      // Attach event listeners
       activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const clearType = (btn as HTMLElement).dataset.clear;
-          const value = (btn as HTMLElement).dataset.value;
+          const clearType = btn.dataset.clear;
+          const value = btn.dataset.value;
 
-          if (clearType === "neighborhood") {
-            if (neighborhoodSelect) neighborhoodSelect.value = "";
+          if (clearType === "neighborhood" && neighborhoodSelect) {
+            neighborhoodSelect.value = "";
           } else if (clearType === "primary" && value && primarySelect) {
-            Array.from(primarySelect.options).forEach(opt => {
+            Array.from(primarySelect.options).forEach((opt) => {
               if (opt.value === value) opt.selected = false;
             });
           } else if (clearType === "amenity" && value && amenitiesSelect) {
-            Array.from(amenitiesSelect.options).forEach(opt => {
+            Array.from(amenitiesSelect.options).forEach((opt) => {
               if (opt.value === value) opt.selected = false;
             });
           }
@@ -1547,22 +1318,15 @@ document.addEventListener("keydown", (e) => {
     function resetAllFilters() {
       if (searchInput) searchInput.value = "";
       if (neighborhoodSelect) neighborhoodSelect.value = "";
-      if (primarySelect) {
-        Array.from(primarySelect.options).forEach(opt => opt.selected = false);
-      }
-      if (amenitiesSelect) {
-        Array.from(amenitiesSelect.options).forEach(opt => opt.selected = false);
-      }
-      
+      if (primarySelect) Array.from(primarySelect.options).forEach((opt) => (opt.selected = false));
+      if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
       applyFiltersAndSort();
     }
 
     function applyFiltersAndSort() {
       const q = normalize(searchInput?.value || "");
       const sortValue = sortSelect?.value || "az";
-      const activeNeighborhood = neighborhoodSelect 
-        ? normalize(neighborhoodSelect.value)
-        : "";
+      const activeNeighborhood = neighborhoodSelect ? normalize(neighborhoodSelect.value) : "";
       const activePrimaryTypes = getSelectedValues(primarySelect);
       const activeMicrofilters = getSelectedValues(amenitiesSelect);
 
@@ -1570,9 +1334,7 @@ document.addEventListener("keydown", (e) => {
         const an = a.dataset.name || "";
         const bn = b.dataset.name || "";
 
-        if (sortValue === "az") {
-          return an.localeCompare(bn);
-        }
+        if (sortValue === "az") return an.localeCompare(bn);
 
         if (sortValue === "neighborhood") {
           const anb = (a.dataset.neighborhoods || "").split("|")[0] || "";
@@ -1591,7 +1353,6 @@ document.addEventListener("keydown", (e) => {
         const neighborhoods = card.dataset.neighborhoods || "";
         const micro = card.dataset.microfilters || "";
 
-        // Enhanced search includes all fields
         const matchesText =
           !q ||
           name.includes(q) ||
@@ -1599,8 +1360,7 @@ document.addEventListener("keydown", (e) => {
           neighborhoods.includes(q) ||
           micro.includes(q);
 
-        const matchesNeighborhood =
-          !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
+        const matchesNeighborhood = !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
 
         const matchesPrimary =
           activePrimaryTypes.size === 0 ||
@@ -1610,58 +1370,35 @@ document.addEventListener("keydown", (e) => {
           activeMicrofilters.size === 0 ||
           Array.from(activeMicrofilters).some((m) => micro.includes(m));
 
-        const show =
-          matchesText &&
-          matchesNeighborhood &&
-          matchesPrimary &&
-          matchesMicro;
+        const show = matchesText && matchesNeighborhood && matchesPrimary && matchesMicro;
 
         card.style.display = show ? "" : "none";
-
         if (show) {
           visible++;
           grid?.appendChild(card);
         }
       });
 
-      if (countEl) {
-        countEl.textContent = `Showing ${visible} place${
-          visible === 1 ? "" : "s"
-        }`;
-      }
-
-      if (emptyState) {
-        emptyState.style.display = visible === 0 ? "block" : "none";
-      }
-      if (grid) {
-        grid.style.display = visible === 0 ? "none" : "";
-      }
+      if (countEl) countEl.textContent = `Showing ${visible} place${visible === 1 ? "" : "s"}`;
+      if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
+      if (grid) grid.style.display = visible === 0 ? "none" : "";
 
       updateClearButton();
       updateFilterCount();
       updateActiveFiltersSummary();
 
-      // Update map markers if the function is available
-      if (typeof window.updateMapMarkers === 'function') {
-        window.updateMapMarkers();
-      }
+      if (typeof window.updateMapMarkers === "function") window.updateMapMarkers();
     }
 
-    // Make function globally accessible for map integration
-    window.applyFiltersAndSort = applyFiltersAndSort;
-
-    // Mobile filter toggle
     if (filterToggle && filterPanel && filterToggleText) {
       filterToggle.addEventListener("click", () => {
         const isCollapsed = filterPanel.dataset.collapsed === "true";
         filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
-        filterToggleText.textContent = 
-          isCollapsed ? "Hide Filters" : "Show Filters";
+        filterToggleText.textContent = isCollapsed ? "Hide Filters" : "Show Filters";
       });
     }
 
     searchInput?.addEventListener("input", applyFiltersAndSort);
-    
     clearBtn?.addEventListener("click", () => {
       if (searchInput) {
         searchInput.value = "";
@@ -1673,15 +1410,10 @@ document.addEventListener("keydown", (e) => {
     neighborhoodSelect?.addEventListener("change", applyFiltersAndSort);
     primarySelect?.addEventListener("change", applyFiltersAndSort);
     amenitiesSelect?.addEventListener("change", applyFiltersAndSort);
-
     sortSelect?.addEventListener("change", applyFiltersAndSort);
 
-    if (resetAllBtn) {
-      resetAllBtn.addEventListener("click", resetAllFilters);
-    }
-    if (resetFromEmpty) {
-      resetFromEmpty.addEventListener("click", resetAllFilters);
-    }
+    resetAllBtn?.addEventListener("click", resetAllFilters);
+    resetFromEmpty?.addEventListener("click", resetAllFilters);
 
     updateClearButton();
     applyFiltersAndSort();

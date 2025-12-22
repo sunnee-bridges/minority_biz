@@ -1,32 +1,33 @@
 ---
+// src/pages/business/[slug].astro
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
 
 // Helper function for amenity icons (same as in [type].astro)
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
-    'takeout': '🥡',
-    'dine-in': '🍽️',
-    'outdoor seating': '🌳',
-    'delivery': '🚚',
-    'vegan options': '🌱',
-    'live entertainment': '🎵',
-    'lgbtq+ friendly': '🏳️‍🌈',
-    'wine and beer': '🍷',
-    'parking available': '🅿️',
-    'pet-friendly patio': '🐾',
-    'live music': '🎸',
-    'free admission': '🎟️',
-    'artist talks': '🎨',
-    'workshop space': '🛠️',
-    'classes available': '🎓',
-    'open studio': '🏺',
-    'kiln services': '🔥',
-    'wheel throwing': '⚙️',
-    'hand building': '✋',
-    'glazing workshops': '🎨',
+    takeout: "🥡",
+    "dine-in": "🍽️",
+    "outdoor seating": "🌳",
+    delivery: "🚚",
+    "vegan options": "🌱",
+    "live entertainment": "🎵",
+    "lgbtq+ friendly": "🏳️‍🌈",
+    "wine and beer": "🍷",
+    "parking available": "🅿️",
+    "pet-friendly patio": "🐾",
+    "live music": "🎸",
+    "free admission": "🎟️",
+    "artist talks": "🎨",
+    "workshop space": "🛠️",
+    "classes available": "🎓",
+    "open studio": "🏺",
+    "kiln services": "🔥",
+    "wheel throwing": "⚙️",
+    "hand building": "✋",
+    "glazing workshops": "🎨",
   };
-  return icons[tag.toLowerCase()] || '✓';
+  return icons[String(tag || "").toLowerCase()] || "✓";
 }
 
 // 🔑 Tell Astro which /business/[slug]/ pages to generate
@@ -45,6 +46,30 @@ function slugify(str: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+// Create type slug for breadcrumb link
+function slugForType(t: string) {
+  if (!t) return "other";
+  return (
+    String(t)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "other"
+  );
+}
+
+function truncate(str: string, max = 160) {
+  const s = String(str || "").replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  return s.length > max ? s.slice(0, max - 1).trimEnd() + "…" : s;
+}
+
+function schemaTypeFromPrimary(typeSlug: string) {
+  // Keep conservative. You can refine later.
+  if (typeSlug === "restaurant") return "Restaurant";
+  if (typeSlug === "entertainment") return "EntertainmentBusiness";
+  return "LocalBusiness";
+}
 
 const { slug } = Astro.params;
 const business = businesses.find((b) => b.slug === slug);
@@ -54,29 +79,19 @@ if (!business) {
 }
 
 // Determine the business type for breadcrumb
-const businessType = business.type || 
-  (Array.isArray(business.businessCategories) && business.businessCategories[0]) || 
+const businessType =
+  business.type ||
+  (Array.isArray(business.businessCategories) && business.businessCategories[0]) ||
   "Other";
 
-// Create type slug for breadcrumb link
-function slugForType(t: string) {
-  if (!t) return "other";
-  return String(t)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    || "other";
-}
-
 const typeSlug = slugForType(businessType);
-const displayTypeLabel = businessType.charAt(0).toUpperCase() + businessType.slice(1);
+const displayTypeLabel = String(businessType).charAt(0).toUpperCase() + String(businessType).slice(1);
 
 // Determine which type array to display
 const isEntertainment = typeSlug === "entertainment";
 const isArt = typeSlug === "art";
 
-let displayTypes = [];
+let displayTypes: string[] = [];
 let primaryFacetLabel = "Cuisine";
 
 if (isEntertainment) {
@@ -90,17 +105,122 @@ if (isEntertainment) {
   primaryFacetLabel = "Cuisine";
 }
 
-const title = `${business.name} • Local Business Directory`;
+// -------------------------
+// ✅ SEO + JSON-LD
+// -------------------------
+const origin = Astro.site ?? Astro.url.origin;
+const canonicalPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+const canonical = new URL(Astro.url.pathname, origin).toString();
+
+const neighborhoods = Array.isArray(business.neighborhoods) ? business.neighborhoods : [];
+const neighborhoodLabel = neighborhoods.length ? neighborhoods.join(", ") : "Denver";
+
+const pageImage = "/og-denver-black-guide.png";
+const absoluteImage = new URL(pageImage, origin).toString();
+
+const typeLabel = displayTypeLabel || "Business";
+const facetLabel = displayTypes.length > 0 ? `${primaryFacetLabel}: ${displayTypes.join(", ")}` : typeLabel;
+
+const pageTitle = `${business.name} | ${typeLabel} in ${neighborhoodLabel} • Denver Black Guide`;
+
+const pageDescription =
+  truncate(business.notes, 160) ||
+  truncate(
+    `${business.name} is a Black-owned ${typeLabel.toLowerCase()} in ${neighborhoodLabel}. ${facetLabel}. View contact info, amenities, and location on the Denver Black Guide.`,
+    160
+  );
+
+const schemaType = schemaTypeFromPrimary(typeSlug);
+
+const businessJsonLd: any = {
+  "@type": schemaType,
+  name: business.name,
+  url: canonical,
+  image: absoluteImage,
+};
+
+// phone
+if (business.phone) businessJsonLd.telephone = business.phone;
+
+// geo
+if (business.latitude && business.longitude) {
+  businessJsonLd.geo = {
+    "@type": "GeoCoordinates",
+    latitude: business.latitude,
+    longitude: business.longitude,
+  };
+}
+
+// external website → sameAs (keep url as your canonical page)
+if (business.website) businessJsonLd.sameAs = [business.website];
+
+// “area served” hint (safe)
+businessJsonLd.areaServed = { "@type": "City", name: "Denver" };
+
+const breadcrumbJsonLd = {
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: new URL("/", origin).toString(),
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: displayTypeLabel,
+      item: new URL(`/type/${typeSlug}`, origin).toString(),
+    },
+    {
+      "@type": "ListItem",
+      position: 3,
+      name: business.name,
+      item: canonical,
+    },
+  ],
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: absoluteImage,
+      },
+    },
+    businessJsonLd,
+    breadcrumbJsonLd,
+  ],
+};
 ---
 
-<BaseLayout title={title}>
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  canonical={canonical}
+  image={pageImage}
+  jsonLd={jsonLd}
+>
+  <Fragment slot="head">
+    <meta property="og:site_name" content="Denver Black Guide" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:label1" content="Category" />
+    <meta name="twitter:data1" content={displayTypeLabel} />
+  </Fragment>
+
   <div class="business-detail">
     {/* 🧭 Breadcrumb */}
     <nav class="business-detail__breadcrumb" aria-label="Breadcrumb">
       <div class="business-detail__breadcrumb-row">
         <a href="/" class="business-detail__breadcrumb-link">Home</a>
         <span class="business-detail__breadcrumb-separator">/</span>
-        <a href={`/type/${typeSlug}/`} class="business-detail__breadcrumb-link">
+        <a href={`/type/${typeSlug}`} class="business-detail__breadcrumb-link">
           {displayTypeLabel}
         </a>
         <span class="business-detail__breadcrumb-separator">/</span>
@@ -110,7 +230,7 @@ const title = `${business.name} • Local Business Directory`;
 
     {/* "Back to results" */}
     <a
-      href={`/type/${typeSlug}/`}
+      href={`/type/${typeSlug}`}
       class="business-detail__back"
       onclick="if (window.history.length > 1) { history.back(); return false; }"
     >
@@ -119,45 +239,38 @@ const title = `${business.name} • Local Business Directory`;
 
     <article class="business-detail__card">
       <header class="business-detail__header">
-        <h1 class="business-detail__name">
-          {business.name}
-        </h1>
+        <h1 class="business-detail__name">{business.name}</h1>
 
         {displayTypes.length > 0 && (
           <p class="business-detail__meta">
-            <span class="business-detail__meta-label">{primaryFacetLabel}:</span>
-            {" "}
+            <span class="business-detail__meta-label">{primaryFacetLabel}:</span>{" "}
             {displayTypes.join(", ")}
           </p>
         )}
 
         {business.businessCategories && business.businessCategories.length > 0 && (
-          <p class="business-detail__meta">
-            {business.businessCategories.join(", ")}
-          </p>
+          <p class="business-detail__meta">{business.businessCategories.join(", ")}</p>
         )}
 
         <p class="business-detail__meta business-detail__meta--location">
-  <span class="quick-info-icon">📍</span>
+          <span class="quick-info-icon">📍</span>
 
-  {Array.isArray(business.neighborhoods) && business.neighborhoods.length > 0 ? (
-    business.neighborhoods.map((n, idx) => (
-      <>
-        <a
-          href={`/neighborhood/${slugify(n)}/`}
-          class="business-detail__neighborhood-link"
-        >
-          {n}
-        </a>
-        {idx < business.neighborhoods.length - 1 && <span>, </span>}
-      </>
-    ))
-  ) : (
-    <span>Denver</span>
-  )}
-</p>
-
-
+          {Array.isArray(business.neighborhoods) && business.neighborhoods.length > 0 ? (
+            business.neighborhoods.map((n, idx) => (
+              <>
+                <a
+                  href={`/neighborhood/${slugify(n)}`}
+                  class="business-detail__neighborhood-link"
+                >
+                  {n}
+                </a>
+                {idx < business.neighborhoods.length - 1 && <span>, </span>}
+              </>
+            ))
+          ) : (
+            <span>Denver</span>
+          )}
+        </p>
 
         {/* Get Directions Button */}
         {business.latitude && business.longitude && (
@@ -178,7 +291,7 @@ const title = `${business.name} • Local Business Directory`;
         {(business.website || business.phone) && (
           <div class="business-detail__section">
             <h2 class="business-detail__section-title">Contact Information</h2>
-            
+
             {business.website && (
               <p class="business-detail__row">
                 <span class="business-detail__label">
@@ -191,7 +304,7 @@ const title = `${business.name} • Local Business Directory`;
                   rel="noopener noreferrer"
                   class="business-detail__link"
                 >
-                  {business.website.replace(/^https?:\/\//, '')}
+                  {String(business.website).replace(/^https?:\/\//, "")}
                   <span class="external-link-icon">↗</span>
                 </a>
               </p>
@@ -214,19 +327,14 @@ const title = `${business.name} • Local Business Directory`;
         {/* Amenities Section */}
         {business.microfilters && business.microfilters.length > 0 && (
           <div class="business-detail__section">
-            <h2 class="business-detail__section-title">
-              Amenities &amp; Options
-            </h2>
+            <h2 class="business-detail__section-title">Amenities &amp; Options</h2>
             <div class="business-detail__amenities-grid">
-              {business.microfilters.map((tag) => {
-                const icon = getAmenityIcon(tag);
-                return (
-                  <div class="amenity-item">
-                    <span class="amenity-item__icon">{icon}</span>
-                    <span class="amenity-item__label">{tag}</span>
-                  </div>
-                );
-              })}
+              {business.microfilters.map((tag) => (
+                <div class="amenity-item">
+                  <span class="amenity-item__icon">{getAmenityIcon(tag)}</span>
+                  <span class="amenity-item__label">{tag}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -235,9 +343,7 @@ const title = `${business.name} • Local Business Directory`;
         {business.notes && (
           <div class="business-detail__section">
             <h2 class="business-detail__section-title">About</h2>
-            <p class="business-detail__notes">
-              {business.notes}
-            </p>
+            <p class="business-detail__notes">{business.notes}</p>
           </div>
         )}
 
@@ -348,15 +454,14 @@ const title = `${business.name} • Local Business Directory`;
     }
 
     .business-detail__neighborhood-link {
-  color: var(--accent-strong);
-  text-decoration: none;
-}
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
 
-.business-detail__neighborhood-link:hover {
-  color: var(--accent);
-  text-decoration: underline;
-}
-
+    .business-detail__neighborhood-link:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
 
     .quick-info-icon {
       font-size: 0.9rem;
@@ -407,9 +512,7 @@ const title = `${business.name} • Local Business Directory`;
 
     .business-detail__section-title {
       margin: 0;
-      font-size: 1.1rem;
       font-weight: 700;
-      color: var(--text-main);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       font-size: 0.85rem;
@@ -557,56 +660,60 @@ const title = `${business.name} • Local Business Directory`;
         businessLat: business.latitude,
         businessLng: business.longitude,
         businessName: business.name,
-        businessNeighborhood: business.neighborhoods?.[0] || 'Denver'
+        businessNeighborhood: business.neighborhoods?.[0] || "Denver",
       }}
     >
       // Initialize map when page loads
-      window.addEventListener('load', function() {
-        if (typeof window.L === 'undefined') {
-          console.error('Leaflet not loaded');
+      window.addEventListener("load", function () {
+        if (typeof window.L === "undefined") {
+          console.error("Leaflet not loaded");
           return;
         }
 
-        const mapElement = document.getElementById('detail-map');
+        const mapElement = document.getElementById("detail-map");
         if (!mapElement) return;
 
         try {
           // Create map centered on business location
-          const map = window.L.map('detail-map').setView([businessLat, businessLng], 15);
+          const map = window.L.map("detail-map").setView([businessLat, businessLng], 15);
 
           // Add tile layer
-          window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
-            maxZoom: 19
-          }).addTo(map);
+          window.L.tileLayer(
+            "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+            {
+              attribution:
+                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+              maxZoom: 19,
+            }
+          ).addTo(map);
 
           // Custom marker
           const customIcon = window.L.divIcon({
-            className: 'custom-marker',
+            className: "custom-marker",
             html: '<div style="background: var(--accent); width: 32px; height: 32px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
             iconSize: [32, 32],
-            iconAnchor: [16, 16]
+            iconAnchor: [16, 16],
           });
 
           // Add marker
           const marker = window.L.marker([businessLat, businessLng], {
-            icon: customIcon
+            icon: customIcon,
           }).addTo(map);
 
           // Create popup content
-          const popupContent = '<div style="padding: 0.5rem;">' +
+          const popupContent =
+            '<div style="padding: 0.5rem;">' +
             '<h3 style="margin: 0 0 0.25rem; font-size: 0.95rem; font-weight: 600;">' +
             businessName +
-            '</h3>' +
+            "</h3>" +
             '<p style="margin: 0; font-size: 0.75rem; color: #666;">' +
             businessNeighborhood +
-            '</p>' +
-            '</div>';
+            "</p>" +
+            "</div>";
 
           marker.bindPopup(popupContent).openPopup();
-
         } catch (error) {
-          console.error('Error initializing map:', error);
+          console.error("Error initializing map:", error);
         }
       });
     </script>

@@ -153,7 +153,7 @@ const listItems = allBusinesses.slice(0, 100).map((b, i) => ({
   "@type": "ListItem",
   position: i + 1,
   name: b.name,
-  url: new URL(`/business/${b.slug}/`, origin).toString(),
+  url: new URL(`/business/${b.slug}`, origin).toString(),
 }));
 
 const jsonLd = {
@@ -426,7 +426,7 @@ const jsonLd = {
 
           return (
             <a
-              href={`/business/${b.slug}/`}
+              href={`/business/${b.slug}`}
               class="business-card-link"
               data-slug={b.slug}
               data-name={name.toLowerCase()}
@@ -1587,7 +1587,7 @@ const jsonLd = {
         const slug = btn.dataset.neighborhoodSlug;
         if (!slug) return;
 
-        window.location.href = `/neighborhood/${slug}/`;
+        window.location.href = `/neighborhood/${slug}`;
       });
 
       // keyboard support (Enter/Space)
@@ -1602,7 +1602,7 @@ const jsonLd = {
         const slug = btn.dataset.neighborhoodSlug;
         if (!slug) return;
 
-        window.location.href = `/neighborhood/${slug}/`;
+        window.location.href = `/neighborhood/${slug}`;
       });
     })();
   </script>

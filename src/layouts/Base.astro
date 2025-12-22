@@ -8,15 +8,60 @@ const {
   description = "A community-driven directory to discover and support Black-owned businesses in the Denver metro area.",
   image = "/og-denver-black-guide.png", // safe fallback
   canonical: canonicalProp,
-  jsonLd,
+  jsonLd, // page-specific JSON-LD (optional)
   robots = "index,follow,max-image-preview:large",
 } = Astro.props;
 
+// Prefer Astro.site (from astro.config.mjs). Fallback to current origin.
+const origin = Astro.site ?? Astro.url.origin;
+const siteUrl = new URL("/", origin).toString();
+
 const canonical = canonicalProp
   ? canonicalProp
-  : new URL(Astro.url.pathname, Astro.site ?? Astro.url.origin).toString();
+  : new URL(Astro.url.pathname, origin).toString();
 
-const absoluteImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
+const absoluteImage = new URL(image, origin).toString();
+
+/**
+ * Safely serialize JSON-LD for <script type="application/ld+json">
+ * - Escapes <, >, & to avoid edge-case parsing / </script> hazards.
+ * - Escapes U+2028/U+2029 which can break JS parsing in some contexts.
+ */
+function safeJsonLd(data: unknown) {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+// Always-present global structured data
+const globalJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}#organization`,
+      name: "Denver Black Guide",
+      url: siteUrl,
+      // If you have a true logo asset, uncomment and use it:
+      // logo: new URL("/logo.png", origin).toString(),
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}#website`,
+      url: siteUrl,
+      name: "Denver Black Guide",
+      publisher: { "@id": `${siteUrl}#organization` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${new URL("/all", origin).toString()}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
 ---
 
 <html lang="en" data-theme="light">
@@ -28,6 +73,7 @@ const absoluteImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
     <meta name="robots" content={robots} />
 
     <link rel="canonical" href={canonical} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
 
     <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -48,18 +94,12 @@ const absoluteImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={absoluteImage} />
 
-    <!-- Structured data (override per-page by passing `jsonLd`) -->
-    {jsonLd ? (
-      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-    ) : (
-      <script type="application/ld+json" is:inline>
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "Denver Black Guide",
-          url: canonical,
-        })}
-      </script>
+    <!-- ✅ JSON-LD: global (always) -->
+    <script type="application/ld+json" set:html={safeJsonLd(globalJsonLd)} />
+
+    <!-- ✅ JSON-LD: page-specific (optional) -->
+    {jsonLd && (
+      <script type="application/ld+json" set:html={safeJsonLd(jsonLd)} />
     )}
 
     <!-- Leaflet -->
@@ -67,7 +107,7 @@ const absoluteImage = new URL(image, Astro.site ?? Astro.url.origin).toString();
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-    <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- Extra head slot -->
     <slot name="head" />

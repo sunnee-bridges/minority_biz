@@ -193,6 +193,8 @@ const {
     });
 
     let currentFocusIndex = -1;
+    let suppressNextSuggestions = false;
+
 
     function normalize(str) {
       return (str || "").toLowerCase().trim();
@@ -207,13 +209,36 @@ const {
         .replace(/(^-|-$)/g, "");
     }
 
-    function applyFilterValue(value) {
-      if (!inputEl) return;
-      inputEl.value = value || "";
-      // Trigger the /all filter logic (listens to "input")
-      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-      inputEl.focus();
+   function applyFilterValue(value) {
+  if (!inputEl) return;
+
+  const v = value || "";
+  inputEl.value = v;
+
+  // ✅ Prevent the programmatic input event from reopening suggestions
+  suppressNextSuggestions = true;
+
+  // Trigger the /all filter logic (listens to "input")
+  inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+
+  // ✅ Keep panel closed after selection
+  hideSuggestions();
+
+  inputEl.focus();
+
+  // (optional) URL sync if you added it earlier
+  if (mode === "filter") {
+    try {
+      const url = new URL(window.location.href);
+      if (v.trim()) url.searchParams.set("q", v.trim());
+      else url.searchParams.delete("q");
+      window.history.replaceState({}, "", url);
+    } catch {
+      // no-op
     }
+  }
+}
+
 
     function handleSearch() {
       if (!inputEl) return;
@@ -388,7 +413,7 @@ const {
         window.location.href = `${allPath}?q=${encodeURIComponent(value)}`;
       } else if (type === "neighborhood" && value) {
         const nSlug = slugifyNeighborhood(value);
-        window.location.href = `${neighborhoodPath}/${nSlug}/`;
+        window.location.href = `${neighborhoodPath}/${nSlug}`;
       } else {
         window.location.href = allPath;
       }
@@ -424,7 +449,14 @@ const {
     if (buttonEl) buttonEl.addEventListener("click", handleSearch);
 
     if (inputEl) {
-      inputEl.addEventListener("input", (event) => showSuggestions(event.target.value));
+      inputEl.addEventListener("input", (event) => {
+        if (suppressNextSuggestions) {
+          suppressNextSuggestions = false; // one-shot
+          return;
+        }
+        showSuggestions(event.target.value);
+      });
+
 
       inputEl.addEventListener("focus", () => {
         if (inputEl.value.length >= minChars) showSuggestions(inputEl.value);
