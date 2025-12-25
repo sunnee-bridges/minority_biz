@@ -393,8 +393,6 @@ const {
       const slug = item.getAttribute("data-slug");
       const value = item.getAttribute("data-value");
 
-      hideSuggestions();
-
       // Always navigate for a specific business
       if (type === "business" && slug) {
         window.location.href = `${businessPath}/${slug}`;
@@ -459,6 +457,7 @@ const {
 
 
       inputEl.addEventListener("focus", () => {
+        if (suppressNextSuggestions) return;
         if (inputEl.value.length >= minChars) showSuggestions(inputEl.value);
       });
 

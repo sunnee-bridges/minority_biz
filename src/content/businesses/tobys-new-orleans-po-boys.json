@@ -2,7 +2,7 @@
   "name": "Toby's New Orleans Po'boys",
   "slug": "tobys-new-orleans-po-boys",
   "type": "food truck",
-  "cuisineTypes": ["Southern", "Soul food"],
+  "cuisineTypes": ["Southern", "Soul Food"],
   "businessCategories": ["Food Truck", "Catering"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

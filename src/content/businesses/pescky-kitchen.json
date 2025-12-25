@@ -2,7 +2,7 @@
   "name": "Pescky Kitchen",
   "slug": "pescky-kitchen",
   "type": "catering",
-  "cuisineTypes": ["Soul food", "Vegetarian"],
+  "cuisineTypes": ["Soul Food", "Vegetarian"],
   "businessCategories": ["Catering"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

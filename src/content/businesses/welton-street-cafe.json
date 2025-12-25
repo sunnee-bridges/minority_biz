@@ -2,7 +2,7 @@
   "name": "Welton Street Cafe",
   "slug": "welton-street-cafe",
   "type": "restaurant",
-  "cuisineTypes": ["Soul food", "Southern", "Caribbean"],
+  "cuisineTypes": ["Soul Food", "Southern", "Caribbean"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Five Points"],
   "latitude": 39.75656,

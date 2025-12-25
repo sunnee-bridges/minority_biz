@@ -3,7 +3,10 @@
   "slug": "whittier-cafe",
   "type": "restaurant",
   "cuisineTypes": [
-    "Coffee, tea, wine and beer",
+    "Coffee",
+    "Wine",
+    "Beer",
+    "Tea",
     "African",
     "Snacks"
   ],

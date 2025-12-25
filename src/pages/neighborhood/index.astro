@@ -17,7 +17,7 @@ function neighborhoodSlug(n: string): string {
 function titleCase(str: string): string {
   return String(str || "")
     .toLowerCase()
-    .split(" ")
+    .split(/\s+/)
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
@@ -29,31 +29,41 @@ const counts = new Map<string, number>();
 for (const b of businesses) {
   const arr = Array.isArray(b.neighborhoods) ? b.neighborhoods : [];
   for (const n of arr) {
-    const name = String(n || "").trim();
+    const name = String(n || "").replace(/\s+/g, " ").trim();
     if (!name) continue;
+    if (name.toLowerCase() === "location tbd") continue;
     counts.set(name, (counts.get(name) || 0) + 1);
   }
 }
 
-/**
- * Dedupe by slug so we don't create duplicate links if the data has
- * "Five Points" vs "Five  Points" etc.
- */
+/** Dedupe by slug */
 const slugToName = new Map<string, string>();
 const slugToCount = new Map<string, number>();
+
+function preferLabel(existing: string, candidate: string) {
+  const a = String(existing || "").trim();
+  const b = String(candidate || "").trim();
+  if (!a) return b;
+  if (!b) return a;
+
+  const lettersA = a.replace(/[^a-z]/gi, "").length;
+  const lettersB = b.replace(/[^a-z]/gi, "").length;
+  if (lettersB > lettersA) return b;
+  if (b.length > a.length) return b;
+  return a;
+}
 
 for (const [name, count] of counts.entries()) {
   const slug = neighborhoodSlug(name);
   if (!slug) continue;
 
-  // Keep the first name we see for that slug (stable)
-  if (!slugToName.has(slug)) slugToName.set(slug, name);
+  const prev = slugToName.get(slug);
+  slugToName.set(slug, prev ? preferLabel(prev, name) : name);
 
-  // Sum counts under the same slug
   slugToCount.set(slug, (slugToCount.get(slug) || 0) + count);
 }
 
-// Optional: ensure "Mobile" exists as a bucket link
+// Ensure "Mobile" exists as a bucket link
 if (!slugToName.has("mobile")) {
   slugToName.set("mobile", "Mobile");
   slugToCount.set("mobile", slugToCount.get("mobile") || 0);
@@ -68,53 +78,42 @@ const neighborhoods = Array.from(slugToName.entries())
   }))
   .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-/* --------------------------
-   SEO / JSON-LD
---------------------------- */
+/* SEO */
 const pageImage = "/og-denver-black-guide.png";
 const pageTitle = "Denver Neighborhoods • Denver Black Guide";
 const pageDescription =
   "Browse Denver neighborhoods and explore Black-owned businesses by area. Use neighborhood pages to filter listings and view locations on the map.";
 
 const origin = Astro.site ?? Astro.url.origin;
-const canonical = new URL(Astro.url.pathname, origin).toString();
+const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
+const canonical = new URL(canonicalPath, origin).toString();
+
 const absoluteImage = new URL(pageImage, origin).toString();
-
-const breadcrumbItems = [
-  { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
-  { "@type": "ListItem", position: 2, name: "Neighborhoods", item: canonical },
-];
-
-const itemList = neighborhoods.slice(0, 200).map((n, idx) => ({
-  "@type": "ListItem",
-  position: idx + 1,
-  name: n.name,
-  url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
-}));
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      name: "Denver Black Guide",
-      url: new URL("/", origin).toString(),
-      logo: absoluteImage,
-    },
     {
       "@type": "WebPage",
       name: pageTitle,
       url: canonical,
       description: pageDescription,
       primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
-      breadcrumb: { "@type": "BreadcrumbList", itemListElement: breadcrumbItems },
     },
     {
       "@type": "ItemList",
       name: "Denver neighborhoods",
-      itemListOrder: "https://schema.org/ItemListOrderAscending",
+      itemListOrder: "https://schema.org/ItemListOrderDescending",
       numberOfItems: neighborhoods.length,
-      itemListElement: itemList,
+      itemListElement: neighborhoods.slice(0, 200).map((n, idx) => ({
+        "@type": "ListItem",
+        position: idx + 1,
+        item: {
+          "@type": "Thing",
+          name: n.name,
+          url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
+        },
+      })),
     },
   ],
 };
@@ -145,15 +144,14 @@ const jsonLd = {
     <header class="directory__head">
       <h1 class="directory__title">Denver Neighborhoods</h1>
       <p class="directory__subtitle">
-        Browse neighborhood pages to explore Black-owned businesses by area and view listings on a map.
+        Browse neighborhood pages to explore Black-owned businesses by area.
       </p>
-      <p class="directory__subtitle" style="margin-top: 0.5rem;">
+      <p class="directory__subtitle" style="margin-top:0.5rem;">
         Showing <strong id="visible-count">{neighborhoods.length}</strong> neighborhood{neighborhoods.length === 1 ? "" : "s"}.
       </p>
     </header>
 
-    <!-- Filter panel (matches your /type look & feel) -->
-    <section class="filter-panel" aria-label="Neighborhood filters" data-collapsed="false" id="filters">
+    <section class="filter-panel" aria-label="Neighborhood filters" id="filters">
       <div class="filter-panel__content">
         <div class="filter-row filter-row--top">
           <div class="filter-search-wrap">
@@ -241,7 +239,6 @@ const jsonLd = {
       </div>
     </section>
 
-    <!-- Neighborhood cards -->
     <section class="neighborhoods">
       <div class="neighborhoods__grid" id="neighborhood-grid">
         {neighborhoods.map((n) => (
@@ -272,321 +269,91 @@ const jsonLd = {
   </div>
 
   <style>
-    .directory {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
+    .directory { display: flex; flex-direction: column; gap: 1.5rem; }
 
     .directory__breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 0.25rem;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;
+      color: var(--text-muted); margin-bottom: 0.25rem; flex-wrap: wrap;
     }
-    .directory__breadcrumb-link {
-      text-decoration: none;
-      color: inherit;
-    }
-    .directory__breadcrumb-link:hover {
-      text-decoration: underline;
-    }
-    .directory__breadcrumb-current {
-      font-weight: 600;
-    }
+    .directory__breadcrumb-link { text-decoration: none; color: inherit; }
+    .directory__breadcrumb-link:hover { text-decoration: underline; }
+    .directory__breadcrumb-current { font-weight: 600; }
 
-    .directory__head {
-      margin-bottom: 0.25rem;
-    }
+    .directory__title { margin: 0; font-size: 1.6rem; line-height: 1.2; }
+    .directory__subtitle { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--text-muted); max-width: 42rem; }
 
-    .directory__title {
-      margin: 0;
-      font-size: 1.6rem;
-      line-height: 1.2;
-    }
-
-    .directory__subtitle {
-      margin: 0.35rem 0 0;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      max-width: 42rem;
-    }
-
-    /* Filter panel (same look as /type) */
     .filter-panel {
-      border-radius: 0.9rem;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-elevated);
-      box-shadow: var(--shadow-soft);
-      padding: 0.9rem 1rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
+      border-radius: 0.9rem; border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated); box-shadow: var(--shadow-soft);
+      padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.75rem;
     }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: flex-start; }
+    .filter-row--top { align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+    .filter-row--actions { justify-content: flex-end; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle); }
 
-    .filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem 0.6rem;
-      align-items: flex-start;
-    }
-    .filter-row--top {
-      align-items: flex-end;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    .filter-row--actions {
-      justify-content: flex-end;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--border-subtle);
-    }
-
-    .filter-search-wrap {
-      flex: 1 1 220px;
-      min-width: 0;
-    }
-    .filter-sort-wrap {
-      flex: 0 0 auto;
-      min-width: 160px;
-    }
+    .filter-search-wrap { flex: 1 1 220px; min-width: 0; }
+    .filter-sort-wrap { flex: 0 0 auto; min-width: 160px; }
 
     .filter-label {
-      display: block;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 0.15rem;
+      display: block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.15rem;
     }
 
-    .filter-search {
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-    .filter-search__icon {
-      position: absolute;
-      left: 0.75rem;
-      color: var(--text-muted);
-      pointer-events: none;
-      opacity: 0.7;
-    }
+    .filter-search { position: relative; display: flex; align-items: center; }
+    .filter-search__icon { position: absolute; left: 0.75rem; color: var(--text-muted); pointer-events: none; opacity: 0.7; }
     .filter-search__input {
-      width: 100%;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      padding: 0.4rem 2rem 0.4rem 2.5rem;
-      font-size: 0.85rem;
-    }
-    .filter-search__input:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
+      width: 100%; border-radius: 9999px; border: 1px solid var(--border-subtle);
+      background: var(--bg-page); padding: 0.4rem 2rem 0.4rem 2.5rem; font-size: 0.85rem;
     }
     .filter-search__clear {
-      position: absolute;
-      right: 0.4rem;
-      border: none;
-      background: transparent;
-      font-size: 0.8rem;
-      cursor: pointer;
-      color: var(--text-muted);
-      padding: 0.1rem;
-      opacity: 0;
-      pointer-events: none;
+      position: absolute; right: 0.4rem; border: none; background: transparent; font-size: 0.8rem;
+      cursor: pointer; color: var(--text-muted); padding: 0.1rem; opacity: 0; pointer-events: none;
       transition: opacity 0.15s;
     }
-    .filter-search__clear.is-visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .filter-search__clear.is-visible { opacity: 1; pointer-events: auto; }
 
     .filter-sort {
-      width: 100%;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
-    }
-
-    .filter-dropdowns {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1rem;
-      margin-top: 0.5rem;
+      width: 100%; border-radius: 9999px; border: 1px solid var(--border-subtle);
+      background: var(--bg-page); padding: 0.35rem 0.75rem; font-size: 0.8rem;
     }
 
     .btn-reset-all {
-      padding: 0.4rem 1rem;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: transparent;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-reset-all:hover {
-      border-color: var(--accent);
-      color: var(--accent-strong);
-      background: var(--accent-soft);
+      padding: 0.4rem 1rem; border-radius: 9999px; border: 1px solid var(--border-subtle);
+      background: transparent; font-size: 0.8rem; color: var(--text-muted);
+      cursor: pointer; transition: all 0.15s;
     }
 
-    /* Checkbox multi-select */
-    .multi-check {
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-page);
-      border-radius: 0.5rem;
-      padding: 0.5rem;
-    }
+    .filter-dropdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 0.5rem; }
 
-    .multi-check__actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-      flex-wrap: wrap;
-    }
+    .multi-check { border: 1px solid var(--border-subtle); background: var(--bg-page); border-radius: 0.5rem; padding: 0.5rem; }
+    .multi-check__actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .multi-check__btn { border: 1px solid var(--border-subtle); background: var(--bg-elevated); color: var(--text-main); border-radius: 9999px; padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer; }
+    .multi-check__list { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 0.25rem; padding-right: 0.25rem; }
+    .multi-check__item { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.4rem; border-radius: 0.4rem; cursor: pointer; user-select: none; }
+    .multi-check__box { width: 16px; height: 16px; accent-color: var(--accent); }
+    .multi-check__text { font-size: 0.85rem; display: inline-flex; gap: 0.25rem; align-items: baseline; flex-wrap: wrap; }
+    .multi-check__muted { font-size: 0.75rem; color: var(--text-muted); }
 
-    .multi-check__btn {
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-elevated);
-      color: var(--text-main);
-      border-radius: 9999px;
-      padding: 0.25rem 0.6rem;
-      font-size: 0.75rem;
-      cursor: pointer;
-    }
-    .multi-check__btn:hover {
-      border-color: var(--accent);
-    }
-
-    .multi-check__list {
-      max-height: 220px;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      padding-right: 0.25rem;
-    }
-
-    .multi-check__item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.25rem 0.4rem;
-      border-radius: 0.4rem;
-      cursor: pointer;
-      user-select: none;
-    }
-    .multi-check__item:hover {
-      background: var(--bg-elevated);
-    }
-
-    .multi-check__box {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--accent);
-      flex: 0 0 auto;
-    }
-
-    .multi-check__text {
-      font-size: 0.85rem;
-      color: var(--text-main);
-      display: inline-flex;
-      gap: 0.25rem;
-      align-items: baseline;
-      flex-wrap: wrap;
-    }
-
-    .multi-check__muted {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .filter-dropdown__hint {
-      margin: 0.35rem 0 0;
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    /* Neighborhood cards */
-    .neighborhoods__grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 0.9rem;
-    }
-
+    .neighborhoods__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.9rem; }
     .neighborhood-card {
-      display: block;
-      text-decoration: none;
-      color: inherit;
-      border-radius: 0.9rem;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-elevated);
-      box-shadow: var(--shadow-soft);
-      padding: 1rem 1.1rem;
-      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      display: block; text-decoration: none; color: inherit;
+      border-radius: 0.9rem; border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated); box-shadow: var(--shadow-soft);
+      padding: 1rem 1.1rem; transition: transform 0.15s, border-color 0.15s;
     }
+    .neighborhood-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .neighborhood-card__name { font-weight: 700; font-size: 1rem; margin: 0 0 0.25rem; }
+    .neighborhood-card__meta { font-size: 0.8rem; color: var(--text-muted); }
 
-    .neighborhood-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-soft);
-      border-color: var(--accent);
-    }
-
-    .neighborhood-card__name {
-      font-weight: 700;
-      font-size: 1rem;
-      margin: 0 0 0.25rem;
-      color: var(--text-main);
-    }
-
-    .neighborhood-card__meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    /* Empty state (same language as your other pages) */
     .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      border: 1px solid var(--border-subtle);
-      border-radius: 0.9rem;
-      background: var(--bg-elevated);
+      text-align: center; padding: 3rem 1rem;
+      border: 1px solid var(--border-subtle); border-radius: 0.9rem; background: var(--bg-elevated);
       margin-top: 1rem;
     }
-    .empty-state__icon {
-      font-size: 1.6rem;
-      margin-bottom: 0.5rem;
-    }
-    .empty-state__title {
-      margin: 0;
-      font-size: 1rem;
-    }
-    .empty-state__message {
-      margin: 0.35rem 0 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-    .empty-state__button {
-      border: 1px solid var(--border-subtle);
-      background: transparent;
-      color: var(--text-muted);
-      border-radius: 9999px;
-      padding: 0.4rem 1rem;
-      cursor: pointer;
-    }
-    .empty-state__button:hover {
-      border-color: var(--accent);
-      color: var(--accent-strong);
-      background: var(--accent-soft);
-    }
+    .empty-state__icon { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .empty-state__title { margin: 0; font-size: 1rem; }
+    .empty-state__message { margin: 0.35rem 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
+    .empty-state__button { border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted); border-radius: 9999px; padding: 0.4rem 1rem; cursor: pointer; }
   </style>
 
   <script>
@@ -610,6 +377,11 @@ const jsonLd = {
       return (str || "").toLowerCase().trim();
     }
 
+    // match "five points" with slug "five-points"
+    function qToSlug(q) {
+      return normalize(q).replace(/\s+/g, "-").replace(/[^a-z0-9-]+/g, "");
+    }
+
     function updateClearButton() {
       if (!clearBtn || !searchInput) return;
       const hasValue = !!searchInput.value.trim();
@@ -621,12 +393,32 @@ const jsonLd = {
       return new Set(selected);
     }
 
+    function visibleCheckboxes() {
+      return checkboxes.filter((c) => {
+        const row = c.closest(".multi-check__item");
+        return !row || row.style.display !== "none";
+      });
+    }
+
     function applyFilters() {
-      const q = normalize(searchInput?.value || "");
+      const qRaw = searchInput?.value || "";
+      const q = normalize(qRaw);
+      const qSlug = qToSlug(qRaw);
+
       const selected = getSelectedSlugs();
       const sortMode = sortSelect?.value || "count";
 
-      // filter
+      // filter checkbox list by search text
+      checkboxes.forEach((box) => {
+        const row = box.closest(".multi-check__item");
+        if (!row) return;
+        const name = box.dataset.name || "";
+        const slug = box.value || "";
+        const show = !q || name.includes(q) || slug.includes(qSlug);
+        row.style.display = show ? "" : "none";
+      });
+
+      // filter cards
       let visible = 0;
       const visibleCards = [];
 
@@ -635,7 +427,7 @@ const jsonLd = {
         const slug = card.dataset.slug || "";
         const count = Number(card.dataset.count || "0");
 
-        const matchesText = !q || name.includes(q) || slug.includes(q);
+        const matchesText = !q || name.includes(q) || slug.includes(qSlug);
         const matchesSelected = selected.size === 0 || selected.has(slug);
 
         const show = matchesText && matchesSelected;
@@ -650,15 +442,10 @@ const jsonLd = {
       // sort visible cards
       visibleCards.sort((a, b) => {
         if (sortMode === "az") return a.name.localeCompare(b.name);
-        // count desc
         return b.count - a.count || a.name.localeCompare(b.name);
       });
 
-      // re-append in sorted order
-      if (grid) {
-        visibleCards.forEach((x) => grid.appendChild(x.card));
-      }
-
+      if (grid) visibleCards.forEach((x) => grid.appendChild(x.card));
       if (visibleCount) visibleCount.textContent = String(visible);
 
       if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
@@ -674,7 +461,6 @@ const jsonLd = {
       applyFilters();
     }
 
-    // events
     searchInput?.addEventListener("input", applyFilters);
 
     clearBtn?.addEventListener("click", () => {
@@ -685,23 +471,21 @@ const jsonLd = {
     });
 
     sortSelect?.addEventListener("change", applyFilters);
-
     checkboxes.forEach((c) => c.addEventListener("change", applyFilters));
 
     selectAllBtn?.addEventListener("click", () => {
-      checkboxes.forEach((c) => (c.checked = true));
+      visibleCheckboxes().forEach((c) => (c.checked = true));
       applyFilters();
     });
 
     clearAllBtn?.addEventListener("click", () => {
-      checkboxes.forEach((c) => (c.checked = false));
+      visibleCheckboxes().forEach((c) => (c.checked = false));
       applyFilters();
     });
 
     resetAllBtn?.addEventListener("click", resetAll);
     resetFromEmpty?.addEventListener("click", resetAll);
 
-    // initial
     updateClearButton();
     applyFilters();
   </script>

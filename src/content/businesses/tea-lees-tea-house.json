@@ -3,9 +3,13 @@
   "slug": "tea-lees-tea-house",
   "type": "restaurant",
   "cuisineTypes": [
-    "Coffee, tea, wine and beer",
+    "Coffee",
+    "Tea",
+    "Wine",
+    "Beer",
     "American",
-    "Breakfast/Brunch"
+    "Breakfast",
+    "Brunch"
   ],
   "businessCategories": [
     "Restaurant"

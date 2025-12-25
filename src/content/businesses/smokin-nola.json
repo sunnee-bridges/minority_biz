@@ -2,7 +2,7 @@
   "name": "Smokin' Nola",
   "slug": "smokin-nola",
   "type": "restaurant",
-  "cuisineTypes": ["Soul food", "Southern"],
+  "cuisineTypes": ["Soul Food", "Southern"],
   "businessCategories": ["Catering", "Restaurant"],
   "neighborhoods": ["Parker"],
   "latitude": 39.51574,

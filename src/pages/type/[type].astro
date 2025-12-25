@@ -25,6 +25,31 @@ function slugForNeighborhood(n: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+// Normalize function for deduplication (case-insensitive, trim whitespace)
+function normalizeTypeValue(val: string): string {
+  return (val || "").toLowerCase().trim();
+}
+
+// Extract individual tags from a cuisine type (e.g., "Coffee, Tea & Wine" -> ["coffee", "tea", "wine"])
+function extractTags(typeString: string): Set<string> {
+  return new Set(
+    (typeString || "")
+      .toLowerCase()
+      .split(/[,&]/) // Split by comma or ampersand
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0)
+  );
+}
+
+// Convert a business's types into a flat set of all unique tags
+function getBusinessTags(types: string[]): Set<string> {
+  const allTags = new Set<string>();
+  (types || []).forEach((type) => {
+    extractTags(type).forEach((tag) => allTags.add(tag));
+  });
+  return allTags;
+}
+
 // Helper function for amenity icons
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
@@ -100,14 +125,37 @@ const isArt = typeSlug === "art";
 // Build filter lists from this type only
 const allNeighborhoods = Array.from(new Set(filtered.flatMap((b) => b.neighborhoods || []))).sort();
 
-// Use appropriate field based on type
+// Use appropriate field based on type with deduplication
 let primaryTypes: string[] = [];
+let primaryTypeMap = new Map<string, string>(); // maps normalized -> original for display
+
 if (isEntertainment) {
-  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.entertainmentTypes || []))).sort();
+  const raw = filtered.flatMap((b) => b.entertainmentTypes || []);
+  raw.forEach((type) => {
+    const norm = normalizeTypeValue(type);
+    if (!primaryTypeMap.has(norm)) {
+      primaryTypeMap.set(norm, type); // Keep first occurrence
+    }
+  });
+  primaryTypes = Array.from(primaryTypeMap.values()).sort();
 } else if (isArt) {
-  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.artTypes || []))).sort();
+  const raw = filtered.flatMap((b) => b.artTypes || []);
+  raw.forEach((type) => {
+    const norm = normalizeTypeValue(type);
+    if (!primaryTypeMap.has(norm)) {
+      primaryTypeMap.set(norm, type);
+    }
+  });
+  primaryTypes = Array.from(primaryTypeMap.values()).sort();
 } else {
-  primaryTypes = Array.from(new Set(filtered.flatMap((b) => b.cuisineTypes || []))).sort();
+  const raw = filtered.flatMap((b) => b.cuisineTypes || []);
+  raw.forEach((type) => {
+    const norm = normalizeTypeValue(type);
+    if (!primaryTypeMap.has(norm)) {
+      primaryTypeMap.set(norm, type);
+    }
+  });
+  primaryTypes = Array.from(primaryTypeMap.values()).sort();
 }
 
 const allMicrofilters = Array.from(new Set(filtered.flatMap((b) => b.microfilters || []))).sort();
@@ -146,7 +194,11 @@ const pageDescription = `Explore Black-owned ${currentTypeLabel.toLowerCase()} b
 }, and amenities.`;
 const pageImage = "/og-denver-black-guide.png";
 
-const origin = Astro.site ?? Astro.url.origin;
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.url.origin ||
+  Astro.site;
+
 const canonical = new URL(Astro.url.pathname, origin).toString();
 const absoluteImage = new URL(pageImage, origin).toString();
 
@@ -154,7 +206,7 @@ const listItems = filtered.slice(0, 100).map((b, i) => ({
   "@type": "ListItem",
   position: i + 1,
   name: b.name,
-  url: new URL(`/business/${b.slug}/`, origin).toString(),
+  url: new URL(`/business/${b.slug}`, origin).toString(),
 }));
 
 const jsonLd = {
@@ -330,7 +382,7 @@ const jsonLd = {
               </label>
               <select id="primary-select" class="filter-select" multiple size="4">
                 {primaryTypes.map((c) => (
-                  <option value={c.toLowerCase()}>{c}</option>
+                  <option value={normalizeTypeValue(c)}>{c}</option>
                 ))}
               </select>
               <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
@@ -410,13 +462,18 @@ const jsonLd = {
             else if (isArt) displayTypes = artTypes;
             else displayTypes = cuisines;
 
+            // Extract all individual tags from cuisine/type strings for smart matching
+            // e.g., "Coffee & Tea" becomes "coffee|tea", "Beer, Wine" becomes "beer|wine"
+            const businessTags = getBusinessTags(displayTypes);
+            const tagsForMatching = Array.from(businessTags).join("|");
+
             return (
               <a
                 href={`/business/${b.slug}`}
                 class="business-card-link"
                 data-slug={b.slug}
                 data-name={name.toLowerCase()}
-                data-primary-types={displayTypes.join("|").toLowerCase()}
+                data-primary-types={tagsForMatching}
                 data-neighborhoods={neighborhoods.join("|").toLowerCase()}
                 data-microfilters={microfilters.join("|").toLowerCase()}
                 data-lat={b.latitude}
@@ -1058,7 +1115,7 @@ const jsonLd = {
         marker.bindPopup(`
           <div style="padding: 0.5rem;">
             <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
-              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
+              <a href="/business/${location.slug}" style="color: var(--accent); text-decoration: none;">
                 ${location.name}
               </a>
             </h3>
@@ -1177,7 +1234,7 @@ const jsonLd = {
       const slug = btn.dataset.neighborhoodSlug;
       if (!slug) return;
 
-      window.location.href = `/neighborhood/${slug}/`;
+      window.location.href = `/neighborhood/${slug}`;
     });
 
     // keyboard support (Enter/Space)
@@ -1193,11 +1250,48 @@ const jsonLd = {
       const slug = btn.dataset.neighborhoodSlug;
       if (!slug) return;
 
-      window.location.href = `/neighborhood/${slug}/`;
+      window.location.href = `/neighborhood/${slug}`;
     });
   </script>
 
   <script>
+    // Normalization function (must match backend)
+    function normalizeTypeValue(val) {
+      return (val || "").toLowerCase().trim();
+    }
+
+    // Extract individual tags from a type string (e.g., "Coffee, Tea & Wine" -> ["coffee", "tea", "wine"])
+    function extractTagsFromString(typeString) {
+      return (typeString || "")
+        .toLowerCase()
+        .split(/[,&]/)
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+    }
+
+    // Parse the pipe-separated tags from data attribute
+    function getTagsFromAttribute(attrValue) {
+      return (attrValue || "")
+        .split("|")
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+    }
+
+    // Check if business tags match any selected filters
+    function businessMatchesPrimaryFilters(businessTagsAttr, selectedPrimaryFilters) {
+      if (selectedPrimaryFilters.size === 0) return true;
+
+      const businessTags = new Set(getTagsFromAttribute(businessTagsAttr));
+
+      // Return true if ANY selected filter matches ANY business tag
+      for (const filter of selectedPrimaryFilters) {
+        if (businessTags.has(filter)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     const searchInput = document.getElementById("search");
     const clearBtn = document.getElementById("search-clear");
     const sortSelect = document.getElementById("sort");
@@ -1362,9 +1456,8 @@ const jsonLd = {
 
         const matchesNeighborhood = !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
 
-        const matchesPrimary =
-          activePrimaryTypes.size === 0 ||
-          Array.from(activePrimaryTypes).some((c) => primaryData.includes(c));
+        // Use tag-based matching for primary types
+        const matchesPrimary = businessMatchesPrimaryFilters(primaryData, activePrimaryTypes);
 
         const matchesMicro =
           activeMicrofilters.size === 0 ||

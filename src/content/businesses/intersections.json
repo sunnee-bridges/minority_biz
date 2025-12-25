@@ -2,7 +2,7 @@
   "name": "Intersections",
   "slug": "intersections",
   "type": "restaurant",
-  "cuisineTypes": ["Breakfast & Brunch", "Southern", "American"],
+  "cuisineTypes": ["Breakfast", "Brunch", "Southern", "American"],
   "businessCategories": ["Restaurant", "Fine Dining"],
   "neighborhoods": ["Central Park"],
   "latitude": 39.7985,

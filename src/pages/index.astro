@@ -112,7 +112,11 @@ const pageDescription =
   "Discover and support Black-owned businesses across Denver neighborhoods. Browse by category, cuisine, and amenities, or search the directory.";
 const pageImage = "/og-denver-black-guide.png";
 
-const origin = Astro.site ?? Astro.url.origin;
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.url.origin ||
+  Astro.site;
+
 const canonical = new URL(Astro.url.pathname, origin).toString();
 const absoluteImage = new URL(pageImage, origin).toString();
 
@@ -154,6 +158,7 @@ const jsonLd = {
   title={pageTitle}
   description={pageDescription}
   image={pageImage}
+  jsonLd={jsonLd}
 >
   <!-- ✅ SEO injected into Base.astro via <slot name="head" /> -->
   <Fragment slot="head">
@@ -166,10 +171,6 @@ const jsonLd = {
     <meta property="og:image:alt" content="Denver Black Guide directory preview image" />
     <meta name="twitter:image:alt" content="Denver Black Guide directory preview image" />
 
-    <!-- Structured data (JSON-LD) -->
-    <script type="application/ld+json" is:inline>
-      {JSON.stringify(jsonLd)}
-    </script>
   </Fragment>
 
   <div class="homepage">
@@ -208,22 +209,23 @@ const jsonLd = {
             <!-- Populated by JavaScript -->
           </div>
           <SearchSuggestions
-  inputId="hero-search"
-  panelId="search-suggestions"
-  buttonSelector=".hero__search-button"
-  mode="hero"
-  allPath="/all"
-  businessPath="/business"
-  searchData={enhanced.map((b) => ({
-    name: b.name,
-    slug: b.slug,
-    type: b.primaryType,
-    neighborhoods: b.neighborhoods || [],
-    cuisines: [
-      ...(b.cuisineTypes || []),
-      ...(b.entertainmentTypes || []),
-      ...(b.artTypes || []),
-    ],
+      inputId="hero-search"
+      panelId="search-suggestions"
+      buttonSelector=".hero__search-button"
+      mode="navigate"
+      allPath="/all"
+      businessPath="/business"
+      neighborhoodPath="/neighborhood"
+      searchData={enhanced.map((b) => ({
+        name: b.name,
+        slug: b.slug,
+        type: b.primaryType,
+        neighborhoods: b.neighborhoods || [],
+        cuisines: [
+          ...(b.cuisineTypes || []),
+          ...(b.entertainmentTypes || []),
+          ...(b.artTypes || []),
+        ],
   }))}
 />
 
