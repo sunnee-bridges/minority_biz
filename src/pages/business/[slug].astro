@@ -3,7 +3,7 @@
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
 
-/** Amenity icons */
+// Helper function for amenity icons (same as in [type].astro)
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
     takeout: "🥡",
@@ -30,7 +30,16 @@ function getAmenityIcon(tag: string): string {
   return icons[String(tag || "").toLowerCase()] || "✓";
 }
 
-function slugify(str: string): string {
+// 🔑 Tell Astro which /business/[slug]/ pages to generate
+export function getStaticPaths() {
+  return businesses
+    .filter((b) => !!b?.slug)
+    .map((b) => ({
+      params: { slug: b.slug },
+    }));
+}
+
+function slugify(str: string) {
   return String(str || "")
     .toLowerCase()
     .trim()
@@ -54,48 +63,53 @@ function truncate(str: string, max = 160) {
   return s.length > max ? s.slice(0, max - 1).trimEnd() + "…" : s;
 }
 
-function schemaTypeFromPrimary(typeSlug: string) {
+/**
+ * ✅ Low-headache schema:
+ * - Restaurant gets Restaurant
+ * - Everything else = LocalBusiness (future-proof for art/fitness/etc.)
+ */
+function schemaTypesFor(typeSlug: string): string[] {
   const t = (typeSlug || "").toLowerCase();
-  const map: Record<string, string> = {
-    restaurant: "Restaurant",
-    entertainment: "EntertainmentBusiness",
-    art: "LocalBusiness",
-    catering: "FoodEstablishment",
-    "food-truck": "FoodEstablishment",
-    foodtruck: "FoodEstablishment",
-  };
-  return map[t] || "LocalBusiness";
-}
-
-// 🔑 Tell Astro which /business/[slug] pages to generate
-export function getStaticPaths() {
-  return businesses
-    .filter((b) => !!b.slug)
-    .map((b) => ({ params: { slug: b.slug } }));
+  if (t === "restaurant") return ["LocalBusiness", "Restaurant"];
+  return ["LocalBusiness"];
 }
 
 const { slug } = Astro.params;
 const business = businesses.find((b) => b.slug === slug);
+
 const notFound = !business;
 
+if (notFound) {
+  Astro.response.status = 404;
+}
+
+// -------------------------
+// ✅ SEO + JSON-LD (robust + future-proof)
+// -------------------------
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.site ||
+  Astro.url.origin;
+
 // ✅ trailingSlash: "never" friendly canonical (no trailing slash)
-const origin = Astro.site ?? Astro.url.origin;
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
 
 const pageImage = "/og-denver-black-guide.png";
 const absoluteImage = new URL(pageImage, origin).toString();
 
-// Defaults (404)
 let pageTitle = "Business Not Found • Denver Black Guide";
 let pageDescription = "We couldn’t find that business.";
+
 let typeSlug = "other";
-let displayTypeLabel = "Other";
+let displayTypeLabel = "Business";
+
 let displayTypes: string[] = [];
-let primaryFacetLabel = "Cuisine";
+let primaryFacetLabel = "Category";
+
+let neighborhoods: string[] = [];
 let neighborhoodLabel = "Denver";
 
-// Only compute these if we have a business
 if (!notFound && business) {
   const businessType =
     business.type ||
@@ -103,7 +117,7 @@ if (!notFound && business) {
     "Other";
 
   typeSlug = slugify(businessType) || "other";
-  displayTypeLabel = toTitleCase(businessType);
+  displayTypeLabel = toTitleCase(businessType) || "Business";
 
   const isEntertainment = typeSlug === "entertainment";
   const isArt = typeSlug === "art";
@@ -119,7 +133,7 @@ if (!notFound && business) {
     primaryFacetLabel = "Cuisine";
   }
 
-  const neighborhoods = Array.isArray(business.neighborhoods) ? business.neighborhoods : [];
+  neighborhoods = Array.isArray(business.neighborhoods) ? business.neighborhoods : [];
   neighborhoodLabel = neighborhoods.length ? neighborhoods.join(", ") : "Denver";
 
   const typeLabel = displayTypeLabel || "Business";
@@ -129,26 +143,48 @@ if (!notFound && business) {
   pageTitle = `${business.name} | ${typeLabel} in ${neighborhoodLabel} • Denver Black Guide`;
 
   pageDescription =
-    truncate(business.notes, 160) ||
+    truncate(business.notes ?? "", 160) ||
     truncate(
       `${business.name} is a Black-owned ${typeLabel.toLowerCase()} in ${neighborhoodLabel}. ${facetLabel}. View contact info, amenities, and location on the Denver Black Guide.`,
       160
     );
 }
 
-// SEO JSON-LD (safe even for 404)
-const schemaType = !notFound && business ? schemaTypeFromPrimary(typeSlug) : "WebPage";
+// ✅ If you have per-business images, prefer them for OG + schema
+const businessImage =
+  !notFound && business && (business as any).image
+    ? new URL((business as any).image, origin).toString()
+    : absoluteImage;
+
+// ✅ Denver address is safe for now and works for restaurants + future categories
+const denverAddress = {
+  "@type": "PostalAddress",
+  addressLocality: "Denver",
+  addressRegion: "CO",
+  addressCountry: "US",
+};
+
+// Business structured data
+const schemaTypes = schemaTypesFor(typeSlug);
 
 const businessJsonLd: any =
   !notFound && business
     ? {
-        "@type": schemaType,
+        "@type": schemaTypes, // e.g. ["LocalBusiness","Restaurant"]
         name: business.name,
         url: canonical,
-        image: absoluteImage,
+        mainEntityOfPage: canonical,
+        image: businessImage,
+        address: denverAddress,
         areaServed: { "@type": "City", name: "Denver" },
+
         ...(business.phone ? { telephone: business.phone } : {}),
         ...(business.website ? { sameAs: [business.website] } : {}),
+
+        ...(schemaTypes.includes("Restaurant") && business.cuisineTypes?.length
+          ? { servesCuisine: business.cuisineTypes.slice(0, 8) }
+          : {}),
+
         ...(business.latitude && business.longitude
           ? {
               geo: {
@@ -191,7 +227,13 @@ const jsonLd = {
       name: pageTitle,
       url: canonical,
       description: pageDescription,
-      primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: businessImage,
+      },
+      // wire to Base.astro global ids (nice but optional)
+      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
+      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
     },
     ...(businessJsonLd ? [businessJsonLd] : []),
     breadcrumbJsonLd,
@@ -203,9 +245,17 @@ const jsonLd = {
   title={pageTitle}
   description={pageDescription}
   canonical={canonical}
-  image={pageImage}
+  image={businessImage.replace(new URL("/", origin).toString(), "/") /* safe-ish if your images are local; otherwise keep pageImage */}
   jsonLd={jsonLd}
+  robots={notFound ? "noindex,follow" : "index,follow,max-image-preview:large"}
+  ogType="website"
+  ogImageAlt={!notFound && business ? `${business.name} listing on Denver Black Guide` : "Denver Black Guide directory preview image"}
 >
+  
+    <meta slot="head" name="twitter:label1" content="Category" />
+    <meta slot="head" name="twitter:data1" content={displayTypeLabel} />
+  
+
   {notFound ? (
     <div style="padding:2rem 0; max-width: 820px; margin: 0 auto;">
       <h1>Business not found</h1>
@@ -228,7 +278,7 @@ const jsonLd = {
           </div>
         </nav>
 
-        {/* Back */}
+        {/* "Back to results" */}
         <a
           href={`/type/${typeSlug}`}
           class="business-detail__back"
@@ -254,11 +304,25 @@ const jsonLd = {
 
             <p class="business-detail__meta business-detail__meta--location">
               <span class="quick-info-icon">📍</span>
-              {Array.isArray(business!.neighborhoods) && business!.neighborhoods.length > 0
-                ? business!.neighborhoods.join(", ")
-                : "Denver"}
+
+              {Array.isArray(business!.neighborhoods) && business!.neighborhoods.length > 0 ? (
+                business!.neighborhoods.map((n, idx) => (
+                  <>
+                    <a
+                      href={`/neighborhood/${slugify(n)}`}
+                      class="business-detail__neighborhood-link"
+                    >
+                      {n}
+                    </a>
+                    {idx < business!.neighborhoods.length - 1 && <span>, </span>}
+                  </>
+                ))
+              ) : (
+                <span>Denver</span>
+              )}
             </p>
 
+            {/* Get Directions Button */}
             {business!.latitude && business!.longitude && (
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${business!.latitude},${business!.longitude}`}
@@ -273,6 +337,7 @@ const jsonLd = {
           </header>
 
           <section class="business-detail__body">
+            {/* Contact Info Section */}
             {(business!.website || business!.phone) && (
               <div class="business-detail__section">
                 <h2 class="business-detail__section-title">Contact Information</h2>
@@ -309,6 +374,7 @@ const jsonLd = {
               </div>
             )}
 
+            {/* Amenities Section */}
             {business!.microfilters && business!.microfilters.length > 0 && (
               <div class="business-detail__section">
                 <h2 class="business-detail__section-title">Amenities &amp; Options</h2>
@@ -323,6 +389,7 @@ const jsonLd = {
               </div>
             )}
 
+            {/* About Section */}
             {business!.notes && (
               <div class="business-detail__section">
                 <h2 class="business-detail__section-title">About</h2>
@@ -330,6 +397,7 @@ const jsonLd = {
               </div>
             )}
 
+            {/* Map Section */}
             {business!.latitude && business!.longitude && (
               <div class="business-detail__section">
                 <h2 class="business-detail__section-title">Location</h2>
@@ -343,53 +411,295 @@ const jsonLd = {
       </div>
 
       <style>
-        .business-detail { max-width: 820px; margin: 0 auto; padding-block: 1.5rem 3rem; }
-        .business-detail__breadcrumb { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
-        .business-detail__breadcrumb-row { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
-        .business-detail__breadcrumb-link { text-decoration: none; color: var(--text-muted); transition: color 0.15s; }
-        .business-detail__breadcrumb-link:hover { text-decoration: underline; color: var(--accent-strong); }
-        .business-detail__breadcrumb-separator { margin: 0 0.1rem; opacity: 0.6; }
-        .business-detail__back { display: inline-block; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-muted); text-decoration: none; }
-        .business-detail__back:hover { color: var(--accent-strong); text-decoration: underline; }
-        .business-detail__card { padding: 2rem 2.5rem 2.5rem; box-shadow: var(--shadow-soft); }
-        .business-detail__header { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle); }
-        .business-detail__name { margin: 0 0 0.75rem; font-size: 2rem; line-height: 1.2; color: var(--text-main); }
-        .business-detail__meta { margin: 0.35rem 0; font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; }
-        .business-detail__meta-label { font-weight: 600; color: var(--text-main); }
-        .business-detail__meta--location { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
-        .quick-info-icon { font-size: 0.9rem; }
+        .business-detail {
+          max-width: 820px;
+          margin: 0 auto;
+          padding-block: 1.5rem 3rem;
+        }
 
-        .action-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; }
-        .action-btn--primary { background: var(--accent); color: white; border-color: var(--accent); }
-        .action-btn--primary:hover { background: var(--accent-strong); transform: translateY(-1px); }
-        .action-btn__icon { font-size: 1.1rem; }
+        /* Breadcrumb */
+        .business-detail__breadcrumb {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-bottom: 0.5rem;
+        }
 
-        .business-detail__body { display: flex; flex-direction: column; gap: 2rem; }
-        .business-detail__section { display: flex; flex-direction: column; gap: 0.75rem; }
-        .business-detail__section-title { margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.85rem; color: var(--text-muted); }
+        .business-detail__breadcrumb-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.25rem;
+          align-items: center;
+        }
 
-        .business-detail__row { margin: 0; display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-        .business-detail__label { font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 0.35rem; min-width: 90px; }
-        .business-detail__icon { font-size: 1rem; }
+        .business-detail__breadcrumb-link {
+          text-decoration: none;
+          color: var(--text-muted);
+          transition: color 0.15s;
+        }
 
-        .business-detail__link { color: var(--accent-strong); text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem; }
-        .business-detail__link:hover { color: var(--accent); text-decoration: underline; }
-        .external-link-icon { font-size: 0.8rem; opacity: 0.7; }
+        .business-detail__breadcrumb-link:hover {
+          text-decoration: underline;
+          color: var(--accent-strong);
+        }
 
-        .business-detail__amenities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-        .amenity-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.85rem; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 0.5rem; font-size: 0.85rem; }
-        .amenity-item__icon { font-size: 1.2rem; flex-shrink: 0; }
-        .amenity-item__label { color: var(--text-main); font-weight: 500; }
+        .business-detail__breadcrumb-separator {
+          margin: 0 0.1rem;
+          opacity: 0.6;
+        }
 
-        .business-detail__notes { margin: 0; font-size: 1rem; line-height: 1.7; color: var(--text-main); }
+        .business-detail__back {
+          display: inline-block;
+          margin-bottom: 1rem;
+          font-size: 0.85rem;
+          color: var(--text-muted);
+          text-decoration: none;
+          transition: color 0.15s;
+        }
 
-        .business-detail__map-container { border-radius: 0.75rem; overflow: hidden; border: 1px solid var(--border-subtle); }
-        .business-detail__map { width: 100%; height: 400px; background: var(--bg-elevated); }
+        .business-detail__back:hover {
+          color: var(--accent-strong);
+          text-decoration: underline;
+        }
 
+        .business-detail__card {
+          padding: 2rem 2.5rem 2.5rem;
+          box-shadow: var(--shadow-soft);
+        }
+
+        .business-detail__header {
+          margin-bottom: 1.5rem;
+          padding-bottom: 1.5rem;
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .business-detail__directions-btn {
+          margin-top: 1rem;
+          display: inline-flex;
+        }
+
+        .business-detail__name {
+          margin: 0 0 0.75rem;
+          font-size: 2rem;
+          line-height: 1.2;
+          color: var(--text-main);
+        }
+
+        .business-detail__meta {
+          margin: 0.35rem 0;
+          font-size: 0.95rem;
+          color: var(--text-muted);
+          line-height: 1.5;
+        }
+
+        .business-detail__meta-label {
+          font-weight: 600;
+          color: var(--text-main);
+        }
+
+        .business-detail__meta--location {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          flex-wrap: wrap;
+        }
+
+        .business-detail__neighborhood-link {
+          color: var(--accent-strong);
+          text-decoration: none;
+        }
+
+        .business-detail__neighborhood-link:hover {
+          color: var(--accent);
+          text-decoration: underline;
+        }
+
+        .quick-info-icon {
+          font-size: 0.9rem;
+        }
+
+        /* Action Button */
+        .action-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          border-radius: 0.5rem;
+          font-size: 0.9rem;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s;
+          border: 1px solid transparent;
+        }
+
+        .action-btn--primary {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+        }
+
+        .action-btn--primary:hover {
+          background: var(--accent-strong);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .action-btn__icon {
+          font-size: 1.1rem;
+        }
+
+        /* Body Sections */
+        .business-detail__body {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .business-detail__section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .business-detail__section-title {
+          margin: 0;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-size: 0.85rem;
+          color: var(--text-muted);
+        }
+
+        .business-detail__row {
+          margin: 0;
+          display: flex;
+          align-items: baseline;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        .business-detail__label {
+          font-weight: 600;
+          color: var(--text-main);
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          min-width: 90px;
+        }
+
+        .business-detail__icon {
+          font-size: 1rem;
+        }
+
+        .business-detail__link {
+          color: var(--accent-strong);
+          text-decoration: none;
+          transition: color 0.15s;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+
+        .business-detail__link:hover {
+          color: var(--accent);
+          text-decoration: underline;
+        }
+
+        .external-link-icon {
+          font-size: 0.8rem;
+          opacity: 0.7;
+        }
+
+        /* Amenities Grid */
+        .business-detail__amenities-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 0.75rem;
+        }
+
+        .amenity-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.6rem 0.85rem;
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          border-radius: 0.5rem;
+          font-size: 0.85rem;
+          transition: all 0.15s;
+        }
+
+        .amenity-item:hover {
+          border-color: var(--accent);
+          background: var(--accent-soft);
+        }
+
+        .amenity-item__icon {
+          font-size: 1.2rem;
+          flex-shrink: 0;
+        }
+
+        .amenity-item__label {
+          color: var(--text-main);
+          font-weight: 500;
+        }
+
+        /* Notes/About */
+        .business-detail__notes {
+          margin: 0;
+          font-size: 1rem;
+          line-height: 1.7;
+          color: var(--text-main);
+        }
+
+        /* Map */
+        .business-detail__map-container {
+          border-radius: 0.75rem;
+          overflow: hidden;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .business-detail__map {
+          width: 100%;
+          height: 400px;
+          background: var(--bg-elevated);
+        }
+
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-          .business-detail__card { padding: 1.5rem 1.25rem; }
-          .business-detail__name { font-size: 1.6rem; }
-          .business-detail__map { height: 300px; }
+          .business-detail__card {
+            padding: 1.5rem 1.25rem;
+          }
+
+          .business-detail__name {
+            font-size: 1.6rem;
+          }
+
+          .business-detail__directions-btn {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .business-detail__amenities-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .business-detail__map {
+            height: 300px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .business-detail {
+            padding-inline: 0.5rem;
+          }
+
+          .business-detail__card {
+            padding: 1.25rem 1rem;
+          }
+
+          .business-detail__name {
+            font-size: 1.4rem;
+          }
         }
       </style>
 
@@ -403,37 +713,58 @@ const jsonLd = {
             businessNeighborhood: business!.neighborhoods?.[0] || "Denver",
           }}
         >
+          // Initialize map when page loads
           window.addEventListener("load", function () {
-            if (typeof window.L === "undefined") return;
+            if (typeof window.L === "undefined") {
+              console.error("Leaflet not loaded");
+              return;
+            }
+
             const mapElement = document.getElementById("detail-map");
             if (!mapElement) return;
 
-            const map = window.L.map("detail-map").setView([businessLat, businessLng], 15);
+            try {
+              // Create map centered on business location
+              const map = window.L.map("detail-map").setView([businessLat, businessLng], 15);
 
-            window.L.tileLayer(
-              "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-              { maxZoom: 19 }
-            ).addTo(map);
+              // Add tile layer
+              window.L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+                {
+                  attribution:
+                    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+                  maxZoom: 19,
+                }
+              ).addTo(map);
 
-            const customIcon = window.L.divIcon({
-              className: "custom-marker",
-              html: '<div style="background: var(--accent); width: 32px; height: 32px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
-              iconSize: [32, 32],
-              iconAnchor: [16, 16],
-            });
+              // Custom marker
+              const customIcon = window.L.divIcon({
+                className: "custom-marker",
+                html: '<div style="background: var(--accent); width: 32px; height: 32px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+              });
 
-            const marker = window.L.marker([businessLat, businessLng], { icon: customIcon }).addTo(map);
+              // Add marker
+              const marker = window.L.marker([businessLat, businessLng], {
+                icon: customIcon,
+              }).addTo(map);
 
-            marker.bindPopup(
-              '<div style="padding: 0.5rem;">' +
+              // Create popup content
+              const popupContent =
+                '<div style="padding: 0.5rem;">' +
                 '<h3 style="margin: 0 0 0.25rem; font-size: 0.95rem; font-weight: 600;">' +
                 businessName +
                 "</h3>" +
                 '<p style="margin: 0; font-size: 0.75rem; color: #666;">' +
                 businessNeighborhood +
                 "</p>" +
-              "</div>"
-            ).openPopup();
+                "</div>";
+
+              marker.bindPopup(popupContent).openPopup();
+            } catch (error) {
+              console.error("Error initializing map:", error);
+            }
           });
         </script>
       )}

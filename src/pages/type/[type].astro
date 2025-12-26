@@ -1,29 +1,11 @@
 ---
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
-import { slugForType, slugForNeighborhood } from "../../lib/slugs.js";
+import {
+  slugForType as slugForTypeLib,
+  slugForNeighborhood as slugForNeighborhoodLib,
+} from "../../lib/slugs.js";
 
-/** Helper to create URL-friendly slugs */
-function slugForType(t: string): string {
-  if (!t) return "other";
-  return (
-    String(t)
-      .toLowerCase()
-      .trim()
-      .replace(/&/g, "and")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "") || "other"
-  );
-}
-
-function slugForNeighborhood(n: string): string {
-  return String(n || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
 
 // Normalize function for deduplication (case-insensitive, trim whitespace)
 function normalizeTypeValue(val: string): string {
@@ -85,7 +67,7 @@ export function getStaticPaths() {
 
   const slugToLabel = new Map<string, string>();
   for (const label of allTypeLabels) {
-    const slug = slugForType(label); // ✅ now defined
+    const slug = slugForTypeLib(label); // ✅ now defined
     if (!slugToLabel.has(slug)) slugToLabel.set(slug, label);
   }
 
@@ -108,7 +90,7 @@ const enhanced = businesses.map((b) => ({
 }));
 
 // Filter businesses that match this type slug
-const filtered = enhanced.filter((b) => slugForType(b.primaryType) === typeParam);
+const filtered = enhanced.filter((b) => slugForTypeLib(b.primaryType) === typeParam);
 
 if (!filtered.length) {
   return Astro.redirect("/");
@@ -116,7 +98,7 @@ if (!filtered.length) {
 
 // Use the first item to display a human label
 const currentTypeLabel = filtered[0].primaryType;
-const typeSlug = slugForType(currentTypeLabel);
+const typeSlug = slugForTypeLib(currentTypeLabel);
 
 // Detect the type
 const isEntertainment = typeSlug === "entertainment";
@@ -264,19 +246,19 @@ const jsonLd = {
   jsonLd={jsonLd}
 >
   <!-- Optional extra SEO head bits (no JSON-LD here) -->
-  <Fragment slot="head">
-    <meta name="author" content="Denver Black Guide" />
-    <meta property="og:site_name" content="Denver Black Guide" />
-    <meta property="og:locale" content="en_US" />
-    <meta
+    <meta slot="head" name="author" content="Denver Black Guide" />
+    <meta slot="head" property="og:site_name" content="Denver Black Guide" />
+    <meta slot="head" property="og:locale" content="en_US" />
+    <meta 
+      slot="head"
       property="og:image:alt"
       content={`Denver Black Guide ${displayTypeLabel} directory preview`}
     />
-    <meta
+    <meta 
+      slot="head"
       name="twitter:image:alt"
       content={`Denver Black Guide ${displayTypeLabel} directory preview`}
     />
-  </Fragment>
 
   <div class="directory">
     <!-- Breadcrumb -->
@@ -492,7 +474,7 @@ const jsonLd = {
                             <button
                               type="button"
                               class="neighborhood-chip"
-                              data-neighborhood-slug={slugForNeighborhood(n)}
+                              data-neighborhood-slug={slugForNeighborhoodLib(n)}
                               aria-label={`View businesses in ${n}`}
                             >
                               {n}

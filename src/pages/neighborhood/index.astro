@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
-import { Fragment } from "astro/jsx-runtime";
 
 /** URL-friendly slug (neighborhood) */
 function neighborhoodSlug(n: string): string {
@@ -78,17 +77,33 @@ const neighborhoods = Array.from(slugToName.entries())
   }))
   .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-/* SEO */
+/** -------------------------
+ * ✅ SEO (added/cleaned, no UI changes)
+ * ------------------------ */
 const pageImage = "/og-denver-black-guide.png";
 const pageTitle = "Denver Neighborhoods • Denver Black Guide";
 const pageDescription =
   "Browse Denver neighborhoods and explore Black-owned businesses by area. Use neighborhood pages to filter listings and view locations on the map.";
 
-const origin = Astro.site ?? Astro.url.origin;
+// Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.site ||
+  Astro.url.origin;
+
+// ✅ trailingSlash: "never" friendly canonical
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
 
 const absoluteImage = new URL(pageImage, origin).toString();
+
+const breadcrumbJsonLd = {
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
+    { "@type": "ListItem", position: 2, name: "Neighborhoods", item: canonical },
+  ],
+};
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -99,6 +114,10 @@ const jsonLd = {
       url: canonical,
       description: pageDescription,
       primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
+      // nice-to-have connections to Base.astro global ids (doesn't break if absent)
+      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
+      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
+      breadcrumb: breadcrumbJsonLd,
     },
     {
       "@type": "ItemList",
@@ -115,6 +134,7 @@ const jsonLd = {
         },
       })),
     },
+    breadcrumbJsonLd,
   ],
 };
 ---
@@ -126,13 +146,17 @@ const jsonLd = {
   canonical={canonical}
   jsonLd={jsonLd}
 >
-  <Fragment slot="head">
-    <meta name="author" content="Denver Black Guide" />
-    <meta property="og:site_name" content="Denver Black Guide" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:image:alt" content="Denver Black Guide directory preview" />
-    <meta name="twitter:image:alt" content="Denver Black Guide directory preview" />
-  </Fragment>
+  
+    <!-- ✅ Small SEO extras (no UI impact) -->
+    <meta slot="head" name="author" content="Denver Black Guide" />
+    <meta slot="head" property="og:site_name" content="Denver Black Guide" />
+    <meta slot="head" property="og:locale" content="en_US" />
+    <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
+    <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
+
+    <!-- Optional: helps prevent indexing of odd variants -->
+    <meta slot="head" name="robots" content="index,follow,max-image-preview:large" />
+  
 
   <div class="directory">
     <nav aria-label="Breadcrumb" class="directory__breadcrumb">

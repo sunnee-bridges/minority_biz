@@ -6,14 +6,22 @@ import Footer from "../components/Footer.astro";
 const {
   title = "Denver Black Guide",
   description = "A community-driven directory to discover and support Black-owned businesses in the Denver metro area.",
-  image = "/og-denver-black-guide.png", // safe fallback
+  image = "/og-denver-black-guide.png",
   canonical: canonicalProp,
-  jsonLd, // page-specific JSON-LD (optional)
+  jsonLd, // optional page-specific JSON-LD
   robots = "index,follow,max-image-preview:large",
+  ogType = "website", // ✅ NEW: "website" by default, optionally "article"
+  ogLocale = "en_US", // ✅ NEW
+  ogSiteName = "Denver Black Guide", // ✅ NEW
+  ogImageAlt = "Denver Black Guide directory preview image", // ✅ NEW
 } = Astro.props;
 
 // Prefer Astro.site (from astro.config.mjs). Fallback to current origin.
-const origin = Astro.site ?? Astro.url.origin;
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.url.origin ||
+  Astro.site;
+
 const siteUrl = new URL("/", origin).toString();
 
 const canonical = canonicalProp
@@ -24,8 +32,6 @@ const absoluteImage = new URL(image, origin).toString();
 
 /**
  * Safely serialize JSON-LD for <script type="application/ld+json">
- * - Escapes <, >, & to avoid edge-case parsing / </script> hazards.
- * - Escapes U+2028/U+2029 which can break JS parsing in some contexts.
  */
 function safeJsonLd(data: unknown) {
   return JSON.stringify(data)
@@ -45,7 +51,7 @@ const globalJsonLd = {
       "@id": `${siteUrl}#organization`,
       name: "Denver Black Guide",
       url: siteUrl,
-      // If you have a true logo asset, uncomment and use it:
+      // If you add a real logo asset later:
       // logo: new URL("/logo.png", origin).toString(),
     },
     {
@@ -69,9 +75,9 @@ const globalJsonLd = {
     <meta charset="utf-8" />
     <title>{title}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <meta name="description" content={description} />
     <meta name="robots" content={robots} />
-
     <link rel="canonical" href={canonical} />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
@@ -82,17 +88,21 @@ const globalJsonLd = {
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- Open Graph -->
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={ogSiteName} />
+    <meta property="og:locale" content={ogLocale} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={absoluteImage} />
+    <meta property="og:image:alt" content={ogImageAlt} />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={absoluteImage} />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
 
     <!-- ✅ JSON-LD: global (always) -->
     <script type="application/ld+json" set:html={safeJsonLd(globalJsonLd)} />
@@ -155,7 +165,6 @@ const globalJsonLd = {
       </div>
     </header>
 
-    <!-- 🌄 Denver skyline hero image -->
     <div class="site-hero" aria-hidden="false">
       <img
         src="/denver-skyline-v1.png"
@@ -170,7 +179,6 @@ const globalJsonLd = {
 
     <Footer />
 
-    <!-- theme toggle logic -->
     <script is:inline>
       (function () {
         const root = document.documentElement;
@@ -183,9 +191,7 @@ const globalJsonLd = {
 
         function applyTheme(theme) {
           root.dataset.theme = theme;
-          try {
-            localStorage.setItem("theme", theme);
-          } catch (e) {}
+          try { localStorage.setItem("theme", theme); } catch (e) {}
 
           const icon = btn.querySelector(".theme-toggle__icon");
           const label = btn.querySelector(".theme-toggle__label");

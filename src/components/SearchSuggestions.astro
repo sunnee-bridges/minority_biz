@@ -17,7 +17,7 @@ const {
   neighborhoodPath = "/neighborhood",
   minChars = 2,
 
-  // ✅ NEW: "navigate" (hero) vs "filter" (/all)
+  // ✅ "navigate" (hero) vs "filter" (/all)
   mode = "navigate", // "navigate" | "filter"
 } = Astro.props as {
   searchData: SuggestionBusiness[];
@@ -174,333 +174,357 @@ const {
   }}
 >
   (function () {
-    const inputEl = document.getElementById(inputId);
-    const buttonEl = buttonSelector ? document.querySelector(buttonSelector) : null;
-    const suggestionsEl = document.getElementById(panelId);
-
-    const businesses = Array.isArray(searchData) ? searchData : [];
-
-    const neighborhoods = new Set();
-    const cuisines = new Set();
-
-    businesses.forEach((b) => {
-      (b.neighborhoods || []).forEach((n) => {
-        if (n && n !== "Location TBD") neighborhoods.add(n);
-      });
-      (b.cuisines || []).forEach((c) => {
-        if (c) cuisines.add(c);
-      });
-    });
-
-    let currentFocusIndex = -1;
-    let suppressNextSuggestions = false;
-
-
-    function normalize(str) {
-      return (str || "").toLowerCase().trim();
-    }
-
-    function slugifyNeighborhood(value) {
-      return String(value || "")
-        .toLowerCase()
-        .trim()
-        .replace(/&/g, "and")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-    }
-
-   function applyFilterValue(value) {
-  if (!inputEl) return;
-
-  const v = value || "";
-  inputEl.value = v;
-
-  // ✅ Prevent the programmatic input event from reopening suggestions
-  suppressNextSuggestions = true;
-
-  // Trigger the /all filter logic (listens to "input")
-  inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-
-  // ✅ Keep panel closed after selection
-  hideSuggestions();
-
-  inputEl.focus();
-
-  // (optional) URL sync if you added it earlier
-  if (mode === "filter") {
     try {
-      const url = new URL(window.location.href);
-      if (v.trim()) url.searchParams.set("q", v.trim());
-      else url.searchParams.delete("q");
-      window.history.replaceState({}, "", url);
-    } catch {
-      // no-op
-    }
-  }
-}
+      const inputEl = document.getElementById(inputId);
+      const buttonEl = buttonSelector ? document.querySelector(buttonSelector) : null;
+      const suggestionsEl = document.getElementById(panelId);
 
+      const businesses = Array.isArray(searchData) ? searchData : [];
 
-    function handleSearch() {
-      if (!inputEl) return;
+      const neighborhoods = new Set();
+      const cuisines = new Set();
 
-      // ✅ On /all, Enter should just filter, not navigate/reload.
-      if (mode === "filter") {
-        applyFilterValue(inputEl.value);
-        hideSuggestions();
-        return;
-      }
-
-      const query = inputEl.value.trim();
-      if (query) window.location.href = `${allPath}?q=${encodeURIComponent(query)}`;
-      else window.location.href = allPath;
-    }
-
-    function highlightMatch(text, query) {
-      if (!text || !query) return text;
-      const lowerText = text.toLowerCase();
-      const lowerQuery = query.toLowerCase();
-      const idx = lowerText.indexOf(lowerQuery);
-      if (idx === -1) return text;
-
-      const before = text.slice(0, idx);
-      const match = text.slice(idx, idx + query.length);
-      const after = text.slice(idx + query.length);
-
-      return (
-        before +
-        '<strong style="font-weight:700;color:var(--accent-strong);">' +
-        match +
-        "</strong>" +
-        after
-      );
-    }
-
-    function showSuggestions(query) {
-      if (!suggestionsEl) return;
-
-      if (!query || query.length < minChars) {
-        hideSuggestions();
-        return;
-      }
-
-      const qNorm = normalize(query);
-      currentFocusIndex = -1;
-
-      const matchingBusinesses = businesses
-        .filter((b) => normalize(b.name).includes(qNorm))
-        .slice(0, 5);
-
-      const matchingCuisines = Array.from(cuisines)
-        .filter((c) => normalize(c).includes(qNorm))
-        .slice(0, 5);
-
-      const matchingNeighborhoods = Array.from(neighborhoods)
-        .filter((n) => normalize(n).includes(qNorm))
-        .slice(0, 5);
-
-      let html = "";
-
-      if (matchingBusinesses.length > 0) {
-        html +=
-          '<div class="search-suggestions__section">' +
-          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
-
-        matchingBusinesses.forEach((b, index) => {
-          const cuisineText = (b.cuisines || []).slice(0, 2).join(", ") || b.type;
-          const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
-          const highlightedName = highlightMatch(b.name, query);
-
-          const spacingStyle =
-            index === matchingBusinesses.length - 1
-              ? "padding-bottom:0.45rem;"
-              : "padding-bottom:0.35rem;";
-
-          html +=
-            `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-            '<div class="search-suggestions__content" style="text-align:left;">' +
-            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
-            `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
-            "</div></div>";
+      businesses.forEach((b) => {
+        (b.neighborhoods || []).forEach((n) => {
+          const v = String(n || "").trim();
+          if (v && v !== "Location TBD") neighborhoods.add(v);
         });
-
-        html += "</div>";
-      }
-
-      if (matchingCuisines.length > 0) {
-        html +=
-          '<div class="search-suggestions__section">' +
-          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
-
-        matchingCuisines.forEach((c, index) => {
-          const itemIndex = matchingBusinesses.length + index;
-          const highlightedCuisine = highlightMatch(c, query);
-
-          const spacingStyle =
-            index === matchingCuisines.length - 1
-              ? "padding-bottom:0.75rem;"
-              : "padding-bottom:0.35rem;";
-
-          html +=
-            `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-            '<div class="search-suggestions__content" style="text-align:left;">' +
-            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
-            "</div></div>";
+        (b.cuisines || []).forEach((c) => {
+          const v = String(c || "").trim();
+          if (v) cuisines.add(v);
         });
+      });
 
-        html += "</div>";
+      let currentFocusIndex = -1;
+      let suppressNextSuggestions = false;
+
+      function normalize(str) {
+        return String(str || "")
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, " ");
       }
 
-      if (matchingNeighborhoods.length > 0) {
-        html +=
-          '<div class="search-suggestions__section">' +
-          '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
-
-        matchingNeighborhoods.forEach((n, index) => {
-          const itemIndex = matchingBusinesses.length + matchingCuisines.length + index;
-          const highlightedNeighborhood = highlightMatch(n, query);
-
-          const spacingStyle =
-            index === matchingNeighborhoods.length - 1
-              ? "padding-bottom:0.5rem;"
-              : "padding-bottom:0.35rem;";
-
-          html +=
-            `<div class="search-suggestions__item" data-type="neighborhood" data-value="${n}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
-            '<div class="search-suggestions__content" style="text-align:left;">' +
-            `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedNeighborhood}</div>` +
-            "</div></div>";
-        });
-
-        html += "</div>";
+      function normalizeCuisineParam(value) {
+        // deterministic URL param for cuisine (matches option values on /all)
+        return normalize(value);
       }
 
-      if (!html) html = '<div class="search-suggestions__empty">No results found</div>';
-
-      suggestionsEl.innerHTML = html;
-      suggestionsEl.style.display = "block";
-    }
-
-    function hideSuggestions() {
-      if (!suggestionsEl) return;
-      suggestionsEl.style.display = "none";
-      currentFocusIndex = -1;
-    }
-
-    function handleSuggestionClick(item) {
-      if (!item) return;
-
-      const type = item.getAttribute("data-type");
-      const slug = item.getAttribute("data-slug");
-      const value = item.getAttribute("data-value");
-
-      // Always navigate for a specific business
-      if (type === "business" && slug) {
-        window.location.href = `${businessPath}/${slug}`;
-        return;
+      function slugifyNeighborhood(value) {
+        return String(value || "")
+          .toLowerCase()
+          .trim()
+          .replace(/&/g, "and")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
       }
 
-      // ✅ FILTER MODE: clicking cuisine/neighborhood refines results on /all
-      if (mode === "filter") {
-        if (type === "cuisine" && value) applyFilterValue(value);
-        if (type === "neighborhood" && value) applyFilterValue(value);
-        return;
+      function highlightMatch(text, query) {
+        if (!text || !query) return text;
+        const lowerText = String(text).toLowerCase();
+        const lowerQuery = String(query).toLowerCase();
+        const idx = lowerText.indexOf(lowerQuery);
+        if (idx === -1) return text;
+
+        const before = text.slice(0, idx);
+        const match = text.slice(idx, idx + query.length);
+        const after = text.slice(idx + query.length);
+
+        return (
+          before +
+          '<strong style="font-weight:700;color:var(--accent-strong);">' +
+          match +
+          "</strong>" +
+          after
+        );
       }
 
-      // ✅ NAVIGATE MODE: matches hero behavior
-      if (type === "cuisine" && value) {
-        window.location.href = `${allPath}?q=${encodeURIComponent(value)}`;
-      } else if (type === "neighborhood" && value) {
-        const nSlug = slugifyNeighborhood(value);
-        window.location.href = `${neighborhoodPath}/${nSlug}`;
-      } else {
-        window.location.href = allPath;
-      }
-    }
-
-    function navigateSuggestions(direction) {
-      if (!suggestionsEl) return;
-      const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
-      if (!items || items.length === 0) return;
-
-      if (currentFocusIndex >= 0 && currentFocusIndex < items.length) {
-        items[currentFocusIndex].classList.remove("search-suggestions__item--active");
+      function hideSuggestions() {
+        if (!suggestionsEl) return;
+        suggestionsEl.style.display = "none";
+        currentFocusIndex = -1;
       }
 
-      if (direction === "down") currentFocusIndex = (currentFocusIndex + 1) % items.length;
-      else currentFocusIndex = currentFocusIndex <= 0 ? items.length - 1 : currentFocusIndex - 1;
+      function showSuggestions(query) {
+        if (!suggestionsEl) return;
 
-      const activeItem = items[currentFocusIndex];
-      activeItem.classList.add("search-suggestions__item--active");
-      activeItem.scrollIntoView({ block: "nearest" });
-    }
-
-    function selectCurrentSuggestion() {
-      if (!suggestionsEl) return handleSearch();
-      const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
-      if (items && currentFocusIndex >= 0 && currentFocusIndex < items.length) {
-        handleSuggestionClick(items[currentFocusIndex]);
-      } else {
-        handleSearch();
-      }
-    }
-
-    if (buttonEl) buttonEl.addEventListener("click", handleSearch);
-
-    if (inputEl) {
-      inputEl.addEventListener("input", (event) => {
-        if (suppressNextSuggestions) {
-          suppressNextSuggestions = false; // one-shot
+        const raw = String(query || "");
+        if (!raw || raw.length < minChars) {
+          hideSuggestions();
           return;
         }
-        showSuggestions(event.target.value);
-      });
 
+        const qNorm = normalize(raw);
+        currentFocusIndex = -1;
 
-      inputEl.addEventListener("focus", () => {
-        if (suppressNextSuggestions) return;
-        if (inputEl.value.length >= minChars) showSuggestions(inputEl.value);
-      });
+        const matchingBusinesses = businesses
+          .filter((b) => normalize(b.name).includes(qNorm))
+          .slice(0, 5);
 
-      inputEl.addEventListener("keydown", (event) => {
-        if (!suggestionsEl) return;
-        const isOpen = suggestionsEl.style.display === "block";
+        const matchingCuisines = Array.from(cuisines)
+          .filter((c) => normalize(c).includes(qNorm))
+          .slice(0, 5);
 
-        if (isOpen) {
-          if (event.key === "ArrowDown") { event.preventDefault(); navigateSuggestions("down"); return; }
-          if (event.key === "ArrowUp") { event.preventDefault(); navigateSuggestions("up"); return; }
-          if (event.key === "Enter") { event.preventDefault(); selectCurrentSuggestion(); return; }
-          if (event.key === "Escape") { hideSuggestions(); return; }
+        const matchingNeighborhoods = Array.from(neighborhoods)
+          .filter((n) => normalize(n).includes(qNorm))
+          .slice(0, 5);
+
+        let html = "";
+
+        if (matchingBusinesses.length > 0) {
+          html +=
+            '<div class="search-suggestions__section">' +
+            '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
+
+          matchingBusinesses.forEach((b, index) => {
+            const cuisineText = (b.cuisines || []).slice(0, 2).join(", ") || b.type || "";
+            const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
+            const highlightedName = highlightMatch(b.name, raw);
+
+            const spacingStyle =
+              index === matchingBusinesses.length - 1
+                ? "padding-bottom:0.45rem;"
+                : "padding-bottom:0.35rem;";
+
+            html +=
+              `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+              '<div class="search-suggestions__content" style="text-align:left;">' +
+              `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
+              `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
+              "</div></div>";
+          });
+
+          html += "</div>";
         }
 
-        if (event.key === "Enter") handleSearch();
-      });
-    }
+        if (matchingCuisines.length > 0) {
+          html +=
+            '<div class="search-suggestions__section">' +
+            '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
 
-    if (suggestionsEl) {
-      suggestionsEl.addEventListener("click", (event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
-        const item = target.closest(".search-suggestions__item");
+          matchingCuisines.forEach((c, index) => {
+            const itemIndex = matchingBusinesses.length + index;
+            const highlightedCuisine = highlightMatch(c, raw);
+
+            const spacingStyle =
+              index === matchingCuisines.length - 1
+                ? "padding-bottom:0.75rem;"
+                : "padding-bottom:0.35rem;";
+
+            const cuisineParam = normalizeCuisineParam(c);
+
+            html +=
+              `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-cuisine="${cuisineParam}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+              '<div class="search-suggestions__content" style="text-align:left;">' +
+              `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
+              "</div></div>";
+          });
+
+          html += "</div>";
+        }
+
+        if (matchingNeighborhoods.length > 0) {
+          html +=
+            '<div class="search-suggestions__section">' +
+            '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
+
+          matchingNeighborhoods.forEach((n, index) => {
+            const itemIndex = matchingBusinesses.length + matchingCuisines.length + index;
+            const highlightedNeighborhood = highlightMatch(n, raw);
+
+            const spacingStyle =
+              index === matchingNeighborhoods.length - 1
+                ? "padding-bottom:0.5rem;"
+                : "padding-bottom:0.35rem;";
+
+            html +=
+              `<div class="search-suggestions__item" data-type="neighborhood" data-value="${n}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+              '<div class="search-suggestions__content" style="text-align:left;">' +
+              `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedNeighborhood}</div>` +
+              "</div></div>";
+          });
+
+          html += "</div>";
+        }
+
+        if (!html) html = '<div class="search-suggestions__empty">No results found</div>';
+
+        suggestionsEl.innerHTML = html;
+        suggestionsEl.style.display = "block";
+      }
+
+      function applyFilterValue(value) {
+        if (!inputEl) return;
+
+        const v = value || "";
+        inputEl.value = v;
+
+        // Prevent the programmatic input event from reopening suggestions
+        suppressNextSuggestions = true;
+
+        // Trigger the /all filter logic (listens to "input")
+        inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+
+        hideSuggestions();
+        inputEl.focus();
+
+        // URL sync (filter mode only)
+        if (mode === "filter") {
+          try {
+            const url = new URL(window.location.href);
+            if (v.trim()) url.searchParams.set("q", v.trim());
+            else url.searchParams.delete("q");
+            window.history.replaceState({}, "", url.toString());
+          } catch {
+            // no-op
+          }
+        }
+      }
+
+      function handleSearch() {
+        if (!inputEl) return;
+
+        // On /all, Enter should just filter, not navigate/reload.
+        if (mode === "filter") {
+          applyFilterValue(inputEl.value);
+          hideSuggestions();
+          return;
+        }
+
+        const query = inputEl.value.trim();
+        if (query) window.location.href = `${allPath}?q=${encodeURIComponent(query)}`;
+        else window.location.href = allPath;
+      }
+
+      function handleSuggestionClick(item) {
         if (!item) return;
-        event.preventDefault();
-        event.stopPropagation();
-        handleSuggestionClick(item);
-      });
 
-      suggestionsEl.addEventListener("mousedown", (event) => {
+        const type = item.getAttribute("data-type");
+        const slug = item.getAttribute("data-slug");
+        const value = item.getAttribute("data-value");
+        const cuisineParam = item.getAttribute("data-cuisine");
+
+        // Always navigate for a specific business
+        if (type === "business" && slug) {
+          window.location.href = `${businessPath}/${slug}`;
+          return;
+        }
+
+        // FILTER MODE: clicking cuisine/neighborhood refines results on /all (via q)
+        if (mode === "filter") {
+          if (type === "cuisine" && value) applyFilterValue(value);
+          if (type === "neighborhood" && value) applyFilterValue(value);
+          return;
+        }
+
+        // NAVIGATE MODE:
+        // cuisine -> /all?cuisine=bbq   (NO q=BBQ)
+        // neighborhood -> /neighborhood/<slug>
+        if (type === "cuisine" && (cuisineParam || value)) {
+          const c = normalizeCuisineParam(cuisineParam || value);
+          const url = new URL(allPath, window.location.origin);
+          url.searchParams.set("cuisine", c);
+          url.searchParams.delete("q"); // ✅ prevent duplicates
+          window.location.href = url.toString();
+          return;
+        }
+
+        if (type === "neighborhood" && value) {
+          const nSlug = slugifyNeighborhood(value);
+          window.location.href = `${neighborhoodPath}/${nSlug}`;
+          return;
+        }
+
+        window.location.href = allPath;
+      }
+
+      function navigateSuggestions(direction) {
+        if (!suggestionsEl) return;
+        const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
+        if (!items || items.length === 0) return;
+
+        if (currentFocusIndex >= 0 && currentFocusIndex < items.length) {
+          items[currentFocusIndex].classList.remove("search-suggestions__item--active");
+        }
+
+        if (direction === "down") currentFocusIndex = (currentFocusIndex + 1) % items.length;
+        else currentFocusIndex = currentFocusIndex <= 0 ? items.length - 1 : currentFocusIndex - 1;
+
+        const activeItem = items[currentFocusIndex];
+        activeItem.classList.add("search-suggestions__item--active");
+        activeItem.scrollIntoView({ block: "nearest" });
+      }
+
+      function selectCurrentSuggestion() {
+        if (!suggestionsEl) return handleSearch();
+        const items = suggestionsEl.querySelectorAll(".search-suggestions__item");
+        if (items && currentFocusIndex >= 0 && currentFocusIndex < items.length) {
+          handleSuggestionClick(items[currentFocusIndex]);
+        } else {
+          handleSearch();
+        }
+      }
+
+      if (buttonEl) buttonEl.addEventListener("click", handleSearch);
+
+      if (inputEl) {
+        inputEl.addEventListener("input", (event) => {
+          if (suppressNextSuggestions) {
+            suppressNextSuggestions = false; // one-shot
+            return;
+          }
+          showSuggestions(event && event.target ? event.target.value : inputEl.value);
+        });
+
+        inputEl.addEventListener("focus", () => {
+          if (suppressNextSuggestions) return;
+          if (inputEl.value.length >= minChars) showSuggestions(inputEl.value);
+        });
+
+        inputEl.addEventListener("keydown", (event) => {
+          if (!suggestionsEl) return;
+          const isOpen = suggestionsEl.style.display === "block";
+
+          if (isOpen) {
+            if (event.key === "ArrowDown") { event.preventDefault(); navigateSuggestions("down"); return; }
+            if (event.key === "ArrowUp") { event.preventDefault(); navigateSuggestions("up"); return; }
+            if (event.key === "Enter") { event.preventDefault(); selectCurrentSuggestion(); return; }
+            if (event.key === "Escape") { hideSuggestions(); return; }
+          }
+
+          if (event.key === "Enter") handleSearch();
+        });
+      }
+
+      if (suggestionsEl) {
+        suggestionsEl.addEventListener("click", (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const item = target.closest(".search-suggestions__item");
+          if (!item) return;
+          event.preventDefault();
+          event.stopPropagation();
+          handleSuggestionClick(item);
+        });
+
+        suggestionsEl.addEventListener("mousedown", (event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          const item = target.closest(".search-suggestions__item");
+          if (item) event.preventDefault();
+        });
+      }
+
+      document.addEventListener("click", (event) => {
         const target = event.target;
-        if (!(target instanceof Element)) return;
-        const item = target.closest(".search-suggestions__item");
-        if (item) event.preventDefault();
+        if (!(target instanceof Node)) return;
+
+        if (suggestionsEl && inputEl && (suggestionsEl.contains(target) || inputEl.contains(target))) return;
+        hideSuggestions();
       });
+    } catch (err) {
+      // If something goes wrong, don't silently kill the page.
+      console.error("[SearchSuggestions] error:", err);
     }
-
-    document.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-
-      if (suggestionsEl && inputEl && (suggestionsEl.contains(target) || inputEl.contains(target))) return;
-      hideSuggestions();
-    });
   })();
 </script>

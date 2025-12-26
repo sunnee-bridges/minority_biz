@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../layouts/Base.astro";
 import { businesses } from "../../lib/businesses";
-import { Fragment } from "astro/jsx-runtime";
 
 /** URL-friendly slug helper (for template use) */
 function neighborhoodSlug(n: string): string {
@@ -142,7 +141,9 @@ const searchPlaceholder = isMobile
   ? "Try: soul food, BBQ, catering"
   : `Try: brunch, coffee, ${displayNeighborhood}`;
 
-/** SEO */
+/** -------------------------
+ * ✅ SEO (added/cleaned, no UI changes)
+ * ------------------------ */
 const pageImage = "/og-denver-black-guide.png";
 const pageTitle = isMobile
   ? "Mobile & Pop-Up Black-Owned Businesses • Denver Black Guide"
@@ -152,9 +153,17 @@ const pageDescription = isMobile
   ? "Browse mobile and pop-up Black-owned businesses serving the Denver metro area."
   : `Explore Black-owned restaurants in ${displayNeighborhood}, Denver. Filter by cuisine and amenities, and view locations on the map.`;
 
-const origin = Astro.site ?? Astro.url.origin;
-const canonical = new URL(Astro.url.pathname, origin).toString();
+// Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.site ||
+  Astro.url.origin;
 
+// ✅ trailingSlash: "never" friendly canonical
+const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
+const canonical = new URL(canonicalPath, origin).toString();
+
+// ✅ WebPage + ItemList + Breadcrumbs
 const listItems = filtered.slice(0, 100).map((b, i) => ({
   "@type": "ListItem",
   position: i + 1,
@@ -162,15 +171,18 @@ const listItems = filtered.slice(0, 100).map((b, i) => ({
   url: new URL(`/business/${b.slug}`, origin).toString(),
 }));
 
+const breadcrumbJsonLd = {
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
+    { "@type": "ListItem", position: 2, name: "Neighborhoods", item: new URL("/neighborhood", origin).toString() },
+    { "@type": "ListItem", position: 3, name: displayNeighborhood, item: canonical },
+  ],
+};
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      name: "Denver Black Guide",
-      url: new URL("/", origin).toString(),
-      logo: new URL(pageImage, origin).toString(),
-    },
     {
       "@type": "WebPage",
       name: pageTitle,
@@ -180,14 +192,10 @@ const jsonLd = {
         "@type": "ImageObject",
         url: new URL(pageImage, origin).toString(),
       },
-      breadcrumb: {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
-          { "@type": "ListItem", position: 2, name: "Neighborhoods", item: new URL("/neighborhood", origin).toString() },
-          { "@type": "ListItem", position: 3, name: displayNeighborhood, item: canonical },
-        ],
-      },
+      // nice-to-have connections to Base.astro global ids (doesn't break if absent)
+      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
+      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
+      breadcrumb: breadcrumbJsonLd,
     },
     {
       "@type": "ItemList",
@@ -198,6 +206,7 @@ const jsonLd = {
       numberOfItems: filtered.length,
       itemListElement: listItems,
     },
+    breadcrumbJsonLd,
   ],
 };
 ---
@@ -209,13 +218,17 @@ const jsonLd = {
   canonical={canonical}
   jsonLd={jsonLd}
 >
-  <Fragment slot="head">
-    <meta name="author" content="Denver Black Guide" />
-    <meta property="og:site_name" content="Denver Black Guide" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:image:alt" content="Denver Black Guide directory preview" />
-    <meta name="twitter:image:alt" content="Denver Black Guide directory preview" />
-  </Fragment>
+  
+    <!-- ✅ Small SEO extras (no UI impact) -->
+    <meta slot="head" name="author" content="Denver Black Guide" />
+    <meta slot="head" property="og:site_name" content="Denver Black Guide" />
+    <meta slot="head" property="og:locale" content="en_US" />
+    <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
+    <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
+
+    <!-- Optional: helps prevent indexing of empty / redirected edge cases -->
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+  
 
   <div class="directory">
     <nav aria-label="Breadcrumb" class="directory__breadcrumb">

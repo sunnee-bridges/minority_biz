@@ -19,6 +19,7 @@ const params = Astro.url.searchParams;
 const neighborhoodFromUrl = (params.get("neighborhood") || "").toLowerCase();
 const sortFromUrl = params.get("sort") || "az";
 const qFromUrl = params.get("q") || "";
+const qNorm = (qFromUrl || "").toLowerCase().trim();
 
 const allBusinesses = enhanced;
 
@@ -31,17 +32,43 @@ const allNeighborhoods = Array.from(
   new Set(enhanced.flatMap((b) => b.neighborhoods || []))
 ).sort();
 
-
 // Collect BOTH cuisineTypes and entertainmentTypes and artTypes
-const allCuisines = Array.from(
-  new Set(
-    enhanced.flatMap((b) => [
-      ...(b.cuisineTypes || []),
-      ...(b.entertainmentTypes || []),
-      ...(b.artTypes || []),
-    ])
-  )
-).sort();
+// ✅ Build a stable, deduped cuisine list: normalized value -> pretty label
+const cuisineMap = new Map<string, string>();
+
+enhanced.forEach((b) => {
+  const tags = [
+    ...(b.cuisineTypes || []),
+    ...(b.entertainmentTypes || []),
+    ...(b.artTypes || []),
+  ];
+
+  tags.forEach((tag) => {
+    const key = normalizeTag(tag); // already lower/trim/collapse spaces
+    if (!key) return;
+    if (!cuisineMap.has(key)) {
+      cuisineMap.set(key, String(tag).trim().replace(/\s+/g, " "));
+    }
+  });
+});
+
+const allCuisines = Array.from(cuisineMap.entries())
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
+
+const cuisineFromUrl = (params.get("cuisine") || "").toLowerCase().trim();
+
+// If someone arrives with only q=BBQ (older behavior), and BBQ exactly matches a cuisine,
+// infer cuisineFromQ so the dropdown filter still works.
+const cuisineFromQ = !cuisineFromUrl && qNorm && cuisineMap.has(qNorm) ? qNorm : "";
+
+
+const initialCuisine = cuisineFromUrl || cuisineFromQ;
+
+const qForInput = qNorm && initialCuisine && qNorm === initialCuisine ? "" : qFromUrl;
+
+
 
 function normalizeTag(s: string) {
   return String(s || "")
@@ -142,6 +169,7 @@ const absoluteImage = new URL(pageImage, origin).toString();
 const isFiltered =
   !!qFromUrl ||
   !!neighborhoodFromUrl ||
+  !!initialCuisine ||
   (sortFromUrl && sortFromUrl !== "az");
 
 const robots = isFiltered ? "noindex,follow" : "index,follow";
@@ -202,20 +230,19 @@ const jsonLd = {
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} image={pageImage}>
-  <Fragment slot="head">
-    <link rel="canonical" href={canonical} />
-    <meta name="robots" content={robots} />
-    <meta name="author" content="Denver Black Guide" />
+    <link slot="head" rel="canonical" href={canonical} />
+    <meta slot="head" name="robots" content={robots} />
+    <meta slot="head" name="author" content="Denver Black Guide" />
 
-    <meta property="og:site_name" content="Denver Black Guide" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:image:alt" content="Denver Black Guide directory preview" />
-    <meta name="twitter:image:alt" content="Denver Black Guide directory preview" />
+    <meta slot="head" property="og:site_name" content="Denver Black Guide" />
+    <meta slot="head" property="og:locale" content="en_US" />
+    <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
+    <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
 
     <script type="application/ld+json" is:inline>
       {JSON.stringify(jsonLd)}
     </script>
-  </Fragment>
+  
 
   <div class="directory">
     <nav aria-label="Breadcrumb" class="breadcrumb">
@@ -279,7 +306,7 @@ const jsonLd = {
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
-                value={qFromUrl}
+                value={qForInput}
               />
 
               <button type="button" id="search-clear" class="filter-search__clear" aria-label="Clear search">
@@ -377,8 +404,10 @@ const jsonLd = {
               </div>
 
               <select id="cuisine-select" class="filter-select" multiple size="4">
-                {allCuisines.map((c) => (
-                  <option value={c.toLowerCase()}>{c}</option>
+                {allCuisines.map(({ value, label }) => (
+                  <option value={value} selected={initialCuisine === value}>
+                    {label}
+                  </option>
                 ))}
               </select>
               <p class="filter-dropdown__hint">Hold Ctrl/Cmd to select multiple</p>
@@ -1422,329 +1451,452 @@ const jsonLd = {
   </style>
 
   <script is:inline define:vars={{ neighborhoodFromUrl, sortFromUrl, qFromUrl }}>
-  (function () {
-    const searchInput = document.getElementById("search");
-    const clearBtn = document.getElementById("search-clear");
-    const sortSelect = document.getElementById("sort");
-    const neighborhoodSelect = document.getElementById("neighborhood-select");
-    const cuisineSelect = document.getElementById("cuisine-select");
-    const amenitiesSelect = document.getElementById("amenities-select");
-    const grid = document.getElementById("results-grid");
-    const countEl = document.getElementById("results-count");
-    const emptyState = document.getElementById("empty-state");
-    const filterToggle = document.getElementById("filter-toggle");
-    const filterToggleText = document.getElementById("filter-toggle-text");
-    const filterPanel = document.getElementById("filters");
-    const filterCount = document.getElementById("filter-count");
-    const activeFiltersSummary = document.getElementById("active-filters-summary");
-    const activeFiltersList = document.getElementById("active-filters-list");
-    const resetAllBtn = document.getElementById("reset-all-filters");
-    const resetFromEmpty = document.getElementById("reset-from-empty");
+(function () {
+  // --- Typed lookups (also helps astro check) ---
+  const searchInput = document.getElementById("search");
+  const clearBtn = document.getElementById("search-clear");
+  const sortSelect = document.getElementById("sort");
+  const neighborhoodSelect = document.getElementById("neighborhood-select");
+  const cuisineSelect = document.getElementById("cuisine-select");
+  const amenitiesSelect = document.getElementById("amenities-select");
+  const grid = document.getElementById("results-grid");
+  const countEl = document.getElementById("results-count");
+  const emptyState = document.getElementById("empty-state");
+  const filterToggle = document.getElementById("filter-toggle");
+  const filterToggleText = document.getElementById("filter-toggle-text");
+  const filterPanel = document.getElementById("filters");
+  const filterCount = document.getElementById("filter-count");
+  const activeFiltersSummary = document.getElementById("active-filters-summary");
+  const activeFiltersList = document.getElementById("active-filters-list");
+  const resetAllBtn = document.getElementById("reset-all-filters");
+  const resetFromEmpty = document.getElementById("reset-from-empty");
 
-    const cards = Array.from(
-      document.querySelectorAll("#results-grid .business-card-link")
+  if (!grid) return;
+
+  const cards = Array.from(grid.querySelectorAll(".business-card-link"));
+
+  function normalize(str) {
+    return String(str || "").toLowerCase().trim().replace(/\s+/g, " ");
+  }
+
+  function getSelectedValues(selectElement) {
+    if (!selectElement) return new Set();
+    const selected = Array.from(selectElement.selectedOptions);
+    return new Set(selected.map((opt) => normalize(opt.value)));
+  }
+
+  function getRadioValue(name, fallback = "any") {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : fallback;
+  }
+
+  function pipeToTokenSet(pipeString) {
+    // Split once, store forever (cached per card)
+    return new Set(
+      String(pipeString || "")
+        .toLowerCase()
+        .split("|")
+        .map((s) => normalize(s))
+        .filter(Boolean)
     );
+  }
 
-    function normalize(str) {
-      return String(str || "").toLowerCase().trim();
+  function updateActiveFiltersSummary() {
+  if (!activeFiltersSummary || !activeFiltersList) return;
+
+  const count = getActiveFilterCount();
+  if (count === 0) {
+    activeFiltersSummary.style.display = "none";
+    activeFiltersList.innerHTML = "";
+    return;
+  }
+
+  activeFiltersSummary.style.display = "flex";
+
+  let html = "";
+
+  // Neighborhood
+  if (neighborhoodSelect && neighborhoodSelect.value) {
+    const label =
+      neighborhoodSelect.options[neighborhoodSelect.selectedIndex]?.text || "Neighborhood";
+    html += `<span class="active-filter-pill">
+      📍 ${label}
+      <button class="active-filter-pill__remove" type="button" data-clear="neighborhood">×</button>
+    </span>`;
+  }
+
+  // Cuisine(s)
+  const selectedCuisineVals = new Set();
+  if (cuisineSelect) {
+    Array.from(cuisineSelect.selectedOptions).forEach((opt) => {
+      const v = normalize(opt.value);
+      if (!v || selectedCuisineVals.has(v)) return;
+      selectedCuisineVals.add(v);
+
+      html += `<span class="active-filter-pill">
+        ${opt.text}
+        <button class="active-filter-pill__remove" type="button" data-clear="cuisine" data-value="${opt.value}">×</button>
+      </span>`;
+    });
+  }
+
+  // Amenities
+  if (amenitiesSelect) {
+    Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
+      html += `<span class="active-filter-pill">
+        ${opt.text}
+        <button class="active-filter-pill__remove" type="button" data-clear="amenity" data-value="${opt.value}">×</button>
+      </span>`;
+    });
+  }
+
+  // Search text
+  if (searchInput && searchInput.value.trim()) {
+    const qv = normalize(searchInput.value);
+    if (!selectedCuisineVals.has(qv)) {
+      const safe = searchInput.value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html += `<span class="active-filter-pill">
+        🔎 ${safe}
+        <button class="active-filter-pill__remove" type="button" data-clear="search">×</button>
+      </span>`;
     }
+  }
 
-    function getSelectedValues(selectElement) {
-      if (!selectElement) return new Set();
-      const selected = Array.from(selectElement.selectedOptions);
-      return new Set(selected.map((opt) => normalize(opt.value)));
+  // Match mode pills (optional)
+  const cuisineMode = getRadioValue("cuisine-match", "any");
+  const amenitiesMode = getRadioValue("amenities-match", "any");
+  if (cuisineMode === "all") {
+    html += `<span class="active-filter-pill">
+      Cuisine: All
+      <button class="active-filter-pill__remove" type="button" data-clear="cuisine-mode">×</button>
+    </span>`;
+  }
+  if (amenitiesMode === "all") {
+    html += `<span class="active-filter-pill">
+      Amenities: All
+      <button class="active-filter-pill__remove" type="button" data-clear="amenities-mode">×</button>
+    </span>`;
+  }
+
+  activeFiltersList.innerHTML = html;
+}
+
+
+  // --- Cache per-card data ONCE (biggest perf win) ---
+  const cardData = cards.map((el) => {
+    const name = normalize(el.dataset.name);
+    const type = normalize(el.dataset.type);
+    const neighborhoodsPipe = normalize(el.dataset.neighborhoods);
+    const cuisinesPipe = normalize(el.dataset.cuisines);
+    const microPipe = normalize(el.dataset.microfilters);
+
+    const neighborhoodsTokens = pipeToTokenSet(neighborhoodsPipe);
+    const cuisineTokens = pipeToTokenSet(cuisinesPipe);
+    const amenityTokens = pipeToTokenSet(microPipe);
+
+    // One combined field for text searching
+    const searchBlob = `${name} ${neighborhoodsPipe} ${cuisinesPipe} ${microPipe}`;
+
+    // First neighborhood for sorting
+    const firstNeighborhood = (neighborhoodsPipe.split("|")[0] || "").trim();
+
+    return {
+      el,
+      name,
+      type,
+      firstNeighborhood,
+      neighborhoodsTokens,
+      cuisineTokens,
+      amenityTokens,
+      searchBlob,
+    };
+  });
+
+// --- Initial values: read URL in browser (static prerender-safe) ---
+// --- Initial values: read URL in browser (static prerender-safe) ---
+const urlParams = new URLSearchParams(window.location.search);
+
+const qInit = urlParams.get("q") || "";
+const neighborhoodInit = normalize(urlParams.get("neighborhood") || "");
+const sortInit = urlParams.get("sort") || "az";
+const cuisineInitRaw = normalize(urlParams.get("cuisine") || "");
+
+let qEffective = qInit; // what we'll actually apply to the input/UI
+
+// 0) Set neighborhood + sort first
+if (neighborhoodSelect) neighborhoodSelect.value = neighborhoodInit;
+if (sortSelect) sortSelect.value = sortInit;
+
+// 1) Select cuisine first (so dedupe has real selected values to compare against)
+if (cuisineSelect) {
+  let cuisineToSelect = cuisineInitRaw;
+
+  // If no cuisine= but q exactly matches a cuisine option, select cuisine from q
+  if (!cuisineToSelect && qInit) {
+    const qN = normalize(qInit);
+    const hasExact = Array.from(cuisineSelect.options).some(
+      (opt) => normalize(opt.value) === qN
+    );
+    if (hasExact) cuisineToSelect = qN;
+  }
+
+  if (cuisineToSelect) {
+    Array.from(cuisineSelect.options).forEach((opt) => {
+      opt.selected = normalize(opt.value) === cuisineToSelect;
+    });
+  }
+}
+
+// 2) NOW dedupe: if q matches selected cuisine, drop q + clean URL
+const qN = normalize(qInit);
+const selectedCuisineValues = cuisineSelect ? getSelectedValues(cuisineSelect) : new Set();
+
+const qDuplicatesCuisine =
+  (!!cuisineInitRaw && qN === cuisineInitRaw) ||
+  (qN && selectedCuisineValues.has(qN));
+
+if (qDuplicatesCuisine) {
+  qEffective = "";       // prevents the 🔎 pill
+  if (urlParams.has("q")) urlParams.delete("q");
+
+  const next = urlParams.toString();
+  const nextUrl = next ? `${window.location.pathname}?${next}` : window.location.pathname;
+  window.history.replaceState({}, "", nextUrl);
+}
+
+// 3) Set the search input ONCE (after dedupe)
+if (searchInput) searchInput.value = qEffective;
+
+
+ 
+
+  // --- UI helpers ---
+  function updateClearButton() {
+    if (!clearBtn || !searchInput) return;
+    const hasValue = !!searchInput.value.trim();
+    clearBtn.classList.toggle("is-visible", hasValue);
+  }
+
+  function getActiveFilterCount() {
+    let count = 0;
+    if (neighborhoodSelect && neighborhoodSelect.value) count++;
+    if (cuisineSelect) count += cuisineSelect.selectedOptions.length;
+    if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
+    if (searchInput && searchInput.value.trim()) count++;
+    return count;
+  }
+
+  function updateFilterCount() {
+    const count = getActiveFilterCount();
+    if (filterCount) {
+      filterCount.textContent = String(count);
+      filterCount.style.display = count > 0 ? "" : "none";
     }
+  }
 
-    // ✅ Helpers MUST be in client script (browser), not frontmatter
-    function getRadioValue(name, fallback = "any") {
-      const el = document.querySelector(`input[name="${name}"]:checked`);
-      return el ? el.value : fallback;
-    }
+  // --- Sorting: only re-order DOM when sort changes ---
+  let currentSort = sortSelect ? sortSelect.value : "az";
 
-    function toTokenSet(pipeString) {
-      return new Set(
-        String(pipeString || "")
-          .toLowerCase()
-          .split("|")
-          .map((s) => s.trim().replace(/\s+/g, " "))
-          .filter(Boolean)
-      );
-    }
+  function sortCardData(sortValue) {
+    cardData.sort((a, b) => {
+      if (sortValue === "az") return a.name.localeCompare(b.name);
 
-    function updateClearButton() {
-      if (!clearBtn || !searchInput) return;
-      const hasValue = !!searchInput.value.trim();
-      if (hasValue) clearBtn.classList.add("is-visible");
-      else clearBtn.classList.remove("is-visible");
-    }
-
-    function getActiveFilterCount() {
-      let count = 0;
-      if (neighborhoodSelect && neighborhoodSelect.value) count++;
-      if (cuisineSelect) count += cuisineSelect.selectedOptions.length;
-      if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
-      if (searchInput && searchInput.value.trim()) count++;
-      return count;
-    }
-
-    function updateFilterCount() {
-      const count = getActiveFilterCount();
-      if (filterCount) {
-        filterCount.textContent = count;
-        filterCount.style.display = count > 0 ? "" : "none";
+      if (sortValue === "neighborhood") {
+        return (
+          a.firstNeighborhood.localeCompare(b.firstNeighborhood) ||
+          a.name.localeCompare(b.name)
+        );
       }
+
+      if (sortValue === "type") {
+        return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+      }
+
+      return 0;
+    });
+
+    // Reorder DOM once using a fragment (fast)
+    const frag = document.createDocumentFragment();
+    cardData.forEach((x) => frag.appendChild(x.el));
+    grid.appendChild(frag);
+  }
+
+  // --- Filtering: no sorting here, just hide/show ---
+  let lastVisible = -1;
+
+  function applyFilters() {
+    const q = normalize(searchInput ? searchInput.value : "");
+    const activeNeighborhood = normalize(neighborhoodSelect ? neighborhoodSelect.value : "");
+    const activeCuisines = getSelectedValues(cuisineSelect);
+    const activeAmenities = getSelectedValues(amenitiesSelect);
+
+    const cuisineMode = getRadioValue("cuisine-match", "any");      // any | all
+    const amenitiesMode = getRadioValue("amenities-match", "any");  // any | all
+
+    const selectedCuisineList = Array.from(activeCuisines);
+    const selectedAmenityList = Array.from(activeAmenities);
+
+    let visible = 0;
+
+    for (const d of cardData) {
+      const matchesText = !q || d.searchBlob.includes(q);
+
+      const matchesNeighborhood =
+        !activeNeighborhood || d.neighborhoodsTokens.has(activeNeighborhood);
+
+      const matchesCuisine =
+        selectedCuisineList.length === 0 ||
+        (cuisineMode === "all"
+          ? selectedCuisineList.every((c) => d.cuisineTokens.has(c))
+          : selectedCuisineList.some((c) => d.cuisineTokens.has(c)));
+
+      const matchesAmenity =
+        selectedAmenityList.length === 0 ||
+        (amenitiesMode === "all"
+          ? selectedAmenityList.every((m) => d.amenityTokens.has(m))
+          : selectedAmenityList.some((m) => d.amenityTokens.has(m)));
+
+      const show = matchesText && matchesNeighborhood && matchesCuisine && matchesAmenity;
+
+      // Toggle display only if needed (reduces style churn)
+      const newDisplay = show ? "" : "none";
+      if (d.el.style.display !== newDisplay) d.el.style.display = newDisplay;
+
+      if (show) visible++;
     }
 
-    function updateActiveFiltersSummary() {
-      const count = getActiveFilterCount();
-
-      if (count === 0) {
-        if (activeFiltersSummary) activeFiltersSummary.style.display = "none";
-        return;
-      }
-
-      if (activeFiltersSummary) activeFiltersSummary.style.display = "flex";
-      if (!activeFiltersList) return;
-
-      let html = "";
-
-      if (neighborhoodSelect && neighborhoodSelect.value) {
-        const label = neighborhoodSelect.options[neighborhoodSelect.selectedIndex].text;
-        html += `<span class="active-filter-pill">
-          📍 ${label}
-          <button class="active-filter-pill__remove" data-clear="neighborhood">×</button>
-        </span>`;
-      }
-
-      if (cuisineSelect) {
-        Array.from(cuisineSelect.selectedOptions).forEach((opt) => {
-          html += `<span class="active-filter-pill">
-            ${opt.text}
-            <button class="active-filter-pill__remove" data-clear="cuisine" data-value="${opt.value}">×</button>
-          </span>`;
-        });
-      }
-
-      if (amenitiesSelect) {
-        Array.from(amenitiesSelect.selectedOptions).forEach((opt) => {
-          html += `<span class="active-filter-pill">
-            ${opt.text}
-            <button class="active-filter-pill__remove" data-clear="amenity" data-value="${opt.value}">×</button>
-          </span>`;
-        });
-      }
-
-      // Optional: show match mode pills when user switches to "All"
-      const cuisineMode = getRadioValue("cuisine-match", "any");
-      const amenitiesMode = getRadioValue("amenities-match", "any");
-      if (cuisineMode === "all") {
-        html += `<span class="active-filter-pill">Cuisine: All <button class="active-filter-pill__remove" data-clear="cuisine-mode">×</button></span>`;
-      }
-      if (amenitiesMode === "all") {
-        html += `<span class="active-filter-pill">Amenities: All <button class="active-filter-pill__remove" data-clear="amenities-mode">×</button></span>`;
-      }
-
-      activeFiltersList.innerHTML = html;
-
-      activeFiltersList.querySelectorAll("[data-clear]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const clearType = btn.dataset.clear;
-          const value = btn.dataset.value;
-
-          if (clearType === "neighborhood") {
-            neighborhoodSelect.value = "";
-          } else if (clearType === "cuisine" && cuisineSelect) {
-            Array.from(cuisineSelect.options).forEach((opt) => {
-              if (opt.value === value) opt.selected = false;
-            });
-          } else if (clearType === "amenity" && amenitiesSelect) {
-            Array.from(amenitiesSelect.options).forEach((opt) => {
-              if (opt.value === value) opt.selected = false;
-            });
-          } else if (clearType === "cuisine-mode") {
-            const any = document.querySelector('input[name="cuisine-match"][value="any"]');
-            if (any) any.checked = true;
-          } else if (clearType === "amenities-mode") {
-            const any = document.querySelector('input[name="amenities-match"][value="any"]');
-            if (any) any.checked = true;
-          }
-
-          applyFiltersAndSort();
-        });
-      });
-    }
-
-    function resetAllFilters() {
-      if (searchInput) searchInput.value = "";
-      if (neighborhoodSelect) neighborhoodSelect.value = "";
-      if (cuisineSelect) Array.from(cuisineSelect.options).forEach((opt) => (opt.selected = false));
-      if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
-
-      // ✅ reset match mode toggles
-      const cuisineAny = document.querySelector('input[name="cuisine-match"][value="any"]');
-      const amenitiesAny = document.querySelector('input[name="amenities-match"][value="any"]');
-      if (cuisineAny) cuisineAny.checked = true;
-      if (amenitiesAny) amenitiesAny.checked = true;
-
-      applyFiltersAndSort();
-    }
-
-    function applyFiltersAndSort() {
-      const q = normalize(searchInput ? searchInput.value : "");
-      const sortValue = sortSelect ? sortSelect.value : "az";
-      const activeNeighborhood = neighborhoodSelect ? normalize(neighborhoodSelect.value) : "";
-      const activeCuisines = getSelectedValues(cuisineSelect);
-      const activeAmenities = getSelectedValues(amenitiesSelect);
-
-      const sorted = cards.slice().sort((a, b) => {
-        const an = a.dataset.name || "";
-        const bn = b.dataset.name || "";
-
-        if (sortValue === "az") return an.localeCompare(bn);
-
-        if (sortValue === "neighborhood") {
-          const anb = (a.dataset.neighborhoods || "").split("|")[0] || "";
-          const bnb = (b.dataset.neighborhoods || "").split("|")[0] || "";
-          return anb.localeCompare(bnb) || an.localeCompare(bn);
-        }
-
-        if (sortValue === "type") {
-          const at = a.dataset.type || "";
-          const bt = b.dataset.type || "";
-          return at.localeCompare(bt) || an.localeCompare(bn);
-        }
-
-        return 0;
-      });
-
-      let visible = 0;
-
-      sorted.forEach((card) => {
-        const name = (card.dataset.name || "");
-        const cuisines = (card.dataset.cuisines || "");
-        const neighborhoods = (card.dataset.neighborhoods || "");
-        const micro = (card.dataset.microfilters || "");
-
-        const matchesText =
-          !q ||
-          name.includes(q) ||
-          cuisines.includes(q) ||
-          neighborhoods.includes(q) ||
-          micro.includes(q);
-
-        const matchesNeighborhood =
-          !activeNeighborhood || neighborhoods.includes(activeNeighborhood);
-
-        const cuisineMode = getRadioValue("cuisine-match", "any");      // any | all
-        const amenitiesMode = getRadioValue("amenities-match", "any");  // any | all
-
-        const cuisineTokens = toTokenSet(cuisines);
-        const amenityTokens = toTokenSet(micro);
-
-        const selectedCuisineList = Array.from(activeCuisines);
-        const selectedAmenityList = Array.from(activeAmenities);
-
-        const matchesCuisine =
-          selectedCuisineList.length === 0 ||
-          (cuisineMode === "all"
-            ? selectedCuisineList.every((c) => cuisineTokens.has(c))
-            : selectedCuisineList.some((c) => cuisineTokens.has(c)));
-
-        const matchesAmenity =
-          selectedAmenityList.length === 0 ||
-          (amenitiesMode === "all"
-            ? selectedAmenityList.every((m) => amenityTokens.has(m))
-            : selectedAmenityList.some((m) => amenityTokens.has(m)));
-
-        const show = matchesText && matchesNeighborhood && matchesCuisine && matchesAmenity;
-
-        card.style.display = show ? "" : "none";
-
-        if (show) {
-          visible++;
-          if (grid) grid.appendChild(card);
-        }
-      });
-
+    if (visible !== lastVisible) {
+      lastVisible = visible;
       if (countEl) countEl.textContent = `Showing ${visible} place${visible === 1 ? "" : "s"}`;
       if (emptyState) emptyState.style.display = visible === 0 ? "block" : "none";
-      if (grid) grid.style.display = visible === 0 ? "none" : "";
-
-      updateClearButton();
-      updateFilterCount();
-      updateActiveFiltersSummary();
+      grid.style.display = visible === 0 ? "none" : "";
     }
-
-    // Mobile filter toggle
-    if (filterToggle && filterPanel && filterToggleText) {
-      filterToggle.addEventListener("click", () => {
-        const isCollapsed = filterPanel.dataset.collapsed === "true";
-        filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
-        filterToggleText.textContent = isCollapsed ? "Hide filters" : "Show filters";
-      });
-    }
-
-    // Standard listeners
-    if (searchInput) searchInput.addEventListener("input", applyFiltersAndSort);
-
-    if (clearBtn && searchInput) {
-      clearBtn.addEventListener("click", () => {
-        searchInput.value = "";
-        searchInput.focus();
-        applyFiltersAndSort();
-      });
-    }
-
-    if (neighborhoodSelect) neighborhoodSelect.addEventListener("change", applyFiltersAndSort);
-    if (cuisineSelect) cuisineSelect.addEventListener("change", applyFiltersAndSort);
-    if (amenitiesSelect) amenitiesSelect.addEventListener("change", applyFiltersAndSort);
-    if (sortSelect) sortSelect.addEventListener("change", applyFiltersAndSort);
-
-    // ✅ Toggle listeners
-    document.querySelectorAll('input[name="cuisine-match"]').forEach((r) => {
-      r.addEventListener("change", applyFiltersAndSort);
-    });
-    document.querySelectorAll('input[name="amenities-match"]').forEach((r) => {
-      r.addEventListener("change", applyFiltersAndSort);
-    });
-
-    if (resetAllBtn) resetAllBtn.addEventListener("click", resetAllFilters);
-    if (resetFromEmpty) resetFromEmpty.addEventListener("click", resetAllFilters);
-
-    if (sortSelect && sortFromUrl) sortSelect.value = sortFromUrl;
 
     updateClearButton();
-    applyFiltersAndSort();
+    updateFilterCount();
+   
+    updateActiveFiltersSummary();
+  }
 
-    // ✅ Neighborhood chips (no nested <a>, prevent card navigation)
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest(".neighborhood-chip");
-      if (!btn) return;
+  // --- Debounce typing (biggest perceived UX win) ---
+  let debounceTimer = null;
+  function debouncedApply() {
+    if (debounceTimer) window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(applyFilters, 150);
+  }
 
-      e.preventDefault();
-      e.stopPropagation();
-
-      const slug = btn.dataset.neighborhoodSlug;
-      if (!slug) return;
-
-      window.location.href = `/neighborhood/${slug}`;
+  // --- Mobile filter toggle ---
+  if (filterToggle && filterPanel && filterToggleText) {
+    filterToggle.addEventListener("click", () => {
+      const isCollapsed = filterPanel.dataset.collapsed === "true";
+      filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
+      filterToggleText.textContent = isCollapsed ? "Hide filters" : "Show filters";
     });
+  }
 
-    // keyboard support (Enter/Space)
-    document.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      const btn = document.activeElement?.closest?.(".neighborhood-chip");
-      if (!btn) return;
+  function resetAllFilters() {
+    if (searchInput) searchInput.value = "";
+    if (neighborhoodSelect) neighborhoodSelect.value = "";
+    if (cuisineSelect) Array.from(cuisineSelect.options).forEach((opt) => (opt.selected = false));
+    if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
 
-      e.preventDefault();
-      e.stopPropagation();
+    const cuisineAny = document.querySelector('input[name="cuisine-match"][value="any"]');
+    const amenitiesAny = document.querySelector('input[name="amenities-match"][value="any"]');
+    if (cuisineAny) cuisineAny.checked = true;
+    if (amenitiesAny) amenitiesAny.checked = true;
 
-      const slug = btn.dataset.neighborhoodSlug;
-      if (!slug) return;
+    applyFilters();
+  }
 
-      window.location.href = `/neighborhood/${slug}`;
+  // --- Listeners ---
+
+  if (activeFiltersList) {
+  activeFiltersList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-clear]");
+    if (!btn) return;
+
+    const clearType = btn.dataset.clear;
+    const value = btn.dataset.value;
+
+    if (clearType === "neighborhood" && neighborhoodSelect) {
+      neighborhoodSelect.value = "";
+    } else if (clearType === "cuisine" && cuisineSelect) {
+      Array.from(cuisineSelect.options).forEach((opt) => {
+        if (opt.value === value) opt.selected = false;
+      });
+    } else if (clearType === "amenity" && amenitiesSelect) {
+      Array.from(amenitiesSelect.options).forEach((opt) => {
+        if (opt.value === value) opt.selected = false;
+      });
+    } else if (clearType === "search" && searchInput) {
+      searchInput.value = "";
+    } else if (clearType === "cuisine-mode") {
+      const any = document.querySelector('input[name="cuisine-match"][value="any"]');
+      if (any) any.checked = true;
+    } else if (clearType === "amenities-mode") {
+      const any = document.querySelector('input[name="amenities-match"][value="any"]');
+      if (any) any.checked = true;
+    }
+
+    applyFilters();
+  });
+}
+
+  if (searchInput) searchInput.addEventListener("input", debouncedApply);
+
+  if (clearBtn && searchInput) {
+    clearBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      searchInput.focus();
+      applyFilters();
     });
-  })();
+  }
+
+  if (neighborhoodSelect) neighborhoodSelect.addEventListener("change", applyFilters);
+  if (cuisineSelect) cuisineSelect.addEventListener("change", applyFilters);
+  if (amenitiesSelect) amenitiesSelect.addEventListener("change", applyFilters);
+
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => {
+      const next = sortSelect.value || "az";
+      if (next !== currentSort) {
+        currentSort = next;
+        sortCardData(currentSort);
+      }
+      applyFilters();
+    });
+  }
+
+  document.querySelectorAll('input[name="cuisine-match"]').forEach((r) => {
+    r.addEventListener("change", applyFilters);
+  });
+  document.querySelectorAll('input[name="amenities-match"]').forEach((r) => {
+    r.addEventListener("change", applyFilters);
+  });
+
+  if (resetAllBtn) resetAllBtn.addEventListener("click", resetAllFilters);
+  if (resetFromEmpty) resetFromEmpty.addEventListener("click", resetAllFilters);
+
+  // Neighborhood chips
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".neighborhood-chip");
+    if (!btn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const slug = btn.dataset.neighborhoodSlug;
+    if (!slug) return;
+
+    window.location.href = `/neighborhood/${slug}`;
+  });
+
+  // Init
+  sortCardData(currentSort);
+  updateClearButton();
+  applyFilters();
+})();
 </script>
+
 
 </BaseLayout>
