@@ -91,7 +91,8 @@ const origin =
   Astro.site ||
   Astro.url.origin;
 
-// ✅ trailingSlash: "never" friendly canonical (no trailing slash)
+const siteUrl = new URL("/", origin).toString();
+
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
 
@@ -156,6 +157,13 @@ const businessImage =
     ? new URL((business as any).image, origin).toString()
     : absoluteImage;
 
+const imageForMeta =
+  !notFound && business && (business as any).image
+    ? (String((business as any).image).startsWith("http")
+        ? String((business as any).image)
+        : String((business as any).image))
+    : pageImage;
+
 // ✅ Denver address is safe for now and works for restaurants + future categories
 const denverAddress = {
   "@type": "PostalAddress",
@@ -167,9 +175,13 @@ const denverAddress = {
 // Business structured data
 const schemaTypes = schemaTypesFor(typeSlug);
 
-const businessJsonLd: any =
+const businessId = `${canonical}#business`;
+const breadcrumbId = `${canonical}#breadcrumb`;
+
+const businessJsonLd =
   !notFound && business
     ? {
+        "@id": businessId,
         "@type": schemaTypes, // e.g. ["LocalBusiness","Restaurant"]
         name: business.name,
         url: canonical,
@@ -197,27 +209,24 @@ const businessJsonLd: any =
       }
     : null;
 
-const breadcrumbJsonLd =
-  !notFound && business
-    ? {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: displayTypeLabel,
-            item: new URL(`/type/${typeSlug}`, origin).toString(),
-          },
-          { "@type": "ListItem", position: 3, name: business.name, item: canonical },
-        ],
-      }
-    : {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
-        ],
-      };
+const breadcrumbJsonLd = {
+  "@id": breadcrumbId,
+  "@type": "BreadcrumbList",
+  itemListElement: !notFound && business
+    ? [
+        { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: displayTypeLabel,
+          item: new URL(`/type/${typeSlug}`, origin).toString(),
+        },
+        { "@type": "ListItem", position: 3, name: business.name, item: canonical },
+      ]
+    : [
+        { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+      ],
+};
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -232,24 +241,32 @@ const jsonLd = {
         url: businessImage,
       },
       // wire to Base.astro global ids (nice but optional)
-      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
-      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
+      isPartOf: { "@id": `${siteUrl}#website`},
+      publisher: { "@id": `${siteUrl}#organization` },
+
+      breadcrumb: { "@id": breadcrumbId },
     },
     ...(businessJsonLd ? [businessJsonLd] : []),
     breadcrumbJsonLd,
   ],
 };
+
+const robots = notFound
+  ? "noindex,follow"
+  : "index,follow,max-image-preview:large";
 ---
 
 <BaseLayout
   title={pageTitle}
   description={pageDescription}
   canonical={canonical}
-  image={businessImage.replace(new URL("/", origin).toString(), "/") /* safe-ish if your images are local; otherwise keep pageImage */}
+  image={imageForMeta}
   jsonLd={jsonLd}
-  robots={notFound ? "noindex,follow" : "index,follow,max-image-preview:large"}
+  robots={robots}
   ogType="website"
-  ogImageAlt={!notFound && business ? `${business.name} listing on Denver Black Guide` : "Denver Black Guide directory preview image"}
+  ogImageAlt={!notFound && business
+    ? `${business.name} listing on Denver Black Guide`
+    : "Denver Black Guide directory preview image"}
 >
   
     <meta slot="head" name="twitter:label1" content="Category" />

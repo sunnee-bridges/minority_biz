@@ -91,19 +91,33 @@ const origin =
   Astro.site ||
   Astro.url.origin;
 
-// ✅ trailingSlash: "never" friendly canonical
+
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
 
+const siteUrl = new URL("/", origin).toString();
 const absoluteImage = new URL(pageImage, origin).toString();
 
+const params = Astro.url.searchParams;
+const isFiltered = Array.from(params.keys()).length > 0;
+
+const breadcrumbId = `${canonical}#breadcrumb`;
+
 const breadcrumbJsonLd = {
+  "@id": breadcrumbId,
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
+    { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
     { "@type": "ListItem", position: 2, name: "Neighborhoods", item: canonical },
   ],
 };
+
+const itemListElements = neighborhoods.slice(0, 200).map((n, idx) => ({
+  "@type": "ListItem",
+  position: idx + 1,
+  name: n.name,
+  url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
+}));
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -115,28 +129,24 @@ const jsonLd = {
       description: pageDescription,
       primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
       // nice-to-have connections to Base.astro global ids (doesn't break if absent)
-      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
-      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
-      breadcrumb: breadcrumbJsonLd,
+      isPartOf: { "@id": `${siteUrl}#website` },
+      publisher: { "@id": `${siteUrl}#organization` },
+      breadcrumb: { "@id": breadcrumbId },
     },
     {
       "@type": "ItemList",
       name: "Denver neighborhoods",
       itemListOrder: "https://schema.org/ItemListOrderDescending",
       numberOfItems: neighborhoods.length,
-      itemListElement: neighborhoods.slice(0, 200).map((n, idx) => ({
-        "@type": "ListItem",
-        position: idx + 1,
-        item: {
-          "@type": "Thing",
-          name: n.name,
-          url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
-        },
-      })),
+      itemListElement: itemListElements,
     },
     breadcrumbJsonLd,
   ],
 };
+
+const robots = isFiltered
+  ? "noindex,follow"
+  : "index,follow,max-image-preview:large";
 ---
 
 <BaseLayout
@@ -145,6 +155,7 @@ const jsonLd = {
   image={pageImage}
   canonical={canonical}
   jsonLd={jsonLd}
+  robots={robots}
 >
   
     <!-- ✅ Small SEO extras (no UI impact) -->
@@ -154,8 +165,7 @@ const jsonLd = {
     <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
     <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
 
-    <!-- Optional: helps prevent indexing of odd variants -->
-    <meta slot="head" name="robots" content="index,follow,max-image-preview:large" />
+
   
 
   <div class="directory">

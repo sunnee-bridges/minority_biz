@@ -172,7 +172,9 @@ const isFiltered =
   !!initialCuisine ||
   (sortFromUrl && sortFromUrl !== "az");
 
-const robots = isFiltered ? "noindex,follow" : "index,follow";
+const robots = isFiltered
+  ? "noindex,follow"
+  : "index,follow,max-image-preview:large";
 
 // ItemList (cap to keep JSON-LD payload reasonable)
 const listItems = allBusinesses.slice(0, 100).map((b, i) => ({
@@ -182,15 +184,11 @@ const listItems = allBusinesses.slice(0, 100).map((b, i) => ({
   url: new URL(`/business/${b.slug}`, origin).toString(),
 }));
 
+const siteUrl = new URL("/", origin).toString();
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      name: "Denver Black Guide",
-      url: new URL("/", origin).toString(),
-      logo: absoluteImage,
-    },
     {
       "@type": "WebPage",
       name: pageTitle,
@@ -200,6 +198,9 @@ const jsonLd = {
         "@type": "ImageObject",
         url: absoluteImage,
       },
+      isPartOf: { "@id": `${siteUrl}#website` },
+      publisher: { "@id": `${siteUrl}#organization` },
+
       breadcrumb: {
         "@type": "BreadcrumbList",
         itemListElement: [
@@ -207,7 +208,7 @@ const jsonLd = {
             "@type": "ListItem",
             position: 1,
             name: "Home",
-            item: new URL("/", origin).toString(),
+            item: siteUrl,
           },
           {
             "@type": "ListItem",
@@ -229,9 +230,14 @@ const jsonLd = {
 };
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription} image={pageImage}>
-    <link slot="head" rel="canonical" href={canonical} />
-    <meta slot="head" name="robots" content={robots} />
+<BaseLayout 
+    title={pageTitle} 
+    description={pageDescription} 
+    image={pageImage}
+    canonical={canonical}
+    robots={robots}
+    jsonLd={jsonLd}
+    >
     <meta slot="head" name="author" content="Denver Black Guide" />
 
     <meta slot="head" property="og:site_name" content="Denver Black Guide" />
@@ -239,9 +245,7 @@ const jsonLd = {
     <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
     <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
 
-    <script type="application/ld+json" is:inline>
-      {JSON.stringify(jsonLd)}
-    </script>
+   
   
 
   <div class="directory">

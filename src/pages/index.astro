@@ -123,27 +123,10 @@ const absoluteImage = new URL(pageImage, origin).toString();
 
 // site root (better for Organization/WebSite nodes)
 const siteUrl = new URL("/", origin).toString();
-const searchTarget = `${new URL("/all", origin).toString()}?q={search_term_string}`;
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      name: "Denver Black Guide",
-      url: siteUrl,
-      logo: absoluteImage,
-    },
-    {
-      "@type": "WebSite",
-      name: "Denver Black Guide",
-      url: siteUrl,
-      potentialAction: {
-        "@type": "SearchAction",
-        target: searchTarget,
-        "query-input": "required name=search_term_string",
-      },
-    },
     {
       "@type": "WebPage",
       name: pageTitle,
@@ -153,6 +136,9 @@ const jsonLd = {
         "@type": "ImageObject",
         url: absoluteImage,
       },
+       // ✅ Connect this page to the global nodes emitted in Base.astro
+        isPartOf: { "@id": `${siteUrl}#website` },
+       publisher: { "@id": `${siteUrl}#organization` },
     },
   ],
 };
@@ -164,9 +150,10 @@ const jsonLd = {
   image={pageImage}
   canonical={canonical}
   jsonLd={jsonLd}
+  robots="index,follow,max-image-preview:large"
 >
  
-    <meta slot="head" name="robots" content="index,follow,max-image-preview:large" />
+  
     <meta slot="head" name="author" content="Denver Black Guide" />
     <meta slot="head" property="og:site_name" content="Denver Black Guide" />
     <meta slot="head" property="og:locale" content="en_US" />
@@ -311,7 +298,7 @@ const jsonLd = {
                 <div class="business-card__badge">Featured</div>
 
                 <h3 class="business-card__name">
-                  <a href={`/business/${b.slug}/`} class="business-card__link">
+                  <a href={`/business/${b.slug}`} class="business-card__link">
                     {name}
                   </a>
                 </h3>

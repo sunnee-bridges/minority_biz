@@ -107,14 +107,7 @@ let filtered = enhanced.filter(
     b.neighborhoods.includes(neighborhoodName)
 );
 
-/** Restaurants-only (remove if you want all business types) */
-filtered = filtered.filter(
-  (b) => String(b.primaryType).toLowerCase() === "restaurant"
-);
-
-if (!filtered.length) {
-  return Astro.redirect("/");
-}
+const hasResults = filtered.length > 0;
 
 /** Filters */
 const primaryTypes = Array.from(
@@ -144,10 +137,13 @@ const searchPlaceholder = isMobile
 /** -------------------------
  * ✅ SEO (added/cleaned, no UI changes)
  * ------------------------ */
+
+
+
 const pageImage = "/og-denver-black-guide.png";
 const pageTitle = isMobile
   ? "Mobile & Pop-Up Black-Owned Businesses • Denver Black Guide"
-  : `Black-Owned Restaurants in ${displayNeighborhood} • Denver Black Guide`;
+  : `Black-Owned Businesses in ${displayNeighborhood} • Denver Black Guide`;
 
 const pageDescription = isMobile
   ? "Browse mobile and pop-up Black-owned businesses serving the Denver metro area."
@@ -159,9 +155,18 @@ const origin =
   Astro.site ||
   Astro.url.origin;
 
+   const siteUrl = new URL("/", origin).toString();
+
 // ✅ trailingSlash: "never" friendly canonical
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
+
+const params = Astro.url.searchParams;
+const isFiltered =
+  params.has("q") ||
+  params.has("cuisine") ||
+  params.has("amenity") ||
+  params.has("sort");
 
 // ✅ WebPage + ItemList + Breadcrumbs
 const listItems = filtered.slice(0, 100).map((b, i) => ({
@@ -171,10 +176,13 @@ const listItems = filtered.slice(0, 100).map((b, i) => ({
   url: new URL(`/business/${b.slug}`, origin).toString(),
 }));
 
+const breadcrumbId = `${canonical}#breadcrumb`;
+
 const breadcrumbJsonLd = {
+  "@id": breadcrumbId,
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: new URL("/", origin).toString() },
+    { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
     { "@type": "ListItem", position: 2, name: "Neighborhoods", item: new URL("/neighborhood", origin).toString() },
     { "@type": "ListItem", position: 3, name: displayNeighborhood, item: canonical },
   ],
@@ -193,9 +201,9 @@ const jsonLd = {
         url: new URL(pageImage, origin).toString(),
       },
       // nice-to-have connections to Base.astro global ids (doesn't break if absent)
-      isPartOf: { "@id": `${new URL("/", origin).toString()}#website` },
-      publisher: { "@id": `${new URL("/", origin).toString()}#organization` },
-      breadcrumb: breadcrumbJsonLd,
+      isPartOf: { "@id": `${siteUrl}#website` },
+      publisher: { "@id": `${siteUrl}#organization` },
+       breadcrumb: { "@id": breadcrumbId },
     },
     {
       "@type": "ItemList",
@@ -209,6 +217,17 @@ const jsonLd = {
     breadcrumbJsonLd,
   ],
 };
+
+const robots = !hasResults
+  ? "noindex,follow"
+  : isFiltered
+    ? "noindex,follow"
+    : "index,follow,max-image-preview:large";
+
+
+if (!hasResults) {
+  Astro.response.status = 404;
+}
 ---
 
 <BaseLayout
@@ -217,6 +236,7 @@ const jsonLd = {
   image={pageImage}
   canonical={canonical}
   jsonLd={jsonLd}
+  robots={robots}
 >
   
     <!-- ✅ Small SEO extras (no UI impact) -->
@@ -226,8 +246,6 @@ const jsonLd = {
     <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
     <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
 
-    <!-- Optional: helps prevent indexing of empty / redirected edge cases -->
-    <meta name="robots" content="index,follow,max-image-preview:large" />
   
 
   <div class="directory">
