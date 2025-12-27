@@ -82,10 +82,14 @@ const globalJsonLd = {
     <link rel="sitemap" href="/sitemap-index.xml" />
 
     <!-- Favicons -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+
+
 
     <!-- Open Graph -->
     <meta property="og:type" content={ogType} />
@@ -143,7 +147,56 @@ const globalJsonLd = {
     <header class="site-header">
       <div class="shell site-header__inner">
         <a href="/" class="site-header__brand">
-          <span class="site-header__logo" aria-hidden="true">🍽️</span>
+          <span class="site-header__logo" aria-hidden="true">
+  <svg
+    class="site-header__logo-icon"
+    viewBox="0 0 64 64"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <!-- Fill with heart punched out -->
+    <path
+      fill="#A856F6"
+      fill-rule="evenodd"
+      d="
+        M32 60
+        C44 44 52 32 52 22
+        C52 10.954 43.046 2 32 2
+        C20.954 2 12 10.954 12 22
+        C12 32 20 44 32 60
+        Z
+
+        M32 37.5
+        C25.3 33.0 21 28.8 21 23.7
+        C21 20.0 23.6 17.5 27 17.5
+        C29.3 17.5 31.1 18.7 32 20.2
+        C32.9 18.7 34.7 17.5 37 17.5
+        C40.4 17.5 43 20.0 43 23.7
+        C43 28.8 38.7 33.0 32 37.5
+        Z
+      "
+    />
+
+    <!-- Outline (no heart stroke) -->
+    <path
+      d="
+        M32 60
+        C44 44 52 32 52 22
+        C52 10.954 43.046 2 32 2
+        C20.954 2 12 10.954 12 22
+        C12 32 20 44 32 60
+        Z
+      "
+      fill="none"
+      stroke="#131735"
+      stroke-width="3"
+      stroke-linejoin="round"
+    />
+  </svg>
+</span>
+
+
+
           <span class="site-header__title">Denver Black Guide</span>
         </a>
 
