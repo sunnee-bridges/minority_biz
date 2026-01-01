@@ -2,7 +2,7 @@
   "name": "Whittier Cafe",
   "slug": "whittier-cafe",
   "type": "restaurant",
-  "cuisineTypes": [
+  "specialties": [
     "Coffee",
     "Wine",
     "Beer",

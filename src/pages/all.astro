@@ -34,39 +34,35 @@ const allNeighborhoods = Array.from(
 
 // Collect BOTH cuisineTypes and entertainmentTypes and artTypes
 // ✅ Build a stable, deduped cuisine list: normalized value -> pretty label
-const cuisineMap = new Map<string, string>();
+const specialtyMap = new Map<string, string>();
 
 enhanced.forEach((b) => {
-  const tags = [
-    ...(b.cuisineTypes || []),
-    ...(b.entertainmentTypes || []),
-    ...(b.artTypes || []),
-  ];
+  const tags = [...(b.specialties || [])];
 
   tags.forEach((tag) => {
     const key = normalizeTag(tag); // already lower/trim/collapse spaces
     if (!key) return;
-    if (!cuisineMap.has(key)) {
-      cuisineMap.set(key, String(tag).trim().replace(/\s+/g, " "));
+    if (!specialtyMap.has(key)) {
+      specialtyMap.set(key, String(tag).trim().replace(/\s+/g, " "));
     }
   });
 });
 
-const allCuisines = Array.from(cuisineMap.entries())
+const allSpecialties = Array.from(specialtyMap.entries())
   .map(([value, label]) => ({ value, label }))
   .sort((a, b) => a.label.localeCompare(b.label));
 
 
-const cuisineFromUrl = (params.get("cuisine") || "").toLowerCase().trim();
+const specialtyFromUrl = (params.get("specialty") || "").toLowerCase().trim();
 
 // If someone arrives with only q=BBQ (older behavior), and BBQ exactly matches a cuisine,
 // infer cuisineFromQ so the dropdown filter still works.
-const cuisineFromQ = !cuisineFromUrl && qNorm && cuisineMap.has(qNorm) ? qNorm : "";
+const specialtyFromQ = !specialtyFromUrl && qNorm && specialtyMap.has(qNorm) ? qNorm : "";
 
 
-const initialCuisine = cuisineFromUrl || cuisineFromQ;
+const initialSpecialty = specialtyFromUrl || specialtyFromQ;
 
-const qForInput = qNorm && initialCuisine && qNorm === initialCuisine ? "" : qFromUrl;
+const qForInput = qNorm && initialSpecialty && qNorm === initialSpecialty ? "" : qFromUrl;
 
 
 
@@ -132,6 +128,7 @@ function slugForNeighborhood(n: string) {
 // Helper function for amenity icons
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
+    // existing
     takeout: "🥡",
     "dine-in": "🍽️",
     "outdoor seating": "🌳",
@@ -143,16 +140,82 @@ function getAmenityIcon(tag: string): string {
     "parking available": "🅿️",
     "pet-friendly patio": "🐾",
     "live music": "🎸",
+
+    // dietary
+    "100% vegan": "🌱",
+    "dairy-free": "🥛🚫",
+    "gluten-free": "🌾🚫",
+    "nut-free": "🥜🚫",
+    "soy-free": "🫘🚫",
+    halal: "☪️",
+    "halal food": "☪️",
+    vegetarian: "🥕",
+    "vegetarian options": "🥕",
+    "all-natural ingredients": "🍃",
+    "dietary/allergy friendly": "🧑‍⚕️",
+    "dietary & allergy friendly": "🧑‍⚕️",
+
+    // food/service
+    "accepts reservations": "📅",
+    reservations: "📅",
+    catering: "🍱",
+    "curbside pickup": "🅿️📦",
+    "drive-thru": "🚗💨",
+    "quick bite": "⚡️🍴",
+    "small plates": "🍽️✨",
+    "happy hour": "⏰🍹",
+    alcohol: "🍸",
+    "bar onsite": "🍺",
+    "bar on-site": "🍺",
+
+    // accessibility + facilities
+    "wheelchair accessible": "♿️",
+    "gender-neutral restroom": "🚻",
+    "transgender safespace": "🏳️‍⚧️",
+    "transgender safe space": "🏳️‍⚧️",
+    "high chairs": "👶",
+    "kids’ menu": "🧒",
+    "kids menu": "🧒",
+    "family-friendly": "👨‍👩‍👧‍👦",
+    "groups welcome": "👥",
+
+    // parking/transport
+    "bike parking": "🚲",
+    "free parking": "🆓🅿️",
+    "valet parking": "🅿️🤵",
+
+    // vibes / extras
+    "heated outdoor seating": "🔥🌳",
+    "pool table": "🎱",
+    "juke box": "📻",
+    tourists: "🧳",
+    philanthropic: "🤝",
+    "veteran owned": "🎖️",
+
+    // retail / market / goods
+    "specialty market": "🛒",
+    "african groceries": "🛒🌍",
+    "caribbean groceries": "🛒🌴",
+    "imported goods": "📦🌍",
+    "cultural products": "🏺",
+    "fabrics and jewelry": "🧵💎",
+
+    // art / studio / handmade
+    "studio services": "🎬",
+    "handmade dishes": "🫶🍽️",
+    "plant-based soul food": "🌱🍲",
   };
-  return icons[tag.toLowerCase()] || "✓";
+
+  return icons[(tag || "").toLowerCase().trim()] || "✓";
 }
+
 
 /* --------------------------
    SEO (kept)
 --------------------------- */
 const pageTitle = "All Businesses • Denver Black Guide";
 const pageDescription =
-  "Browse the Denver Black Guide directory. Filter Black-owned businesses by neighborhood, cuisine, and amenities—or search by name.";
+  "Browse the Denver Black Guide directory. Filter Black-owned businesses by neighborhood, specialty, and amenities—or search by name.";
 
 const pageImage = "/og-denver-black-guide.png";
 
@@ -169,7 +232,7 @@ const absoluteImage = new URL(pageImage, origin).toString();
 const isFiltered =
   !!qFromUrl ||
   !!neighborhoodFromUrl ||
-  !!initialCuisine ||
+  !!initialSpecialty ||
   (sortFromUrl && sortFromUrl !== "az");
 
 const robots = isFiltered
@@ -280,7 +343,7 @@ const jsonLd = {
 
       <p class="directory__subtitle">
         Browse our complete directory with advanced filters — find exactly what you're
-        looking for by type, neighborhood, cuisine, and amenities.
+        looking for by type, neighborhood, specialty, and amenities.
       </p>
     </header>
 
@@ -306,7 +369,7 @@ const jsonLd = {
                 name="directory-search"
                 type="search"
                 class="filter-search__input"
-                placeholder="Search by name, cuisine, neighborhood, or amenity..."
+                placeholder="Search by name, specialty, neighborhood, or amenity..."
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
@@ -331,11 +394,7 @@ const jsonLd = {
       slug: b.slug,
       type: b.primaryType,
       neighborhoods: b.neighborhoods || [],
-      cuisines: [
-        ...(b.cuisineTypes || []),
-        ...(b.entertainmentTypes || []),
-        ...(b.artTypes || []),
-      ],
+      specialties: [...(b.specialties || [])],
     }))}
   />
             </div>
@@ -390,26 +449,26 @@ const jsonLd = {
             </select>
           </div>
 
-          {allCuisines.length > 0 && (
+          {allSpecialties.length > 0 && (
             <div class="filter-dropdown">
-              <label for="cuisine-select" class="filter-label">Cuisine / entertainment / art</label>
+              <label for="specialty-select" class="filter-label">specialty</label>
               <div class="filter-match">
                 <span class="filter-match__label">Match</span>
-                <div class="filter-match__segmented" role="group" aria-label="Cuisine match mode">
+                <div class="filter-match__segmented" role="group" aria-label="Specialty match mode">
                   <label class="filter-match__option">
-                    <input type="radio" name="cuisine-match" value="any" checked />
+                    <input type="radio" name="specialty-match" value="any" checked />
                     <span>Any = OR</span>
                   </label>
                   <label class="filter-match__option">
-                    <input type="radio" name="cuisine-match" value="all" />
+                    <input type="radio" name="specialty-match" value="all" />
                     <span>All = AND</span>
                   </label>
                 </div>
               </div>
 
-              <select id="cuisine-select" class="filter-select" multiple size="4">
-                {allCuisines.map(({ value, label }) => (
-                  <option value={value} selected={initialCuisine === value}>
+              <select id="specialty-select" class="filter-select" multiple size="4">
+                {allSpecialties.map(({ value, label }) => (
+                  <option value={value} selected={initialSpecialty === value}>
                     {label}
                   </option>
                 ))}
@@ -475,13 +534,11 @@ const jsonLd = {
         {allBusinesses.map((b) => {
           const type = b.primaryType;
           const name = b.name || "";
-          const cuisines = b.cuisineTypes || [];
-          const entertainmentTypes = b.entertainmentTypes || [];
-          const artTypes = b.artTypes || [];
           const neighborhoods = b.neighborhoods || [];
           const microfilters = b.microfilters || [];
 
-          const allTypeLabels = [...cuisines, ...entertainmentTypes, ...artTypes];
+         const specialties = b.specialties || [];
+         const allTypeLabels = specialties;
 
           return (
             <a
@@ -490,78 +547,89 @@ const jsonLd = {
               data-slug={b.slug}
               data-name={name.toLowerCase()}
               data-type={String(type).toLowerCase()}
-              data-cuisines={allTypeLabels.map(normalizeTag).join("|")}
+              data-specialties={allTypeLabels.map(normalizeTag).join("|")}
               data-neighborhoods={neighborhoods.join("|").toLowerCase()}
               data-microfilters={microfilters.map(normalizeTag).join("|")}
             >
-              <article class="card business-card">
-                <h2 class="business-card__name">{name}</h2>
+             <article class="card business-card">
+  <!-- NAME -->
+  <h2 class="business-card__name">{name}</h2>
 
-                <div class="business-card__quick-info">
-                  <span class="quick-info-item">
-                    <span class="quick-info-item__icon">📍</span>
+  <!-- NEIGHBORHOOD -->
+  <div class="business-card__row business-card__row--neighborhood">
+    <span class="row-icon">📍</span>
 
-                    {neighborhoods.length > 0 ? (
-                      <span class="neighborhood-chip-row">
-                        {neighborhoods.slice(0, 2).map((n) => (
-                          <button
-                            type="button"
-                            class="neighborhood-chip"
-                            data-neighborhood-slug={slugForNeighborhood(n)}
-                            aria-label={`View businesses in ${n}`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                        {neighborhoods.length > 2 && (
-                          <span class="neighborhood-more">+{neighborhoods.length - 2}</span>
-                        )}
-                      </span>
-                    ) : (
-                      <span>Location TBD</span>
-                    )}
-                  </span>
+    {neighborhoods.length > 0 ? (
+      <>
+        <button
+          type="button"
+          class="neighborhood-chip"
+          data-neighborhood-slug={slugForNeighborhood(neighborhoods[0])}
+          aria-label={`View businesses in ${neighborhoods[0]}`}
+        >
+          {neighborhoods[0]}
+        </button>
 
-                  {b.yearEstablished && (
-                    <span class="quick-info-item">
-                      <span class="quick-info-item__icon">📅</span>
-                      Est. {b.yearEstablished}
-                    </span>
-                  )}
-                </div>
+        {neighborhoods.length > 1 && (
+          <span class="row-muted">+{neighborhoods.length - 1}</span>
+        )}
+      </>
+    ) : (
+      <span class="row-muted">Location TBD</span>
+    )}
+  </div>
 
-                <p class="business-card__meta">
-                  <span class="business-card__type">{type}</span>
-                  {allTypeLabels.length > 0 && (
-                    <>
-                      {" · "}
-                      <span>
-                        {allTypeLabels.slice(0, 2).join(", ")}
-                        {allTypeLabels.length > 2 && ` +${allTypeLabels.length - 2}`}
-                      </span>
-                    </>
-                  )}
-                </p>
+  <!-- TYPE + SPECIALTIES -->
+  <p class="business-card__meta">
+    <span class="business-card__type">{type}</span>
 
-                {microfilters.length > 0 && (
-                  <div class="business-card__amenities">
-                    {microfilters.slice(0, 3).map((tag) => {
-                      const icon = getAmenityIcon(tag);
-                      return (
-                        <span class="amenity-tag" title={tag}>
-                          <span class="amenity-tag__icon">{icon}</span>
-                          <span class="amenity-tag__label">{tag}</span>
-                        </span>
-                      );
-                    })}
-                    {microfilters.length > 3 && (
-                      <span class="business-card__more">+{microfilters.length - 3} more</span>
-                    )}
-                  </div>
-                )}
+    {allTypeLabels.length > 0 && (
+      <>
+        <span class="meta-sep">·</span>
+        <span class="business-card__specialties">
+          {allTypeLabels.slice(0, 2).join(", ")}
+          {allTypeLabels.length > 2 && ` +${allTypeLabels.length - 2}`}
+        </span>
+      </>
+    )}
+  </p>
 
-                <div class="business-card__action">View Details →</div>
-              </article>
+  <!-- AMENITIES (2 max) + COUNT -->
+  {microfilters.length > 0 && (
+    <div class="business-card__amenities-row">
+      <div class="business-card__amenities">
+        {microfilters.slice(0, 2).map((tag) => {
+          const icon = getAmenityIcon(tag);
+          return (
+            <span class="amenity-tag" title={tag}>
+              <span class="amenity-tag__icon">{icon}</span>
+              <span class="amenity-tag__label">{tag}</span>
+            </span>
+          );
+        })}
+      </div>
+
+      {microfilters.length > 2 && (
+        <span class="business-card__more">+{microfilters.length - 2} more</span>
+      )}
+    </div>
+  )}
+
+  <!-- FOOTER: EST + CTA -->
+  <div class="business-card__footer">
+    {b.yearEstablished ? (
+      <span class="business-card__est">
+        <span class="row-icon">📅</span> Est. {b.yearEstablished}
+      </span>
+    ) : (
+      <span></span>
+    )}
+
+    <span class="business-card__action">View Details →</span>
+  </div>
+</article>
+
+
             </a>
           );
         })}
@@ -1254,6 +1322,132 @@ const jsonLd = {
   transition: opacity 0.15s;
 }
 
+ .business-card__neighborhood,
+.business-card__est {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.business-card__neighborhood-icon,
+.business-card__est-icon {
+  font-size: 0.85rem;
+}
+
+.business-card__more-row {
+  margin-top: -0.15rem;
+}
+
+.business-card__more {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* --- UX card layout helpers --- */
+
+.business-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.row-icon {
+  font-size: 0.9rem;
+}
+
+.row-muted {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Keep this single neighborhood chip compact */
+.business-card__row--neighborhood .neighborhood-chip {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.business-card__row--neighborhood .neighborhood-chip:hover {
+  color: var(--accent-strong);
+}
+
+.business-card__meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.business-card__type {
+  font-weight: 650;
+  color: var(--text-main);
+}
+
+.meta-sep {
+  opacity: 0.6;
+}
+
+.business-card__specialties {
+  color: var(--text-muted);
+}
+
+/* Amenities + +N more */
+.business-card__amenities-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.business-card__more {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Footer row keeps Est + CTA aligned and always visible */
+.business-card__footer {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.business-card__est {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Optional: clamp name to keep grid heights consistent */
+.business-card__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* CTA visible (better on mobile) */
+.business-card__action {
+  opacity: 1; /* override your hover-only style if needed */
+}
+
 .business-card-link:hover .business-card__action {
   opacity: 1;
 }
@@ -1310,6 +1504,156 @@ const jsonLd = {
   .filter-dropdowns {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================
+   ALL.ASTRO — Business card footer fix
+   Est. left + View Details right (stable)
+   Paste this at the VERY BOTTOM of the <style>
+   ========================================= */
+
+/* Ensure cards are true vertical stacks and can pin footer to bottom */
+#results-grid .business-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.55rem;
+}
+
+/* Row helpers used by your markup */
+#results-grid .business-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+#results-grid .row-icon {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+#results-grid .row-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Meta line: keep tidy and wrapping sane */
+#results-grid .business-card__meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+#results-grid .business-card__type {
+  font-weight: 750;
+  color: var(--text-main);
+}
+
+#results-grid .meta-sep {
+  opacity: 0.65;
+  margin: 0 0.2rem;
+}
+
+/* Amenities row: allow "+N more" to sit at end */
+#results-grid .business-card__amenities-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+#results-grid .business-card__more {
+  white-space: nowrap;
+}
+
+/* ✅ Footer pinned to bottom + fixed left/right layout */
+#results-grid .business-card__footer {
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Est. stays left */
+#results-grid .business-card__est {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ✅ CTA stays right, no hover-only disappearance */
+#results-grid .business-card__action {
+  /* override older duplicated rules */
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent);
+  white-space: nowrap;
+
+  opacity: 1 !important;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+/* Nice micro-interaction */
+#results-grid .business-card-link:hover .business-card__action,
+#results-grid .business-card-link:focus-visible .business-card__action,
+#results-grid .business-card-link:focus-within .business-card__action {
+  transform: translateX(2px);
+}
+
+/* Optional: keep “subtle reveal” on hover without hiding on mobile */
+@media (hover: hover) {
+  #results-grid .business-card__action {
+    opacity: 0.92 !important;
+  }
+  #results-grid .business-card-link:hover .business-card__action {
+    opacity: 1 !important;
+  }
+}
+
+/* Name clamp (keeps grid heights more even) */
+#results-grid .business-card__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.2;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Neighborhood chip: prevent crazy wrapping */
+#results-grid .neighborhood-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 
@@ -1461,7 +1805,7 @@ const jsonLd = {
   const clearBtn = document.getElementById("search-clear");
   const sortSelect = document.getElementById("sort");
   const neighborhoodSelect = document.getElementById("neighborhood-select");
-  const cuisineSelect = document.getElementById("cuisine-select");
+  const specialtySelect = document.getElementById("specialty-select");
   const amenitiesSelect = document.getElementById("amenities-select");
   const grid = document.getElementById("results-grid");
   const countEl = document.getElementById("results-count");
@@ -1530,19 +1874,19 @@ const jsonLd = {
   }
 
   // Cuisine(s)
-  const selectedCuisineVals = new Set();
-  if (cuisineSelect) {
-    Array.from(cuisineSelect.selectedOptions).forEach((opt) => {
-      const v = normalize(opt.value);
-      if (!v || selectedCuisineVals.has(v)) return;
-      selectedCuisineVals.add(v);
+  const selectedSpecialtyVals = new Set();
+    if (specialtySelect) {
+      Array.from(specialtySelect.selectedOptions).forEach((opt) => {
+        const v = normalize(opt.value);
+        if (!v || selectedSpecialtyVals.has(v)) return;
+        selectedSpecialtyVals.add(v);
 
-      html += `<span class="active-filter-pill">
-        ${opt.text}
-        <button class="active-filter-pill__remove" type="button" data-clear="cuisine" data-value="${opt.value}">×</button>
-      </span>`;
-    });
-  }
+        html += `<span class="active-filter-pill">
+          ${opt.text}
+          <button class="active-filter-pill__remove" type="button" data-clear="specialty" data-value="${opt.value}">×</button>
+        </span>`;
+      });
+    }
 
   // Amenities
   if (amenitiesSelect) {
@@ -1557,7 +1901,7 @@ const jsonLd = {
   // Search text
   if (searchInput && searchInput.value.trim()) {
     const qv = normalize(searchInput.value);
-    if (!selectedCuisineVals.has(qv)) {
+    if (!selectedSpecialtyVals.has(qv)) {
       const safe = searchInput.value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
       html += `<span class="active-filter-pill">
         🔎 ${safe}
@@ -1567,14 +1911,14 @@ const jsonLd = {
   }
 
   // Match mode pills (optional)
-  const cuisineMode = getRadioValue("cuisine-match", "any");
+  const specialtyMode = getRadioValue("specialty-match", "any");
   const amenitiesMode = getRadioValue("amenities-match", "any");
-  if (cuisineMode === "all") {
-    html += `<span class="active-filter-pill">
-      Cuisine: All
-      <button class="active-filter-pill__remove" type="button" data-clear="cuisine-mode">×</button>
-    </span>`;
-  }
+  if (specialtyMode === "all") {
+  html += `<span class="active-filter-pill">
+    Specialty: All
+    <button class="active-filter-pill__remove" type="button" data-clear="specialty-mode">×</button>
+  </span>`;
+}
   if (amenitiesMode === "all") {
     html += `<span class="active-filter-pill">
       Amenities: All
@@ -1591,15 +1935,15 @@ const jsonLd = {
     const name = normalize(el.dataset.name);
     const type = normalize(el.dataset.type);
     const neighborhoodsPipe = normalize(el.dataset.neighborhoods);
-    const cuisinesPipe = normalize(el.dataset.cuisines);
+    const specialtiesPipe = normalize(el.dataset.specialties);
     const microPipe = normalize(el.dataset.microfilters);
 
     const neighborhoodsTokens = pipeToTokenSet(neighborhoodsPipe);
-    const cuisineTokens = pipeToTokenSet(cuisinesPipe);
+    const specialtyTokens = pipeToTokenSet(specialtiesPipe);
     const amenityTokens = pipeToTokenSet(microPipe);
 
     // One combined field for text searching
-    const searchBlob = `${name} ${neighborhoodsPipe} ${cuisinesPipe} ${microPipe}`;
+    const searchBlob = `${name} ${neighborhoodsPipe} ${specialtiesPipe} ${microPipe}`;
 
     // First neighborhood for sorting
     const firstNeighborhood = (neighborhoodsPipe.split("|")[0] || "").trim();
@@ -1610,7 +1954,7 @@ const jsonLd = {
       type,
       firstNeighborhood,
       neighborhoodsTokens,
-      cuisineTokens,
+      specialtyTokens,
       amenityTokens,
       searchBlob,
     };
@@ -1623,7 +1967,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const qInit = urlParams.get("q") || "";
 const neighborhoodInit = normalize(urlParams.get("neighborhood") || "");
 const sortInit = urlParams.get("sort") || "az";
-const cuisineInitRaw = normalize(urlParams.get("cuisine") || "");
+const specialtyInitRaw = normalize(urlParams.get("specialty") || urlParams.get("cuisine") || "");
+
 
 let qEffective = qInit; // what we'll actually apply to the input/UI
 
@@ -1632,34 +1977,35 @@ if (neighborhoodSelect) neighborhoodSelect.value = neighborhoodInit;
 if (sortSelect) sortSelect.value = sortInit;
 
 // 1) Select cuisine first (so dedupe has real selected values to compare against)
-if (cuisineSelect) {
-  let cuisineToSelect = cuisineInitRaw;
+if (specialtySelect) {
+  let specialtyToSelect = specialtyInitRaw;
 
-  // If no cuisine= but q exactly matches a cuisine option, select cuisine from q
-  if (!cuisineToSelect && qInit) {
+  // If no specialty= but q exactly matches an option, select specialty from q
+  if (!specialtyToSelect && qInit) {
     const qN = normalize(qInit);
-    const hasExact = Array.from(cuisineSelect.options).some(
+    const hasExact = Array.from(specialtySelect.options).some(
       (opt) => normalize(opt.value) === qN
     );
-    if (hasExact) cuisineToSelect = qN;
+    if (hasExact) specialtyToSelect = qN;
   }
 
-  if (cuisineToSelect) {
-    Array.from(cuisineSelect.options).forEach((opt) => {
-      opt.selected = normalize(opt.value) === cuisineToSelect;
+  if (specialtyToSelect) {
+    Array.from(specialtySelect.options).forEach((opt) => {
+      opt.selected = normalize(opt.value) === specialtyToSelect;
     });
   }
 }
 
+
 // 2) NOW dedupe: if q matches selected cuisine, drop q + clean URL
 const qN = normalize(qInit);
-const selectedCuisineValues = cuisineSelect ? getSelectedValues(cuisineSelect) : new Set();
+const selectedSpecialtyValues = specialtySelect ? getSelectedValues(specialtySelect) : new Set();
 
-const qDuplicatesCuisine =
-  (!!cuisineInitRaw && qN === cuisineInitRaw) ||
-  (qN && selectedCuisineValues.has(qN));
+const qDuplicatesSpecialty =
+  (!!specialtyInitRaw && qN === specialtyInitRaw) ||
+  (qN && selectedSpecialtyValues.has(qN));
 
-if (qDuplicatesCuisine) {
+if (qDuplicatesSpecialty) {
   qEffective = "";       // prevents the 🔎 pill
   if (urlParams.has("q")) urlParams.delete("q");
 
@@ -1684,7 +2030,7 @@ if (searchInput) searchInput.value = qEffective;
   function getActiveFilterCount() {
     let count = 0;
     if (neighborhoodSelect && neighborhoodSelect.value) count++;
-    if (cuisineSelect) count += cuisineSelect.selectedOptions.length;
+    if (specialtySelect) count += specialtySelect.selectedOptions.length;
     if (amenitiesSelect) count += amenitiesSelect.selectedOptions.length;
     if (searchInput && searchInput.value.trim()) count++;
     return count;
@@ -1731,13 +2077,13 @@ if (searchInput) searchInput.value = qEffective;
   function applyFilters() {
     const q = normalize(searchInput ? searchInput.value : "");
     const activeNeighborhood = normalize(neighborhoodSelect ? neighborhoodSelect.value : "");
-    const activeCuisines = getSelectedValues(cuisineSelect);
+    const activeSpecialties = getSelectedValues(specialtySelect);
     const activeAmenities = getSelectedValues(amenitiesSelect);
 
-    const cuisineMode = getRadioValue("cuisine-match", "any");      // any | all
+    const specialtyMode = getRadioValue("specialty-match", "any");     // any | all
     const amenitiesMode = getRadioValue("amenities-match", "any");  // any | all
 
-    const selectedCuisineList = Array.from(activeCuisines);
+    const selectedSpecialtyList = Array.from(activeSpecialties);
     const selectedAmenityList = Array.from(activeAmenities);
 
     let visible = 0;
@@ -1748,11 +2094,13 @@ if (searchInput) searchInput.value = qEffective;
       const matchesNeighborhood =
         !activeNeighborhood || d.neighborhoodsTokens.has(activeNeighborhood);
 
-      const matchesCuisine =
-        selectedCuisineList.length === 0 ||
-        (cuisineMode === "all"
-          ? selectedCuisineList.every((c) => d.cuisineTokens.has(c))
-          : selectedCuisineList.some((c) => d.cuisineTokens.has(c)));
+      
+
+      const matchesSpecialty =
+        selectedSpecialtyList.length === 0 ||
+        (specialtyMode === "all"
+          ? selectedSpecialtyList.every((s) => d.specialtyTokens.has(s))
+          : selectedSpecialtyList.some((s) => d.specialtyTokens.has(s)));
 
       const matchesAmenity =
         selectedAmenityList.length === 0 ||
@@ -1760,7 +2108,8 @@ if (searchInput) searchInput.value = qEffective;
           ? selectedAmenityList.every((m) => d.amenityTokens.has(m))
           : selectedAmenityList.some((m) => d.amenityTokens.has(m)));
 
-      const show = matchesText && matchesNeighborhood && matchesCuisine && matchesAmenity;
+      const show = matchesText && matchesNeighborhood && matchesSpecialty && matchesAmenity;
+
 
       // Toggle display only if needed (reduces style churn)
       const newDisplay = show ? "" : "none";
@@ -1801,12 +2150,12 @@ if (searchInput) searchInput.value = qEffective;
   function resetAllFilters() {
     if (searchInput) searchInput.value = "";
     if (neighborhoodSelect) neighborhoodSelect.value = "";
-    if (cuisineSelect) Array.from(cuisineSelect.options).forEach((opt) => (opt.selected = false));
+    if (specialtySelect) Array.from(specialtySelect.options).forEach((opt) => (opt.selected = false));
     if (amenitiesSelect) Array.from(amenitiesSelect.options).forEach((opt) => (opt.selected = false));
 
-    const cuisineAny = document.querySelector('input[name="cuisine-match"][value="any"]');
+    const specialtyAny = document.querySelector('input[name="specialty-match"][value="any"]');
     const amenitiesAny = document.querySelector('input[name="amenities-match"][value="any"]');
-    if (cuisineAny) cuisineAny.checked = true;
+    if (specialtyAny) specialtyAny.checked = true;
     if (amenitiesAny) amenitiesAny.checked = true;
 
     applyFilters();
@@ -1824,19 +2173,19 @@ if (searchInput) searchInput.value = qEffective;
 
     if (clearType === "neighborhood" && neighborhoodSelect) {
       neighborhoodSelect.value = "";
-    } else if (clearType === "cuisine" && cuisineSelect) {
-      Array.from(cuisineSelect.options).forEach((opt) => {
+    } else if (clearType === "specialty" && specialtySelect) {
+      Array.from(specialtySelect.options).forEach((opt) => {
         if (opt.value === value) opt.selected = false;
       });
+    }  else if (clearType === "specialty-mode") {
+  const any = document.querySelector('input[name="specialty-match"][value="any"]');
+  if (any) any.checked = true;
     } else if (clearType === "amenity" && amenitiesSelect) {
       Array.from(amenitiesSelect.options).forEach((opt) => {
         if (opt.value === value) opt.selected = false;
       });
     } else if (clearType === "search" && searchInput) {
       searchInput.value = "";
-    } else if (clearType === "cuisine-mode") {
-      const any = document.querySelector('input[name="cuisine-match"][value="any"]');
-      if (any) any.checked = true;
     } else if (clearType === "amenities-mode") {
       const any = document.querySelector('input[name="amenities-match"][value="any"]');
       if (any) any.checked = true;
@@ -1857,7 +2206,7 @@ if (searchInput) searchInput.value = qEffective;
   }
 
   if (neighborhoodSelect) neighborhoodSelect.addEventListener("change", applyFilters);
-  if (cuisineSelect) cuisineSelect.addEventListener("change", applyFilters);
+  if (specialtySelect) specialtySelect.addEventListener("change", applyFilters);
   if (amenitiesSelect) amenitiesSelect.addEventListener("change", applyFilters);
 
   if (sortSelect) {
@@ -1871,7 +2220,7 @@ if (searchInput) searchInput.value = qEffective;
     });
   }
 
-  document.querySelectorAll('input[name="cuisine-match"]').forEach((r) => {
+  document.querySelectorAll('input[name="specialty-match"]').forEach((r) => {
     r.addEventListener("change", applyFilters);
   });
   document.querySelectorAll('input[name="amenities-match"]').forEach((r) => {

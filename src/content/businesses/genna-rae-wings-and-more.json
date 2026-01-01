@@ -2,13 +2,13 @@
   "name": "Genna Rae Wings and More",
   "slug": "genna-rae-wings-and-more",
   "type": "restaurant",
-  "cuisineTypes": ["Soul Food", "Seafood", "BBQ"],
+  "specialties": ["Soul Food", "Seafood", "BBQ"],
   "businessCategories": ["Restaurant"],
   "neighborhoods": ["Whittier", "Five Points"],
   "latitude": 39.7561,
   "longitude": -104.9679,
   "microfilters": [
-    "Offers catering",
+    "Catering",
     "LGBTQ+ friendly",
     "Wheelchair accessible",
     "Gender-neutral restroom"

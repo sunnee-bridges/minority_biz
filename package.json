@@ -11,11 +11,14 @@
     "verify": "npm run build && npm run check"
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.6.0",
     "astro": "^5.16.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
-    "@astrojs/sitemap": "^3.6.0",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20 <21"
   }
 }

@@ -2,7 +2,7 @@
   "name": "Nola Voodoo Tavern",
   "slug": "nola-voodoo-tavern",
   "type": "restaurant",
-  "cuisineTypes": ["Soul Food", "Southern"],
+  "specialties": ["Soul Food", "Southern"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Cole"],
   "latitude": 39.76463,

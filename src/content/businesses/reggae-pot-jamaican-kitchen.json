@@ -2,7 +2,7 @@
   "name": "Reggae Pot Jamaican Kitchen",
   "slug": "reggae-pot-jamaican-kitchen",
   "type": "restaurant",
-  "cuisineTypes": ["Caribbean"],
+  "specialties": ["Caribbean"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Goldsmith", "Aurora"],
   "latitude": 39.57895,

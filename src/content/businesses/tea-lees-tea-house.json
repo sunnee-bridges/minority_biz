@@ -2,7 +2,7 @@
   "name": "TeaLee's Tea House",
   "slug": "tea-lees-tea-house",
   "type": "restaurant",
-  "cuisineTypes": [
+  "specialties": [
     "Coffee",
     "Tea",
     "Wine",

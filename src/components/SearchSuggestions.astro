@@ -4,7 +4,7 @@ type SuggestionBusiness = {
   slug: string;
   type?: string;
   neighborhoods?: string[];
-  cuisines?: string[];
+  specialties?: string[];
 };
 
 const {
@@ -182,16 +182,16 @@ const {
       const businesses = Array.isArray(searchData) ? searchData : [];
 
       const neighborhoods = new Set();
-      const cuisines = new Set();
+      const specialties = new Set();
 
       businesses.forEach((b) => {
         (b.neighborhoods || []).forEach((n) => {
           const v = String(n || "").trim();
           if (v && v !== "Location TBD") neighborhoods.add(v);
         });
-        (b.cuisines || []).forEach((c) => {
+        (b.specialties || []).forEach((c) => {
           const v = String(c || "").trim();
-          if (v) cuisines.add(v);
+          if (v) specialties.add(v);
         });
       });
 
@@ -205,8 +205,8 @@ const {
           .replace(/\s+/g, " ");
       }
 
-      function normalizeCuisineParam(value) {
-        // deterministic URL param for cuisine (matches option values on /all)
+      function normalizeSpecialtyParam(value) {
+        // deterministic URL param for specialty (matches option values on /all)
         return normalize(value);
       }
 
@@ -261,7 +261,7 @@ const {
           .filter((b) => normalize(b.name).includes(qNorm))
           .slice(0, 5);
 
-        const matchingCuisines = Array.from(cuisines)
+        const matchingSpecialties = Array.from(specialties)
           .filter((c) => normalize(c).includes(qNorm))
           .slice(0, 5);
 
@@ -277,7 +277,7 @@ const {
             '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏪 Businesses</div>';
 
           matchingBusinesses.forEach((b, index) => {
-            const cuisineText = (b.cuisines || []).slice(0, 2).join(", ") || b.type || "";
+            const specialtyText = (b.specialties || []).slice(0, 2).join(", ") || b.type || "";
             const neighborhoodText = (b.neighborhoods || [])[0] || "Denver";
             const highlightedName = highlightMatch(b.name, raw);
 
@@ -290,33 +290,33 @@ const {
               `<div class="search-suggestions__item" data-type="business" data-slug="${b.slug}" data-index="${index}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
               '<div class="search-suggestions__content" style="text-align:left;">' +
               `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedName}</div>` +
-              `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${cuisineText} · ${neighborhoodText}</div>` +
+              `<div class="search-suggestions__meta" style="text-align:left;cursor:pointer;">${specialtyText} · ${neighborhoodText}</div>` +
               "</div></div>";
           });
 
           html += "</div>";
         }
 
-        if (matchingCuisines.length > 0) {
+        if (matchingSpecialties.length > 0) {
           html +=
             '<div class="search-suggestions__section">' +
-            '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🍽️ Cuisines & Types</div>';
+            '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">🏷️ Specialties</div>';
 
-          matchingCuisines.forEach((c, index) => {
+          matchingSpecialties.forEach((c, index) => {
             const itemIndex = matchingBusinesses.length + index;
-            const highlightedCuisine = highlightMatch(c, raw);
+            const highlightedSpecialty = highlightMatch(c, raw);
 
             const spacingStyle =
-              index === matchingCuisines.length - 1
+              index === matchingSpecialties.length - 1
                 ? "padding-bottom:0.75rem;"
                 : "padding-bottom:0.35rem;";
 
-            const cuisineParam = normalizeCuisineParam(c);
+            const specialtyParam = normalizeSpecialtyParam(c);
 
             html +=
-              `<div class="search-suggestions__item" data-type="cuisine" data-value="${c}" data-cuisine="${cuisineParam}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
+              `<div class="search-suggestions__item" data-type="specialty" data-value="${c}" data-specialty="${specialtyParam}" data-index="${itemIndex}" style="padding-left:3.5rem;cursor:pointer;text-align:left;${spacingStyle}">` +
               '<div class="search-suggestions__content" style="text-align:left;">' +
-              `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedCuisine}</div>` +
+              `<div class="search-suggestions__text" style="text-align:left;cursor:pointer;">${highlightedSpecialty}</div>` +
               "</div></div>";
           });
 
@@ -329,7 +329,7 @@ const {
             '<div class="search-suggestions__header" style="padding:0.75rem 0 0.5rem 1rem;text-align:left;">📍 Neighborhoods</div>';
 
           matchingNeighborhoods.forEach((n, index) => {
-            const itemIndex = matchingBusinesses.length + matchingCuisines.length + index;
+            const itemIndex = matchingBusinesses.length + matchingSpecialties.length + index;
             const highlightedNeighborhood = highlightMatch(n, raw);
 
             const spacingStyle =
@@ -402,7 +402,7 @@ const {
         const type = item.getAttribute("data-type");
         const slug = item.getAttribute("data-slug");
         const value = item.getAttribute("data-value");
-        const cuisineParam = item.getAttribute("data-cuisine");
+        const specialtyParam = item.getAttribute("data-specialty");
 
         // Always navigate for a specific business
         if (type === "business" && slug) {
@@ -410,20 +410,20 @@ const {
           return;
         }
 
-        // FILTER MODE: clicking cuisine/neighborhood refines results on /all (via q)
+        // FILTER MODE: clicking specialty/neighborhood refines results on /all (via q)
         if (mode === "filter") {
-          if (type === "cuisine" && value) applyFilterValue(value);
+          if (type === "specialty" && value) applyFilterValue(value);
           if (type === "neighborhood" && value) applyFilterValue(value);
           return;
         }
 
         // NAVIGATE MODE:
-        // cuisine -> /all?cuisine=bbq   (NO q=BBQ)
+        // specialty -> /all?specialty=bbq   (NO q=BBQ)
         // neighborhood -> /neighborhood/<slug>
-        if (type === "cuisine" && (cuisineParam || value)) {
-          const c = normalizeCuisineParam(cuisineParam || value);
+        if (type === "specialty" && (specialtyParam || value)) {
+          const c = normalizeSpecialtyParam(specialtyParam || value);
           const url = new URL(allPath, window.location.origin);
-          url.searchParams.set("cuisine", c);
+          url.searchParams.set("specialty", c);
           url.searchParams.delete("q"); // ✅ prevent duplicates
           window.location.href = url.toString();
           return;

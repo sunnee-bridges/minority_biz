@@ -2,7 +2,7 @@
   "name": "Le French Restaurant",
   "slug": "le-french-restaurant",
   "type": "restaurant",
-  "cuisineTypes": ["French", "Breakfast",  "Brunch", "African"],
+  "specialties": ["French", "Breakfast",  "Brunch", "African"],
   "businessCategories": ["Restaurant", "Bistro"],
   "neighborhoods": ["Congress Park", "South Denver"],
   "latitude": 39.7287,

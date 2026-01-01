@@ -93,14 +93,9 @@ const allNeighborhoods = Array.from(
   new Set(enhanced.flatMap((b) => b.neighborhoods || []))
 ).sort();
 
-const allCuisines = Array.from(
-  new Set(
-    enhanced.flatMap((b) => [
-      ...(b.cuisineTypes || []),
-      ...(b.entertainmentTypes || []),
-      ...(b.artTypes || []),
-    ])
-  )
+
+const allSpecialties = Array.from(
+  new Set(enhanced.flatMap((b) => b.specialties || []))
 ).sort();
 
 /* --------------------------
@@ -185,7 +180,7 @@ const jsonLd = {
           <input
             type="search"
             class="hero__search-input"
-            placeholder="Search businesses, cuisines, or neighborhoods..."
+            placeholder="Search businesses, specialties, or neighborhoods..."
             id="hero-search"
             autocomplete="off"
           />
@@ -211,11 +206,7 @@ const jsonLd = {
               slug: b.slug,
               type: b.primaryType,
               neighborhoods: b.neighborhoods || [],
-              cuisines: [
-                ...(b.cuisineTypes || []),
-                ...(b.entertainmentTypes || []),
-                ...(b.artTypes || []),
-              ],
+              specialties: b.specialties || [],
             }))}
           />
         </div>
@@ -291,7 +282,7 @@ const jsonLd = {
             const neighborhoods = b.neighborhoods || [];
             const microfilters = b.microfilters || [];
 
-            const allTypeLabels = [...cuisines, ...entertainmentTypes, ...artTypes];
+            const allTypeLabels = b.specialties || [];
 
             return (
               <article class="business-card business-card--featured">

@@ -2,7 +2,7 @@
   "name": "Nana's African Market",
   "slug": "nanas-african-market",
   "type": "other",
-  "cuisineTypes": ["African"],
+  "specialties": ["African"],
   "businessCategories": ["Other"],
   "neighborhoods": ["Aurora"],
   "latitude": 39.6753,

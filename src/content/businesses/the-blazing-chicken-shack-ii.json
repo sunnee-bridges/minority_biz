@@ -2,7 +2,7 @@
   "name": "The Blazing Chicken Shack II",
   "slug": "the-blazing-chicken-shack-ii",
   "type": "restaurant",
-  "cuisineTypes": [
+  "specialties": [
     "Soul Food",
     "American",
     "Southern"

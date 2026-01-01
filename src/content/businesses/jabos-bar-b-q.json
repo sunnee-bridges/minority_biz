@@ -2,7 +2,7 @@
   "name": "Jabo's Bar-BE-Q",
   "slug": "jabos-bar-be-q",
   "type": "restaurant",
-  "cuisineTypes": ["Soul Food", "Southern", "BBQ"],
+  "specialties": ["Soul Food", "Southern", "BBQ"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["South Denver", "Greenwood Village"],
   "latitude": 39.5989,
@@ -11,7 +11,7 @@
     "Dine-in",
     "Parking available",
     "Takeout",
-    "Offers catering"
+    "Catering"
   ],
   "website": "http://www.jabosbarbeq.com/",
   "phone": "303-799-4432",

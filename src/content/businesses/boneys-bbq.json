@@ -2,7 +2,7 @@
   "name": "Boney's BBQ",
   "slug": "boneys-bbq",
   "type": "food truck",
-  "cuisineTypes": ["Soul Food", "BBQ", "Vegetarian"],
+  "specialties": ["Soul Food", "BBQ", "Vegetarian"],
   "businessCategories": ["Catering", "Food Truck"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

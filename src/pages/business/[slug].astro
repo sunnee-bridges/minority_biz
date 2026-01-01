@@ -6,6 +6,7 @@ import { businesses } from "../../lib/businesses";
 // Helper function for amenity icons (same as in [type].astro)
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
+    // existing
     takeout: "🥡",
     "dine-in": "🍽️",
     "outdoor seating": "🌳",
@@ -17,17 +18,73 @@ function getAmenityIcon(tag: string): string {
     "parking available": "🅿️",
     "pet-friendly patio": "🐾",
     "live music": "🎸",
-    "free admission": "🎟️",
-    "artist talks": "🎨",
-    "workshop space": "🛠️",
-    "classes available": "🎓",
-    "open studio": "🏺",
-    "kiln services": "🔥",
-    "wheel throwing": "⚙️",
-    "hand building": "✋",
-    "glazing workshops": "🎨",
+
+    // dietary
+    "100% vegan": "🌱",
+    "dairy-free": "🥛🚫",
+    "gluten-free": "🌾🚫",
+    "nut-free": "🥜🚫",
+    "soy-free": "🫘🚫",
+    halal: "☪️",
+    "halal food": "☪️",
+    vegetarian: "🥕",
+    "vegetarian options": "🥕",
+    "all-natural ingredients": "🍃",
+    "dietary/allergy friendly": "🧑‍⚕️",
+    "dietary & allergy friendly": "🧑‍⚕️",
+
+    // food/service
+    "accepts reservations": "📅",
+    reservations: "📅",
+    catering: "🍱",
+    "curbside pickup": "🅿️📦",
+    "drive-thru": "🚗💨",
+    "quick bite": "⚡️🍴",
+    "small plates": "🍽️✨",
+    "happy hour": "⏰🍹",
+    alcohol: "🍸",
+    "bar onsite": "🍺",
+    "bar on-site": "🍺",
+
+    // accessibility + facilities
+    "wheelchair accessible": "♿️",
+    "gender-neutral restroom": "🚻",
+    "transgender safespace": "🏳️‍⚧️",
+    "transgender safe space": "🏳️‍⚧️",
+    "high chairs": "👶",
+    "kids’ menu": "🧒",
+    "kids menu": "🧒",
+    "family-friendly": "👨‍👩‍👧‍👦",
+    "groups welcome": "👥",
+
+    // parking/transport
+    "bike parking": "🚲",
+    "free parking": "🆓🅿️",
+    "valet parking": "🅿️🤵",
+
+    // vibes / extras
+    "heated outdoor seating": "🔥🌳",
+    "pool table": "🎱",
+    "juke box": "📻",
+    tourists: "🧳",
+    philanthropic: "🤝",
+    "veteran owned": "🎖️",
+
+    // retail / market / goods
+    "specialty market": "🛒",
+    "african groceries": "🛒🌍",
+    "caribbean groceries": "🛒🌴",
+    "imported goods": "📦🌍",
+    "cultural products": "🏺",
+    "fabrics and jewelry": "🧵💎",
+
+    // art / studio / handmade
+    "studio services": "🎬",
+    "handmade dishes": "🫶🍽️",
+    "plant-based soul food": "🌱🍲",
   };
-  return icons[String(tag || "").toLowerCase()] || "✓";
+
+  return icons[(tag || "").toLowerCase().trim()] || "✓";
 }
 
 // 🔑 Tell Astro which /business/[slug]/ pages to generate
@@ -105,8 +162,15 @@ let pageDescription = "We couldn’t find that business.";
 let typeSlug = "other";
 let displayTypeLabel = "Business";
 
+// --- Specialty display (show a few, then +count) ---
+const MAX_SPECIALTIES_SHOWN = 3; // change to 2 if you want fewer shown
+let specialtiesShown: string[] = [];
+let specialtiesRemaining = 0;
+let specialtiesFullLabel = "";
+
+
 let displayTypes: string[] = [];
-let primaryFacetLabel = "Category";
+let primaryFacetLabel = "Specialties";
 
 let neighborhoods: string[] = [];
 let neighborhoodLabel = "Denver";
@@ -120,19 +184,16 @@ if (!notFound && business) {
   typeSlug = slugify(businessType) || "other";
   displayTypeLabel = toTitleCase(businessType) || "Business";
 
-  const isEntertainment = typeSlug === "entertainment";
-  const isArt = typeSlug === "art";
+  const isRestaurant = typeSlug === "restaurant";
 
-  if (isEntertainment) {
-    displayTypes = business.entertainmentTypes || [];
-    primaryFacetLabel = "Entertainment Type";
-  } else if (isArt) {
-    displayTypes = business.artTypes || [];
-    primaryFacetLabel = "Art Type";
-  } else {
-    displayTypes = business.cuisineTypes || [];
-    primaryFacetLabel = "Cuisine";
-  }
+  displayTypes = business.specialties || [];
+  primaryFacetLabel = "Specialties";
+
+  // --- Specialty display (show a few, then +count) ---
+specialtiesShown = displayTypes.slice(0, MAX_SPECIALTIES_SHOWN);
+specialtiesRemaining = Math.max(0, displayTypes.length - specialtiesShown.length);
+specialtiesFullLabel = displayTypes.join(", ");
+
 
   neighborhoods = Array.isArray(business.neighborhoods) ? business.neighborhoods : [];
   neighborhoodLabel = neighborhoods.length ? neighborhoods.join(", ") : "Denver";
@@ -193,8 +254,8 @@ const businessJsonLd =
         ...(business.phone ? { telephone: business.phone } : {}),
         ...(business.website ? { sameAs: [business.website] } : {}),
 
-        ...(schemaTypes.includes("Restaurant") && business.cuisineTypes?.length
-          ? { servesCuisine: business.cuisineTypes.slice(0, 8) }
+        ...(schemaTypes.includes("Restaurant") && business.specialties?.length
+          ? { servesCuisine: business.specialties.slice(0, 8) }
           : {}),
 
         ...(business.latitude && business.longitude
@@ -309,11 +370,19 @@ const robots = notFound
             <h1 class="business-detail__name">{business!.name}</h1>
 
             {displayTypes.length > 0 && (
-              <p class="business-detail__meta">
+              <p class="business-detail__meta" title={specialtiesFullLabel}>
                 <span class="business-detail__meta-label">{primaryFacetLabel}:</span>{" "}
-                {displayTypes.join(", ")}
+                <span>
+                  {specialtiesShown.join(", ")}
+                  {specialtiesRemaining > 0 && (
+                    <span class="business-detail__meta-more">
+                      {" "}+{specialtiesRemaining} more
+                    </span>
+                  )}
+                </span>
               </p>
             )}
+
 
             {business!.businessCategories && business!.businessCategories.length > 0 && (
               <p class="business-detail__meta">{business!.businessCategories.join(", ")}</p>
@@ -433,6 +502,12 @@ const robots = notFound
           margin: 0 auto;
           padding-block: 1.5rem 3rem;
         }
+
+        .business-detail__meta-more {
+          font-weight: 600;
+          color: var(--text-muted);
+        }
+
 
         /* Breadcrumb */
         .business-detail__breadcrumb {

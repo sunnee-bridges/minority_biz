@@ -2,7 +2,7 @@
   "name": "Sweet Sweetz Ice Cream",
   "slug": "sweet-sweetz-ice-cream",
   "type": "restaurant",
-  "cuisineTypes": ["Dessert"],
+  "specialties": ["Dessert"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Skyland"],
   "latitude": 39.75697,

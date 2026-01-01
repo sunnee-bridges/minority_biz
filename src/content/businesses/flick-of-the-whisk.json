@@ -2,7 +2,7 @@
   "name": "Flick of the Whisk",
   "slug": "flick-of-the-whisk",
   "type": "restaurant",
-  "cuisineTypes": ["Dessert"],
+  "specialties": ["Dessert"],
   "businessCategories": ["Bakery", "Catering"],
   "neighborhoods": ["Denver"],
   "latitude": null,

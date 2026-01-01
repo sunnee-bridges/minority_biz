@@ -2,7 +2,7 @@
   "name": "Buzz Cafe",
   "slug": "buzz-cafe",
   "type": "restaurant",
-  "cuisineTypes": ["Coffee", "Tea", "Breakfast", "Brunch", "Dessert"],
+  "specialties": ["Coffee", "Tea", "Breakfast", "Brunch", "Dessert"],
   "businessCategories": ["Restaurant", "Cafe"],
   "neighborhoods": ["Alamo Placita", "Speer"],
   "latitude": 39.7258,
@@ -13,7 +13,7 @@
     "Drive-thru",
     "Parking available",
     "Pet-friendly patio",
-    "Offers catering",
+    "Catering",
     "Bike parking",
     "Gender-neutral restroom",
     "Alcohol"

@@ -2,7 +2,7 @@
   "name": "African Grill Lakewood",
   "slug": "african-grill-lakewood",
   "type": "restaurant",
-  "cuisineTypes": ["African", "Vegetarian"],
+  "specialties": ["African", "Vegetarian"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Lakewood"],
   "latitude": 39.7013,

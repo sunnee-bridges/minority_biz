@@ -2,7 +2,7 @@
   "name": "My Kings Ice Cream",
   "slug": "my-kings-ice-cream",
   "type": "restaurant",
-  "cuisineTypes": ["Dessert"],
+  "specialties": ["Dessert"],
   "businessCategories": ["Restaurant", "Catering"],
   "neighborhoods": ["Park Hill"],
   "latitude": 39.75743,

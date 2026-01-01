@@ -35,6 +35,7 @@ function getBusinessTags(types: string[]): Set<string> {
 // Helper function for amenity icons
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
+    // existing
     takeout: "🥡",
     "dine-in": "🍽️",
     "outdoor seating": "🌳",
@@ -46,11 +47,73 @@ function getAmenityIcon(tag: string): string {
     "parking available": "🅿️",
     "pet-friendly patio": "🐾",
     "live music": "🎸",
-    "free admission": "🎟️",
-    "artist talks": "🎨",
-    "workshop space": "🛠️",
+
+    // dietary
+    "100% vegan": "🌱",
+    "dairy-free": "🥛🚫",
+    "gluten-free": "🌾🚫",
+    "nut-free": "🥜🚫",
+    "soy-free": "🫘🚫",
+    halal: "☪️",
+    "halal food": "☪️",
+    vegetarian: "🥕",
+    "vegetarian options": "🥕",
+    "all-natural ingredients": "🍃",
+    "dietary/allergy friendly": "🧑‍⚕️",
+    "dietary & allergy friendly": "🧑‍⚕️",
+
+    // food/service
+    "accepts reservations": "📅",
+    reservations: "📅",
+    catering: "🍱",
+    "curbside pickup": "🅿️📦",
+    "drive-thru": "🚗💨",
+    "quick bite": "⚡️🍴",
+    "small plates": "🍽️✨",
+    "happy hour": "⏰🍹",
+    alcohol: "🍸",
+    "bar onsite": "🍺",
+    "bar on-site": "🍺",
+
+    // accessibility + facilities
+    "wheelchair accessible": "♿️",
+    "gender-neutral restroom": "🚻",
+    "transgender safespace": "🏳️‍⚧️",
+    "transgender safe space": "🏳️‍⚧️",
+    "high chairs": "👶",
+    "kids’ menu": "🧒",
+    "kids menu": "🧒",
+    "family-friendly": "👨‍👩‍👧‍👦",
+    "groups welcome": "👥",
+
+    // parking/transport
+    "bike parking": "🚲",
+    "free parking": "🆓🅿️",
+    "valet parking": "🅿️🤵",
+
+    // vibes / extras
+    "heated outdoor seating": "🔥🌳",
+    "pool table": "🎱",
+    "juke box": "📻",
+    tourists: "🧳",
+    philanthropic: "🤝",
+    "veteran owned": "🎖️",
+
+    // retail / market / goods
+    "specialty market": "🛒",
+    "african groceries": "🛒🌍",
+    "caribbean groceries": "🛒🌴",
+    "imported goods": "📦🌍",
+    "cultural products": "🏺",
+    "fabrics and jewelry": "🧵💎",
+
+    // art / studio / handmade
+    "studio services": "🎬",
+    "handmade dishes": "🫶🍽️",
+    "plant-based soul food": "🌱🍲",
   };
-  return icons[String(tag || "").toLowerCase()] || "✓";
+
+  return icons[(tag || "").toLowerCase().trim()] || "✓";
 }
 
 // 🔥 Tell Astro which /type/[type]/ pages to generate
@@ -108,44 +171,22 @@ const isArt = typeSlug === "art";
 const allNeighborhoods = Array.from(new Set(filtered.flatMap((b) => b.neighborhoods || []))).sort();
 
 // Use appropriate field based on type with deduplication
-let primaryTypes: string[] = [];
-let primaryTypeMap = new Map<string, string>(); // maps normalized -> original for display
+// Build specialties list (deduped) from THIS TYPE page only
+const primaryTypeMap = new Map<string, string>(); // normalized -> pretty label
 
-if (isEntertainment) {
-  const raw = filtered.flatMap((b) => b.entertainmentTypes || []);
-  raw.forEach((type) => {
-    const norm = normalizeTypeValue(type);
-    if (!primaryTypeMap.has(norm)) {
-      primaryTypeMap.set(norm, type); // Keep first occurrence
-    }
-  });
-  primaryTypes = Array.from(primaryTypeMap.values()).sort();
-} else if (isArt) {
-  const raw = filtered.flatMap((b) => b.artTypes || []);
-  raw.forEach((type) => {
-    const norm = normalizeTypeValue(type);
-    if (!primaryTypeMap.has(norm)) {
-      primaryTypeMap.set(norm, type);
-    }
-  });
-  primaryTypes = Array.from(primaryTypeMap.values()).sort();
-} else {
-  const raw = filtered.flatMap((b) => b.cuisineTypes || []);
-  raw.forEach((type) => {
-    const norm = normalizeTypeValue(type);
-    if (!primaryTypeMap.has(norm)) {
-      primaryTypeMap.set(norm, type);
-    }
-  });
-  primaryTypes = Array.from(primaryTypeMap.values()).sort();
-}
+filtered.flatMap((b) => b.specialties || []).forEach((tag) => {
+  const norm = normalizeTypeValue(tag);
+  if (!norm) return;
+  if (!primaryTypeMap.has(norm)) primaryTypeMap.set(norm, String(tag).trim());
+});
+
+const primaryTypes = Array.from(primaryTypeMap.values()).sort();
+
 
 const allMicrofilters = Array.from(new Set(filtered.flatMap((b) => b.microfilters || []))).sort();
 
 // Customize label based on type
-let primaryFacetLabel = "Cuisine";
-if (isEntertainment) primaryFacetLabel = "Entertainment Type";
-if (isArt) primaryFacetLabel = "Art Type";
+let primaryFacetLabel = "Specialties";
 
 // Customize search placeholder
 let searchPlaceholder = "Try: soul food, brunch, Park Hill";
@@ -433,16 +474,13 @@ const jsonLd = {
         <div id="results-grid" class="directory__grid">
           {filtered.map((b) => {
             const name = b.name || "";
-            const cuisines = b.cuisineTypes || [];
-            const entertainmentTypes = b.entertainmentTypes || [];
-            const artTypes = b.artTypes || [];
+
             const neighborhoods = b.neighborhoods || [];
             const microfilters = b.microfilters || [];
 
-            let displayTypes: string[] = [];
-            if (isEntertainment) displayTypes = entertainmentTypes;
-            else if (isArt) displayTypes = artTypes;
-            else displayTypes = cuisines;
+            
+            const displayTypes: string[] = b.specialties || [];
+
 
             // Extract all individual tags from cuisine/type strings for smart matching
             // e.g., "Coffee & Tea" becomes "coffee|tea", "Beer, Wine" becomes "beer|wine"
@@ -457,80 +495,95 @@ const jsonLd = {
                 data-name={name.toLowerCase()}
                 data-primary-types={tagsForMatching}
                 data-neighborhoods={neighborhoods.join("|").toLowerCase()}
-                data-microfilters={microfilters.join("|").toLowerCase()}
+                data-microfilters={microfilters.map((m) => m.trim().replace(/\s+/g, " ").toLowerCase()).join("|")}
+
                 data-lat={b.latitude}
                 data-lng={b.longitude}
               >
                 <article class="card business-card">
-                  <h2 class="business-card__name">{name}</h2>
+  <!-- NAME -->
+  <h2 class="business-card__name">{name}</h2>
 
-                  <div class="business-card__quick-info">
-                    <span class="quick-info-item">
-                      <span class="quick-info-item__icon">📍</span>
+  <!-- NEIGHBORHOOD -->
+<div class="business-card__row business-card__row--neighborhood">
+  <span class="row-icon">📍</span>
 
-                      {neighborhoods.length > 0 ? (
-                        <span class="neighborhood-chip-row">
-                          {neighborhoods.slice(0, 2).map((n) => (
-                            <button
-                              type="button"
-                              class="neighborhood-chip"
-                              data-neighborhood-slug={slugForNeighborhoodLib(n)}
-                              aria-label={`View businesses in ${n}`}
-                            >
-                              {n}
-                            </button>
-                          ))}
-                          {neighborhoods.length > 2 && (
-                            <span class="neighborhood-more">
-                              +{neighborhoods.length - 2}
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span>{"Location TBD"}</span>
-                      )}
-                    </span>
+  {neighborhoods.length > 0 ? (
+    <>
+      <span class="neighborhood-chip-row">
+        {neighborhoods.slice(0, 2).map((n) => (
+          <button
+            type="button"
+            class="neighborhood-chip"
+            data-neighborhood-slug={slugForNeighborhoodLib(n)}
+            aria-label={`View businesses in ${n}`}
+          >
+            {n}
+          </button>
+        ))}
+      </span>
 
-                    {b.yearEstablished && (
-                      <span class="quick-info-item">
-                        <span class="quick-info-item__icon">📅</span>
-                        Est. {b.yearEstablished}
-                      </span>
-                    )}
-                  </div>
+      {neighborhoods.length > 2 && (
+        <span class="row-muted">+{neighborhoods.length - 2}</span>
+      )}
+    </>
+  ) : (
+    <span class="row-muted">Location TBD</span>
+  )}
+</div>
 
-                  <p class="business-card__meta">
-                    {displayTypes.length > 0 ? (
-                      <>
-                        <span class="business-card__type">{primaryFacetLabel}:</span>{" "}
-                        <span>{displayTypes.join(", ")}</span>
-                      </>
-                    ) : (
-                      <span class="business-card__type">{currentTypeLabel}</span>
-                    )}
-                  </p>
 
-                  {microfilters.length > 0 && (
-                    <div class="business-card__amenities">
-                      {microfilters.slice(0, 3).map((tag) => {
-                        const icon = getAmenityIcon(tag);
-                        return (
-                          <span class="amenity-tag" title={tag}>
-                            <span class="amenity-tag__icon">{icon}</span>
-                            <span class="amenity-tag__label">{tag}</span>
-                          </span>
-                        );
-                      })}
-                      {microfilters.length > 3 && (
-                        <span class="business-card__more">
-                          +{microfilters.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  )}
+  <!-- TYPE + SPECIALTIES -->
+  <p class="business-card__meta">
+    <span class="business-card__type">{b.primaryType}</span>
 
-                  <div class="business-card__action">View Details →</div>
-                </article>
+    {displayTypes.length > 0 && (
+      <>
+        <span class="meta-sep">·</span>
+        <span class="business-card__specialties">
+          {primaryFacetLabel}: {displayTypes.slice(0, 2).join(", ")}
+          {displayTypes.length > 2 && ` +${displayTypes.length - 2}`}
+        </span>
+      </>
+    )}
+  </p>
+
+  <!-- AMENITIES (2 max) + COUNT -->
+  {microfilters.length > 0 && (
+    <div class="business-card__amenities-row">
+      <div class="business-card__amenities">
+        {microfilters.slice(0, 2).map((tag) => {
+          const icon = getAmenityIcon(tag);
+          return (
+            <span class="amenity-tag" title={tag}>
+              <span class="amenity-tag__icon">{icon}</span>
+              <span class="amenity-tag__label">{tag}</span>
+            </span>
+          );
+        })}
+      </div>
+
+      {microfilters.length > 2 && (
+        <span class="business-card__more">+{microfilters.length - 2} more</span>
+      )}
+    </div>
+  )}
+
+  <!-- FOOTER: EST + CTA -->
+  <div class="business-card__footer">
+    {b.yearEstablished ? (
+      <span class="business-card__est">
+        <span class="row-icon">📅</span> Est. {b.yearEstablished}
+      </span>
+    ) : (
+      <span></span>
+    )}
+
+    <span class="business-card__action">View Details →</span>
+  </div>
+</article>
+
+
               </a>
             );
           })}
@@ -905,7 +958,9 @@ const jsonLd = {
       position: absolute;
       top: 1rem;
       left: 1rem;
-      background: white;
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
       padding: 0.5rem 1rem;
       border-radius: 0.5rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -946,6 +1001,170 @@ const jsonLd = {
       transition: transform 0.15s, box-shadow 0.15s;
       height: 100%;
     }
+
+    /* =========================
+   Business card layout fix
+   Est. left + CTA right
+   ========================= */
+
+/* Make the card a true vertical stack and ensure footer can sit at bottom */
+.business-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.55rem;
+}
+
+/* Clean row styles used in your new markup */
+.business-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.row-icon {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.row-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Meta line: keep tidy + clamp long text */
+.business-card__meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.business-card__type {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.meta-sep {
+  margin: 0 0.35rem;
+  opacity: 0.7;
+}
+
+/* Amenities row: allow +more to sit at end */
+.business-card__amenities-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.business-card__amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* ✅ Footer: fixed left/right layout and pinned to bottom */
+.business-card__footer {
+  margin-top: auto;              /* pushes footer to bottom of card */
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Est. left */
+.business-card__est {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ✅ CTA right: always right aligned, consistent hit area */
+.business-card__action {
+  /* remove old behavior that breaks the footer layout */
+  margin-top: 0;
+  padding-top: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+
+  opacity: 1;                   /* make it visible by default */
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+/* Optional: subtle motion on hover/focus */
+.business-card-link:hover .business-card__action,
+.business-card-link:focus-visible .business-card__action,
+.business-card-link:focus-within .business-card__action {
+  transform: translateX(2px);
+}
+
+/* Optional: keep the "reveal on hover" feel without hiding it entirely */
+@media (hover: hover) {
+  .business-card__action {
+    opacity: 0.9;
+  }
+  .business-card-link:hover .business-card__action {
+    opacity: 1;
+  }
+}
+
+/* Ensure name doesn't collide and stays readable */
+.business-card__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text-main);
+}
+
+/* Neighborhood chip line: prevent wrapping chaos */
+.business-card__row--neighborhood {
+  min-width: 0;
+}
+
+.neighborhood-chip {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ensure +more doesn't wrap awkwardly */
+.business-card__more {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 
     .business-card-link:hover .business-card {
       transform: translateY(-2px);
@@ -1061,6 +1280,150 @@ const jsonLd = {
       font-size: 0.75rem;
       color: var(--text-muted);
     }
+
+  
+
+    /* === Modern Leaflet popup styling to match site cards === */
+
+/* Outer popup chrome */
+.leaflet-popup.site-popup .leaflet-popup-content-wrapper {
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow-soft);
+  padding: 0; /* we'll control padding inside */
+}
+
+.leaflet-popup.site-popup .leaflet-popup-tip {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Remove Leaflet’s default spacing quirks */
+.leaflet-popup.site-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 220px;
+}
+
+/* Close button */
+.leaflet-popup.site-popup a.leaflet-popup-close-button {
+  color: var(--text-muted);
+  padding: 0.55rem 0.65rem;
+}
+.leaflet-popup.site-popup a.leaflet-popup-close-button:hover {
+  color: var(--text-main);
+}
+
+/* --- Make popup text readable in BOTH themes (scoped to the popup) --- */
+.leaflet-popup.site-popup,
+.leaflet-popup.site-popup .leaflet-popup-content-wrapper,
+.leaflet-popup.site-popup .leaflet-popup-content {
+  color: var(--text-main) !important;
+}
+
+.leaflet-popup.site-popup .site-popup__meta,
+.leaflet-popup.site-popup a.leaflet-popup-close-button,
+.leaflet-popup.site-popup .site-popup__arrow {
+  color: var(--text-muted) !important;
+}
+
+.leaflet-popup.site-popup .site-popup__title {
+  color: var(--text-main) !important;
+}
+.leaflet-popup.site-popup .site-popup__title:hover {
+  color: var(--accent) !important;
+}
+
+
+/* Inner card layout */
+.site-popup__inner {
+  padding: 0.85rem 0.9rem 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.site-popup__title {
+  display: inline-block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-decoration: none;
+  color: var(--text-main);
+}
+.site-popup__title:hover {
+  color: var(--accent);
+}
+
+.site-popup__meta {
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Footer CTA */
+.site-popup__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.site-popup__pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--border-subtle);
+  padding: 0.25rem 0.55rem;
+  border-radius: 9999px;
+}
+
+.site-popup__arrow {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+
+/* === Popup background matches your page in dark mode === */
+
+.leaflet-popup.site-popup {
+  --popup-bg: var(--bg-elevated);
+  --popup-text: var(--text-main);
+  --popup-muted: var(--text-muted);
+  --popup-border: var(--border-subtle);
+}
+
+html[data-theme="dark"] .leaflet-popup.site-popup {
+  --popup-bg: #0f172b;         /* 👈 your color */
+  --popup-text: rgba(255,255,255,0.92);
+  --popup-muted: rgba(255,255,255,0.72);
+  --popup-border: rgba(255,255,255,0.12);
+}
+
+
+.leaflet-popup.site-popup .leaflet-popup-content-wrapper {
+  background: var(--popup-bg) !important;
+  color: var(--popup-text) !important;
+  border: 1px solid var(--popup-border) !important;
+  border-radius: 0.9rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.leaflet-popup.site-popup .leaflet-popup-tip {
+  background: var(--popup-bg) !important;
+  border: 1px solid var(--popup-border) !important;
+}
+
+.leaflet-popup.site-popup .site-popup__title { color: var(--popup-text) !important; }
+.leaflet-popup.site-popup .site-popup__meta { color: var(--popup-muted) !important; }
+.leaflet-popup.site-popup .site-popup__arrow { color: var(--popup-muted) !important; }
+.leaflet-popup.site-popup a.leaflet-popup-close-button { color: var(--popup-muted) !important; }
+
+
+
   </style>
 
   <script is:inline define:vars={{ mapLocations: locationsForMap }}>
@@ -1094,22 +1457,37 @@ const jsonLd = {
 
         const marker = window.L.marker([location.lat, location.lng], { icon: customIcon }).addTo(markerGroup);
 
-        marker.bindPopup(`
-          <div style="padding: 0.5rem;">
-            <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
-              <a href="/business/${location.slug}" style="color: var(--accent); text-decoration: none;">
-                ${location.name}
-              </a>
-            </h3>
-            <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">
-              ${
-                (location.neighborhoods && location.neighborhoods.length > 0)
-                  ? location.neighborhoods[0]
-                  : "Denver"
-              }
-            </p>
-          </div>
-        `);
+        marker.bindPopup(
+  `
+  <div class="site-popup__inner">
+    <div class="site-popup__header">
+      <a class="site-popup__title" href="/business/${location.slug}">
+        ${location.name}
+      </a>
+      <div class="site-popup__meta">
+        ${
+          (location.neighborhoods && location.neighborhoods.length > 0)
+            ? location.neighborhoods[0]
+            : "Denver"
+        }
+      </div>
+    </div>
+
+    <div class="site-popup__footer">
+      <span class="site-popup__pill">View details</span>
+      <span class="site-popup__arrow">→</span>
+    </div>
+  </div>
+  `,
+  {
+    className: "site-popup",       // 👈 adds a class to the Leaflet popup container
+    closeButton: true,
+    autoPan: true,
+    maxWidth: 280,
+    minWidth: 220,
+  }
+);
+
 
         markers[location.slug] = marker;
 

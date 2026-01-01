@@ -2,7 +2,7 @@
   "name": "Konjo Ethiopian Food",
   "slug": "konjo-ethiopian-food",
   "type": "restaurant",
-  "cuisineTypes": ["African", "Ethiopian"],
+  "specialties": ["African", "Ethiopian"],
   "businessCategories": ["Restaurant", "Food Truck", "Catering"],
   "neighborhoods": ["Union Station", "Sloan's Lake"],
   "latitude": 39.7553,

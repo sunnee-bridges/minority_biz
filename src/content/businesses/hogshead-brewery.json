@@ -2,7 +2,7 @@
   "name": "Hogshead Brewery",
   "slug": "hogshead-brewery",
   "type": "restaurant",
-  "cuisineTypes": ["American", "Pub Food"],
+  "specialties": ["American", "Pub Food"],
   "businessCategories": ["Restaurant", "Brewery"],
   "neighborhoods": ["Sloan's Lake", "Edgewater"],
   "latitude": 39.7549,

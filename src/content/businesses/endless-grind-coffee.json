@@ -2,7 +2,7 @@
   "name": "Endless Grind Coffee",
   "slug": "endless-grind-coffee",
   "type": "restaurant",
-  "cuisineTypes": ["Coffee", "Tea", "Dessert", "Breakfast", "Brunch", "African"],
+  "specialties": ["Coffee", "Tea", "Dessert", "Breakfast", "Brunch", "African"],
   "businessCategories": ["Restaurant", "Cafe"],
   "neighborhoods": ["South Aurora"],
   "latitude": 39.6103,

@@ -78,7 +78,7 @@ const neighborhoods = Array.from(slugToName.entries())
   .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
 /** -------------------------
- * ✅ SEO (added/cleaned, no UI changes)
+ * ✅ SEO (unchanged)
  * ------------------------ */
 const pageImage = "/og-denver-black-guide.png";
 const pageTitle = "Denver Neighborhoods • Denver Black Guide";
@@ -86,11 +86,7 @@ const pageDescription =
   "Browse Denver neighborhoods and explore Black-owned businesses by area. Use neighborhood pages to filter listings and view locations on the map.";
 
 // Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
-const origin =
-  import.meta.env.SITE_URL ||
-  Astro.site ||
-  Astro.url.origin;
-
+const origin = import.meta.env.SITE_URL || Astro.site || Astro.url.origin;
 
 const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
 const canonical = new URL(canonicalPath, origin).toString();
@@ -128,7 +124,6 @@ const jsonLd = {
       url: canonical,
       description: pageDescription,
       primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
-      // nice-to-have connections to Base.astro global ids (doesn't break if absent)
       isPartOf: { "@id": `${siteUrl}#website` },
       publisher: { "@id": `${siteUrl}#organization` },
       breadcrumb: { "@id": breadcrumbId },
@@ -144,9 +139,7 @@ const jsonLd = {
   ],
 };
 
-const robots = isFiltered
-  ? "noindex,follow"
-  : "index,follow,max-image-preview:large";
+const robots = isFiltered ? "noindex,follow" : "index,follow,max-image-preview:large";
 ---
 
 <BaseLayout
@@ -157,16 +150,12 @@ const robots = isFiltered
   jsonLd={jsonLd}
   robots={robots}
 >
-  
-    <!-- ✅ Small SEO extras (no UI impact) -->
-    <meta slot="head" name="author" content="Denver Black Guide" />
-    <meta slot="head" property="og:site_name" content="Denver Black Guide" />
-    <meta slot="head" property="og:locale" content="en_US" />
-    <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
-    <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
-
-
-  
+  <!-- ✅ Small SEO extras (no UI impact) -->
+  <meta slot="head" name="author" content="Denver Black Guide" />
+  <meta slot="head" property="og:site_name" content="Denver Black Guide" />
+  <meta slot="head" property="og:locale" content="en_US" />
+  <meta slot="head" property="og:image:alt" content="Denver Black Guide directory preview" />
+  <meta slot="head" name="twitter:image:alt" content="Denver Black Guide directory preview" />
 
   <div class="directory">
     <nav aria-label="Breadcrumb" class="directory__breadcrumb">
@@ -181,11 +170,26 @@ const robots = isFiltered
         Browse neighborhood pages to explore Black-owned businesses by area.
       </p>
       <p class="directory__subtitle" style="margin-top:0.5rem;">
-        Showing <strong id="visible-count">{neighborhoods.length}</strong> neighborhood{neighborhoods.length === 1 ? "" : "s"}.
+        Showing{" "}
+        <strong id="visible-count" aria-live="polite">{neighborhoods.length}</strong>{" "}
+        neighborhood{neighborhoods.length === 1 ? "" : "s"}.
       </p>
     </header>
 
-    <section class="filter-panel" aria-label="Neighborhood filters" id="filters">
+    <!-- ✅ Filters (updated UX) -->
+    <section
+      class="filter-panel"
+      aria-label="Neighborhood filters"
+      id="filters"
+      data-collapsed="true"
+    >
+      <!-- Mobile toggle -->
+      <button class="filter-panel__toggle" id="filter-toggle" type="button">
+        <span id="filter-toggle-text">Show Filters</span>
+        <span class="filter-badge" id="filter-count">0</span>
+        <span class="filter-toggle__icon">▼</span>
+      </button>
+
       <div class="filter-panel__content">
         <div class="filter-row filter-row--top">
           <div class="filter-search-wrap">
@@ -219,6 +223,10 @@ const robots = isFiltered
                 ✕
               </button>
             </div>
+
+            <p class="filter-dropdown__hint" style="margin-top:0.35rem;">
+              Search filters the checkbox list and the neighborhood cards.
+            </p>
           </div>
 
           <div class="filter-sort-wrap">
@@ -236,8 +244,8 @@ const robots = isFiltered
 
             <div class="multi-check">
               <div class="multi-check__actions">
-                <button type="button" class="multi-check__btn" id="select-all">Select all</button>
-                <button type="button" class="multi-check__btn" id="clear-all">Clear</button>
+                <button type="button" class="multi-check__btn" id="select-all">Select all shown</button>
+                <button type="button" class="multi-check__btn" id="clear-all">Clear shown</button>
               </div>
 
               <div class="multi-check__list" id="neighborhood-checks">
@@ -249,11 +257,12 @@ const robots = isFiltered
                       value={n.slug}
                       data-name={n.name.toLowerCase()}
                       data-count={n.count}
+                      data-label={n.name}
                     />
                     <span class="multi-check__text">
                       {n.name}
                       <span class="multi-check__muted">
-                        {n.slug === "mobile" ? " • Mobile & pop-up" : ` • ${n.count}`}
+                        {n.slug === "mobile" ? " • 🚚 Mobile & pop-up" : ` • ${n.count} listings`}
                       </span>
                     </span>
                   </label>
@@ -272,6 +281,23 @@ const robots = isFiltered
         </div>
       </div>
     </section>
+
+    <!-- ✅ Selected summary bar -->
+    <div id="selected-bar" class="selected-bar" style="display:none;">
+      <div class="selected-bar__left">
+        <span class="selected-bar__title">
+          Selected: <strong id="selected-count">0</strong>
+        </span>
+        <div class="selected-bar__pills" id="selected-pills"></div>
+      </div>
+
+      <div class="selected-bar__right">
+        <button type="button" class="selected-bar__btn" id="selected-clear">Clear</button>
+        <button type="button" class="selected-bar__btn selected-bar__btn--primary" id="selected-view">
+          View results (<span id="selected-visible">0</span>)
+        </button>
+      </div>
+    </div>
 
     <section class="neighborhoods">
       <div class="neighborhoods__grid" id="neighborhood-grid">
@@ -302,6 +328,11 @@ const robots = isFiltered
     </section>
   </div>
 
+  <!-- ✅ Floating mobile CTA -->
+  <button id="mobile-view-results" class="mobile-view-results" type="button" style="display:none;">
+    View <span id="mobile-view-results-count">0</span> results
+  </button>
+
   <style>
     .directory { display: flex; flex-direction: column; gap: 1.5rem; }
 
@@ -321,6 +352,44 @@ const robots = isFiltered
       background: var(--bg-elevated); box-shadow: var(--shadow-soft);
       padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.75rem;
     }
+
+    /* ✅ Mobile filter toggle */
+    .filter-panel__toggle {
+      display: none;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      gap: 0.75rem;
+    }
+
+    .filter-badge {
+      background: var(--accent);
+      color: white;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+
+    .filter-toggle__icon { font-size: 0.75rem; transition: transform 0.2s; }
+    .filter-panel[data-collapsed="false"] .filter-toggle__icon { transform: rotate(180deg); }
+
+    @media (max-width: 768px) {
+      .filter-panel__toggle { display: flex; }
+      .filter-panel[data-collapsed="true"] .filter-panel__content { display: none; }
+      .filter-panel { padding: 0; }
+      .filter-panel__content { padding: 0.9rem 1rem 1rem; }
+    }
+
     .filter-row { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: flex-start; }
     .filter-row--top { align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; }
     .filter-row--actions { justify-content: flex-end; padding-top: 0.5rem; border-top: 1px solid var(--border-subtle); }
@@ -363,7 +432,10 @@ const robots = isFiltered
     .multi-check__actions { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
     .multi-check__btn { border: 1px solid var(--border-subtle); background: var(--bg-elevated); color: var(--text-main); border-radius: 9999px; padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer; }
     .multi-check__list { max-height: 220px; overflow: auto; display: flex; flex-direction: column; gap: 0.25rem; padding-right: 0.25rem; }
+
     .multi-check__item { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.4rem; border-radius: 0.4rem; cursor: pointer; user-select: none; }
+    .multi-check__item:focus-within { background: var(--accent-soft); outline: 1px solid var(--border-subtle); }
+
     .multi-check__box { width: 16px; height: 16px; accent-color: var(--accent); }
     .multi-check__text { font-size: 0.85rem; display: inline-flex; gap: 0.25rem; align-items: baseline; flex-wrap: wrap; }
     .multi-check__muted { font-size: 0.75rem; color: var(--text-muted); }
@@ -388,6 +460,88 @@ const robots = isFiltered
     .empty-state__title { margin: 0; font-size: 1rem; }
     .empty-state__message { margin: 0.35rem 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
     .empty-state__button { border: 1px solid var(--border-subtle); background: transparent; color: var(--text-muted); border-radius: 9999px; padding: 0.4rem 1rem; cursor: pointer; }
+
+    /* ✅ Selected summary bar */
+    .selected-bar {
+      position: sticky;
+      top: 0.75rem;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.9rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-soft);
+    }
+    .selected-bar__left { display: flex; gap: 0.75rem; align-items: center; min-width: 0; }
+    .selected-bar__title { font-size: 0.85rem; color: var(--text-main); white-space: nowrap; }
+
+    .selected-bar__pills { display: flex; gap: 0.35rem; flex-wrap: wrap; min-width: 0; }
+
+    .selected-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-page);
+      font-size: 0.75rem;
+      color: var(--text-main);
+      max-width: 260px;
+    }
+    .selected-pill__text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 200px;
+    }
+    .selected-pill__remove {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .selected-bar__right { display: flex; gap: 0.5rem; align-items: center; }
+    .selected-bar__btn {
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 9999px;
+      padding: 0.35rem 0.7rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .selected-bar__btn--primary { background: var(--accent); border-color: var(--accent); color: white; }
+
+    /* ✅ Floating mobile CTA */
+    .mobile-view-results {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 1rem;
+      z-index: 50;
+      border: none;
+      border-radius: 9999px;
+      padding: 0.8rem 1.1rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: white;
+      box-shadow: var(--shadow-soft);
+      cursor: pointer;
+    }
+    @media (min-width: 769px) {
+      .mobile-view-results { display: none !important; }
+    }
   </style>
 
   <script>
@@ -396,6 +550,12 @@ const robots = isFiltered
     const sortSelect = document.getElementById("sort");
     const grid = document.getElementById("neighborhood-grid");
     const visibleCount = document.getElementById("visible-count");
+
+    // mobile collapse
+    const filterPanel = document.getElementById("filters");
+    const filterToggle = document.getElementById("filter-toggle");
+    const filterToggleText = document.getElementById("filter-toggle-text");
+    const filterCountBadge = document.getElementById("filter-count");
 
     const checksWrap = document.getElementById("neighborhood-checks");
     const checkboxes = Array.from(checksWrap?.querySelectorAll('input[type="checkbox"]') || []);
@@ -407,6 +567,18 @@ const robots = isFiltered
     const emptyState = document.getElementById("empty-state");
     const resetFromEmpty = document.getElementById("reset-from-empty");
 
+    // selected sticky bar
+    const selectedBar = document.getElementById("selected-bar");
+    const selectedCountEl = document.getElementById("selected-count");
+    const selectedVisibleEl = document.getElementById("selected-visible");
+    const selectedPills = document.getElementById("selected-pills");
+    const selectedClearBtn = document.getElementById("selected-clear");
+    const selectedViewBtn = document.getElementById("selected-view");
+
+    // mobile floating CTA
+    const mobileViewBtn = document.getElementById("mobile-view-results");
+    const mobileViewCount = document.getElementById("mobile-view-results-count");
+
     function normalize(str) {
       return (str || "").toLowerCase().trim();
     }
@@ -414,6 +586,10 @@ const robots = isFiltered
     // match "five points" with slug "five-points"
     function qToSlug(q) {
       return normalize(q).replace(/\s+/g, "-").replace(/[^a-z0-9-]+/g, "");
+    }
+
+    function isMobile() {
+      return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
     }
 
     function updateClearButton() {
@@ -434,7 +610,82 @@ const robots = isFiltered
       });
     }
 
-    function applyFilters() {
+    function getActiveFilterCount(selectedSet) {
+      let count = 0;
+      if (searchInput && searchInput.value.trim()) count++;
+      if (selectedSet && selectedSet.size) count += selectedSet.size;
+      return count;
+    }
+
+    function updateFilterBadge(selectedSet) {
+      const count = getActiveFilterCount(selectedSet);
+      if (!filterCountBadge) return;
+      filterCountBadge.textContent = String(count);
+      filterCountBadge.style.display = count > 0 ? "" : "none";
+    }
+
+    function renderSelectedBar(selectedSet, visibleResults) {
+      if (!selectedBar || !selectedCountEl || !selectedPills || !selectedVisibleEl) return;
+
+      const selectedArr = Array.from(selectedSet || []);
+      const hasAny = selectedArr.length > 0;
+
+      selectedBar.style.display = hasAny ? "flex" : "none";
+      selectedCountEl.textContent = String(selectedArr.length);
+      selectedVisibleEl.textContent = String(visibleResults);
+
+      selectedPills.innerHTML = "";
+      selectedArr.slice(0, 6).forEach((slug) => {
+        const box = checkboxes.find((c) => c.value === slug);
+        const label = box?.dataset?.label || slug;
+
+        const pill = document.createElement("span");
+        pill.className = "selected-pill";
+        pill.innerHTML = `
+          <span class="selected-pill__text" title="${label}">${label}</span>
+          <button type="button" class="selected-pill__remove" aria-label="Remove ${label}" data-remove="${slug}">×</button>
+        `;
+        selectedPills.appendChild(pill);
+      });
+
+      if (selectedArr.length > 6) {
+        const more = document.createElement("span");
+        more.className = "selected-pill";
+        more.innerHTML = `<span class="selected-pill__text">+${selectedArr.length - 6} more</span>`;
+        selectedPills.appendChild(more);
+      }
+
+      selectedPills.querySelectorAll("[data-remove]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const slug = btn.dataset.remove;
+          const box = checkboxes.find((c) => c.value === slug);
+          if (box) box.checked = false;
+          applyFilters({ userInitiated: true });
+        });
+      });
+    }
+
+    function showMobileViewCTA(visibleResults, shouldShow) {
+      if (!mobileViewBtn || !mobileViewCount) return;
+
+      if (!isMobile()) {
+        mobileViewBtn.style.display = "none";
+        return;
+      }
+
+      mobileViewCount.textContent = String(visibleResults);
+      mobileViewBtn.style.display = shouldShow ? "block" : "none";
+    }
+
+    function scrollToGrid() {
+      const section = document.querySelector(".neighborhoods");
+      if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+      else if (grid) grid.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function applyFilters(opts = {}) {
+      const userInitiated = !!opts.userInitiated;
+
       const qRaw = searchInput?.value || "";
       const q = normalize(qRaw);
       const qSlug = qToSlug(qRaw);
@@ -486,41 +737,85 @@ const robots = isFiltered
       if (grid) grid.style.display = visible === 0 ? "none" : "";
 
       updateClearButton();
+      updateFilterBadge(selected);
+      renderSelectedBar(selected, visible);
+
+      // show mobile CTA when user changes filters
+      const shouldShowCTA = userInitiated && isMobile() && visible > 0;
+      showMobileViewCTA(visible, shouldShowCTA);
+
+      // collapse filters on mobile after a change (keeps focus on results)
+      if (userInitiated && isMobile() && filterPanel && filterPanel.dataset) {
+        if (visible > 0) {
+          filterPanel.dataset.collapsed = "true";
+          if (filterToggleText) filterToggleText.textContent = "Show Filters";
+        }
+      }
     }
 
     function resetAll() {
       if (searchInput) searchInput.value = "";
       checkboxes.forEach((c) => (c.checked = false));
       if (sortSelect) sortSelect.value = "count";
-      applyFilters();
+      applyFilters({ userInitiated: true });
     }
 
-    searchInput?.addEventListener("input", applyFilters);
+    // filter toggle
+    if (filterToggle && filterPanel && filterToggleText) {
+      filterToggle.addEventListener("click", () => {
+        const isCollapsed = filterPanel.dataset.collapsed === "true";
+        filterPanel.dataset.collapsed = isCollapsed ? "false" : "true";
+        filterToggleText.textContent = isCollapsed ? "Hide Filters" : "Show Filters";
+      });
+    }
+
+    // events
+    searchInput?.addEventListener("input", () => applyFilters({ userInitiated: true }));
 
     clearBtn?.addEventListener("click", () => {
       if (!searchInput) return;
       searchInput.value = "";
       searchInput.focus();
-      applyFilters();
+      applyFilters({ userInitiated: true });
     });
 
-    sortSelect?.addEventListener("change", applyFilters);
-    checkboxes.forEach((c) => c.addEventListener("change", applyFilters));
+    sortSelect?.addEventListener("change", () => applyFilters({ userInitiated: true }));
+    checkboxes.forEach((c) => c.addEventListener("change", () => applyFilters({ userInitiated: true })));
 
     selectAllBtn?.addEventListener("click", () => {
       visibleCheckboxes().forEach((c) => (c.checked = true));
-      applyFilters();
+      applyFilters({ userInitiated: true });
     });
 
     clearAllBtn?.addEventListener("click", () => {
       visibleCheckboxes().forEach((c) => (c.checked = false));
-      applyFilters();
+      applyFilters({ userInitiated: true });
     });
 
     resetAllBtn?.addEventListener("click", resetAll);
     resetFromEmpty?.addEventListener("click", resetAll);
 
+    selectedClearBtn?.addEventListener("click", () => {
+      checkboxes.forEach((c) => (c.checked = false));
+      applyFilters({ userInitiated: true });
+    });
+
+    selectedViewBtn?.addEventListener("click", () => {
+      scrollToGrid();
+      showMobileViewCTA(Number(visibleCount?.textContent || "0"), false);
+    });
+
+    mobileViewBtn?.addEventListener("click", () => {
+      scrollToGrid();
+      mobileViewBtn.style.display = "none";
+    });
+
+    // initial
     updateClearButton();
-    applyFilters();
+    if (filterPanel && filterPanel.dataset && isMobile()) {
+      filterPanel.dataset.collapsed = "true";
+      if (filterToggleText) filterToggleText.textContent = "Show Filters";
+    }
+    applyFilters({ userInitiated: false });
   </script>
 </BaseLayout>

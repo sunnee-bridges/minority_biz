@@ -2,7 +2,7 @@
   "name": "Smokin' Bones BBQ",
   "slug": "smokin-bones-bbq",
   "type": "food truck",
-  "cuisineTypes": ["Soul Food", "Southern"],
+  "specialties": ["Soul Food", "Southern"],
   "businessCategories": ["Catering", "Food Truck"],
   "neighborhoods": ["Mobile", "Park Hill"],
   "latitude": 39.77223,

@@ -2,7 +2,7 @@
   "name": "CJ's Sticky Fingers Catering",
   "slug": "cjs-sticky-fingers-catering",
   "type": "food truck",
-  "cuisineTypes": ["BBQ", "Soul Food"],
+  "specialties": ["BBQ", "Soul Food"],
   "businessCategories": ["Food Truck", "Catering"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

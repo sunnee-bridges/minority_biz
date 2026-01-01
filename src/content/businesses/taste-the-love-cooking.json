@@ -2,7 +2,7 @@
   "name": "Taste the Love Cooking",
   "slug": "taste-the-love-cooking",
   "type": "catering",
-  "cuisineTypes": ["Soul Food", "Barbecue"],
+  "specialties": ["Soul Food", "Barbecue"],
   "businessCategories": ["Catering"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

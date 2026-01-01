@@ -2,7 +2,7 @@
   "name": "Kabod Coffee",
   "slug": "kabod-coffee",
   "type": "restaurant",
-  "cuisineTypes": ["Coffee", "Tea", "African"],
+  "specialties": ["Coffee", "Tea", "African"],
   "businessCategories": ["Cafe", "Coffee Roaster"],
   "neighborhoods": ["DIA"],
   "latitude": 39.8561,

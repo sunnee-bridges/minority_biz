@@ -2,7 +2,7 @@
   "name": "Meaty Boyz Food Truck",
   "slug": "meaty-boyz-food-truck",
   "type": "food truck",
-  "cuisineTypes": ["Soul Food", "BBQ"],
+  "specialties": ["Soul Food", "BBQ"],
   "businessCategories": ["Food Truck", "Catering"],
   "neighborhoods": ["Mobile"],
   "latitude": null,

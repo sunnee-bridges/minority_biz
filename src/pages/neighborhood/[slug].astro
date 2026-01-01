@@ -25,6 +25,7 @@ function titleCase(str: string): string {
 /** Amenity icons (same as type page) */
 function getAmenityIcon(tag: string): string {
   const icons: Record<string, string> = {
+    // existing
     takeout: "🥡",
     "dine-in": "🍽️",
     "outdoor seating": "🌳",
@@ -36,11 +37,73 @@ function getAmenityIcon(tag: string): string {
     "parking available": "🅿️",
     "pet-friendly patio": "🐾",
     "live music": "🎸",
-    "free admission": "🎟️",
-    "artist talks": "🎨",
-    "workshop space": "🛠️",
+
+    // dietary
+    "100% vegan": "🌱",
+    "dairy-free": "🥛🚫",
+    "gluten-free": "🌾🚫",
+    "nut-free": "🥜🚫",
+    "soy-free": "🫘🚫",
+    halal: "☪️",
+    "halal food": "☪️",
+    vegetarian: "🥕",
+    "vegetarian options": "🥕",
+    "all-natural ingredients": "🍃",
+    "dietary/allergy friendly": "🧑‍⚕️",
+    "dietary & allergy friendly": "🧑‍⚕️",
+
+    // food/service
+    "accepts reservations": "📅",
+    reservations: "📅",
+    catering: "🍱",
+    "curbside pickup": "🅿️📦",
+    "drive-thru": "🚗💨",
+    "quick bite": "⚡️🍴",
+    "small plates": "🍽️✨",
+    "happy hour": "⏰🍹",
+    alcohol: "🍸",
+    "bar onsite": "🍺",
+    "bar on-site": "🍺",
+
+    // accessibility + facilities
+    "wheelchair accessible": "♿️",
+    "gender-neutral restroom": "🚻",
+    "transgender safespace": "🏳️‍⚧️",
+    "transgender safe space": "🏳️‍⚧️",
+    "high chairs": "👶",
+    "kids’ menu": "🧒",
+    "kids menu": "🧒",
+    "family-friendly": "👨‍👩‍👧‍👦",
+    "groups welcome": "👥",
+
+    // parking/transport
+    "bike parking": "🚲",
+    "free parking": "🆓🅿️",
+    "valet parking": "🅿️🤵",
+
+    // vibes / extras
+    "heated outdoor seating": "🔥🌳",
+    "pool table": "🎱",
+    "juke box": "📻",
+    tourists: "🧳",
+    philanthropic: "🤝",
+    "veteran owned": "🎖️",
+
+    // retail / market / goods
+    "specialty market": "🛒",
+    "african groceries": "🛒🌍",
+    "caribbean groceries": "🛒🌴",
+    "imported goods": "📦🌍",
+    "cultural products": "🏺",
+    "fabrics and jewelry": "🧵💎",
+
+    // art / studio / handmade
+    "studio services": "🎬",
+    "handmade dishes": "🫶🍽️",
+    "plant-based soul food": "🌱🍲",
   };
-  return icons[String(tag || "").toLowerCase()] || "✓";
+
+  return icons[(tag || "").toLowerCase().trim()] || "✓";
 }
 
 /** SSG */
@@ -109,10 +172,18 @@ let filtered = enhanced.filter(
 
 const hasResults = filtered.length > 0;
 
-/** Filters */
-const primaryTypes = Array.from(
-  new Set(filtered.flatMap((b) => b.cuisineTypes || []))
-).sort();
+/** Filters (Specialties) */
+const primaryTypeMap = new Map<string, string>(); // normalized -> display label
+
+filtered.flatMap((b) => b.specialties || []).forEach((tag) => {
+  const pretty = String(tag || "").trim();
+  const norm = pretty.toLowerCase();
+  if (!norm) return;
+  if (!primaryTypeMap.has(norm)) primaryTypeMap.set(norm, pretty);
+});
+
+const primaryTypes = Array.from(primaryTypeMap.values()).sort();
+
 
 const allMicrofilters = Array.from(
   new Set(filtered.flatMap((b) => b.microfilters || []))
@@ -147,7 +218,7 @@ const pageTitle = isMobile
 
 const pageDescription = isMobile
   ? "Browse mobile and pop-up Black-owned businesses serving the Denver metro area."
-  : `Explore Black-owned restaurants in ${displayNeighborhood}, Denver. Filter by cuisine and amenities, and view locations on the map.`;
+  : `Explore Black-owned restaurants in ${displayNeighborhood}, Denver. Filter by specialty and amenities, and view locations on the map.`;
 
 // Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
 const origin =
@@ -264,7 +335,7 @@ if (!hasResults) {
       <p class="directory__subtitle">
         {isMobile
           ? "These businesses may not have one fixed neighborhood. Check each listing for current locations and scheduling."
-          : `Explore restaurants listed in ${displayNeighborhood} — filter by cuisine and amenities.`}
+          : `Explore restaurants listed in ${displayNeighborhood} — filter by specialty and amenities.`}
       </p>
     </header>
 
@@ -320,7 +391,7 @@ if (!hasResults) {
             <label for="sort" class="filter-label">Sort by</label>
             <select id="sort" class="filter-sort">
               <option value="az">A–Z (Name)</option>
-              <option value="cuisine">Cuisine</option>
+              <option value="specialty">Specialty</option>
             </select>
           </div>
         </div>
@@ -328,7 +399,7 @@ if (!hasResults) {
         <div class="filter-dropdowns">
           {primaryTypes.length > 0 && (
             <div class="filter-dropdown">
-              <label for="primary-select" class="filter-label">Cuisine</label>
+              <label for="primary-select" class="filter-label">Specialty</label>
               <select id="primary-select" class="filter-select" multiple size="4">
                 {primaryTypes.map((c) => (
                   <option value={c.toLowerCase()}>{c}</option>
@@ -393,7 +464,7 @@ if (!hasResults) {
         <div id="results-grid" class="directory__grid">
           {filtered.map((b) => {
             const name = b.name || "";
-            const cuisines = b.cuisineTypes || [];
+            const specialties = b.specialties || [];
             const neighborhoods = b.neighborhoods || [];
             const microfilters = b.microfilters || [];
 
@@ -403,79 +474,92 @@ if (!hasResults) {
                 class="business-card-link"
                 data-slug={b.slug}
                 data-name={name.toLowerCase()}
-                data-primary-types={cuisines.join("|").toLowerCase()}
+                data-primary-types={specialties.join("|").toLowerCase()}
                 data-neighborhoods={neighborhoods.join("|").toLowerCase()}
                 data-microfilters={microfilters.join("|").toLowerCase()}
                 data-lat={b.latitude}
                 data-lng={b.longitude}
               >
-                <article class="card business-card">
-                  <h2 class="business-card__name">{name}</h2>
+               <article class="card business-card">
+  <!-- NAME -->
+  <h2 class="business-card__name">{name}</h2>
 
-                  <div class="business-card__quick-info">
-                    <span class="quick-info-item">
-                      <span class="quick-info-item__icon">📍</span>
+  <!-- NEIGHBORHOOD -->
+<div class="business-card__row business-card__row--neighborhood">
+  <span class="row-icon">📍</span>
 
-                      {neighborhoods.length > 0 ? (
-                        <span class="neighborhood-chip-row">
-                          {neighborhoods.slice(0, 2).map((n) => (
-                            <button
-                              type="button"
-                              class="neighborhood-chip"
-                              data-neighborhood-slug={neighborhoodSlug(n)}
-                              aria-label={`View businesses in ${n}`}
-                            >
-                              {n}
-                            </button>
-                          ))}
-                          {neighborhoods.length > 2 && (
-                            <span class="neighborhood-more">
-                              +{neighborhoods.length - 2}
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span>{"Location TBD"}</span>
-                      )}
-                    </span>
+  {neighborhoods.length > 0 ? (
+    <>
+      <span class="neighborhood-chip-row">
+        {neighborhoods.slice(0, 2).map((n) => (
+          <button
+            type="button"
+            class="neighborhood-chip"
+            data-neighborhood-slug={neighborhoodSlug(n)}
+            aria-label={`View businesses in ${n}`}
+          >
+            {n}
+          </button>
+        ))}
+      </span>
 
-                    {b.yearEstablished && (
-                      <span class="quick-info-item">
-                        <span class="quick-info-item__icon">📅</span>
-                        Est. {b.yearEstablished}
-                      </span>
-                    )}
-                  </div>
+      {neighborhoods.length > 2 && (
+        <span class="row-muted">+{neighborhoods.length - 2}</span>
+      )}
+    </>
+  ) : (
+    <span class="row-muted">Location TBD</span>
+  )}
+</div>
 
-                  <p class="business-card__meta">
-                    {cuisines.length > 0 ? (
-                      <>
-                        <span class="business-card__type">Cuisine:</span>{" "}
-                        <span>{cuisines.join(", ")}</span>
-                      </>
-                    ) : (
-                      <span class="business-card__type">Restaurant</span>
-                    )}
-                  </p>
 
-                  {microfilters.length > 0 && (
-                    <div class="business-card__amenities">
-                      {microfilters.slice(0, 3).map((tag) => (
-                        <span class="amenity-tag" title={tag}>
-                          <span class="amenity-tag__icon">{getAmenityIcon(tag)}</span>
-                          <span class="amenity-tag__label">{tag}</span>
-                        </span>
-                      ))}
-                      {microfilters.length > 3 && (
-                        <span class="business-card__more">
-                          +{microfilters.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  )}
+  <!-- TYPE + SPECIALTIES -->
+  <p class="business-card__meta">
+    <span class="business-card__type">{b.primaryType}</span>
 
-                  <div class="business-card__action">View Details →</div>
-                </article>
+    {specialties.length > 0 && (
+      <>
+        <span class="meta-sep">·</span>
+        <span class="business-card__specialties">
+          Specialty: {specialties.slice(0, 2).join(", ")}
+          {specialties.length > 2 && ` +${specialties.length - 2}`}
+        </span>
+      </>
+    )}
+  </p>
+
+  <!-- AMENITIES (2 max) + COUNT -->
+  {microfilters.length > 0 && (
+    <div class="business-card__amenities-row">
+      <div class="business-card__amenities">
+        {microfilters.slice(0, 2).map((tag) => (
+          <span class="amenity-tag" title={tag}>
+            <span class="amenity-tag__icon">{getAmenityIcon(tag)}</span>
+            <span class="amenity-tag__label">{tag}</span>
+          </span>
+        ))}
+      </div>
+
+      {microfilters.length > 2 && (
+        <span class="business-card__more">+{microfilters.length - 2} more</span>
+      )}
+    </div>
+  )}
+
+  <!-- FOOTER: EST + CTA -->
+  <div class="business-card__footer">
+    {b.yearEstablished ? (
+      <span class="business-card__est">
+        <span class="row-icon">📅</span> Est. {b.yearEstablished}
+      </span>
+    ) : (
+      <span></span>
+    )}
+
+    <span class="business-card__action">View Details →</span>
+  </div>
+</article>
+
               </a>
             );
           })}
@@ -630,6 +714,24 @@ if (!hasResults) {
       border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000;
     }
 
+    /* ✅ Neighborhood page: dark-theme-only fix for map location count (light theme unchanged) */
+    html[data-theme="dark"] .map-overlay {
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Optional: make text inside behave like your other pages */
+    html[data-theme="dark"] .map-overlay__text {
+      color: var(--text-muted);
+    }
+
+    html[data-theme="dark"] .map-overlay__text #map-marker-count {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+
     .directory__results { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
     .directory__results-count { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
 
@@ -646,6 +748,8 @@ if (!hasResults) {
     .business-card__name { margin: 0 0 0.1rem; font-size: 1rem; color: var(--text-main); }
     .quick-info-item { display: flex; align-items: center; gap: 0.25rem; }
     .quick-info-item__icon { font-size: 0.85rem; }
+    .business-card__specialty-more {font-weight: 600; color: var(--text-muted); }
+
     .business-card__meta { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
     .business-card__type { font-weight: 600; }
 
@@ -663,6 +767,227 @@ if (!hasResults) {
       font-weight: 500; opacity: 0; transition: opacity 0.15s;
     }
     .business-card:hover .business-card__action { opacity: 1; }
+
+    /* --- UX card layout helpers (neighborhood page) --- */
+
+.business-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.row-icon {
+  font-size: 0.9rem;
+}
+
+.row-muted {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.meta-sep {
+  opacity: 0.6;
+  margin: 0 0.25rem;
+}
+
+.business-card__amenities-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.business-card__more {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0; /* overrides your older padding */
+}
+
+.business-card__footer {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.business-card__est {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* optional: clamp long business names to avoid huge cards */
+.business-card__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* CTA always visible (better UX on mobile) */
+.business-card__action {
+  opacity: 1;
+}
+
+/* If you prefer hover-only CTA on desktop, replace the rule above with:
+@media (hover: hover) {
+  .business-card__action { opacity: 0; }
+  .business-card-link:hover .business-card__action { opacity: 1; }
+}
+*/
+
+/* =========================================
+   NEIGHBORHOOD PAGE — Business card footer fix
+   Est. left + View Details right (stable)
+   Paste at the VERY BOTTOM of the <style>
+   ========================================= */
+
+#results-grid .business-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.55rem;
+}
+
+/* Row helpers */
+#results-grid .business-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+#results-grid .row-icon {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+#results-grid .row-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Meta line */
+#results-grid .business-card__meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+#results-grid .business-card__type {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+#results-grid .meta-sep {
+  opacity: 0.65;
+  margin: 0 0.2rem;
+}
+
+/* Amenities row */
+#results-grid .business-card__amenities-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+#results-grid .business-card__more {
+  white-space: nowrap;
+  padding: 0; /* override older padding in this file */
+}
+
+/* ✅ Footer pinned to bottom + fixed left/right layout */
+#results-grid .business-card__footer {
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Est. stays left */
+#results-grid .business-card__est {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ✅ CTA stays right and DOES NOT disappear */
+#results-grid .business-card__action {
+  /* override old hover-only CTA rules */
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--accent);
+  white-space: nowrap;
+
+  opacity: 1 !important;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+/* Micro-interaction */
+#results-grid .business-card-link:hover .business-card__action,
+#results-grid .business-card-link:focus-visible .business-card__action,
+#results-grid .business-card-link:focus-within .business-card__action {
+  transform: translateX(2px);
+}
+
+/* Optional: tiny hover emphasis, but never hidden */
+@media (hover: hover) {
+  #results-grid .business-card__action {
+    opacity: 0.92 !important;
+  }
+  #results-grid .business-card-link:hover .business-card__action {
+    opacity: 1 !important;
+  }
+}
+
+/* Optional: clamp long names to keep grid height tidy */
+#results-grid .business-card__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Neighborhood chip: prevent messy wrapping */
+#results-grid .neighborhood-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
     .neighborhood-chip-row { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
     .neighborhood-chip {

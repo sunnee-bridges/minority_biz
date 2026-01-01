@@ -2,15 +2,14 @@
   "name": "Abyssinia Ethiopian Restaurant",
   "slug": "abyssinia-ethiopian-restaurant",
   "type": "restaurant",
-  "cuisineTypes": ["African", "Vegetarian"],
+  "specialties": ["African", "Vegetarian"],
   "businessCategories": ["Restaurant"],
   "neighborhoods": ["Park Hill"],
   "latitude": 39.7402,
   "longitude": -104.9015,
   "microfilters": [
     "Vegan options",
-    "Offers catering",
-    "Street parking"
+    "Catering"
   ],
   "website": "https://www.facebook.com/injera303/",
   "phone": "(303) 316-8830",

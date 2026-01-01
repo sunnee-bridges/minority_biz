@@ -2,7 +2,7 @@
   "name": "Mimosas",
   "slug": "mimosas",
   "type": "restaurant",
-  "cuisineTypes": ["Southern", "Breakfast", "Brunch"],
+  "specialties": ["Southern", "Breakfast", "Brunch"],
   "businessCategories": ["Restaurant"],
   "neighborhoods": ["Five Points"],
   "latitude": 39.75551,

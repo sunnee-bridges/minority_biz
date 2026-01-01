@@ -2,7 +2,7 @@
   "name": "Gold Star Hot Links",
   "slug": "gold-star-hot-links",
   "type": "restaurant",
-  "cuisineTypes": ["Soul Food"],
+  "specialties": ["Soul Food"],
   "businessCategories": ["Food Manufacturer", "Specialty Food"],
   "neighborhoods": ["Skyland", "Park Hill"],
   "latitude": 39.7192,

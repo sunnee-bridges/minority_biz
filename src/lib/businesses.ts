@@ -6,9 +6,7 @@ export interface RawBusiness {
   phone?: string;
   yearEstablished?: number;
   businessCategories?: string[] | string;
-  cuisineTypes?: string[] | string;
-  entertainmentTypes?: string[] | string;
-  artTypes?: string[] | string;
+  specialties?: string[] | string;
   neighborhoods?: string[] | string;
   microfilters?: string[] | string;
   latitude?: number;
@@ -26,9 +24,7 @@ export interface Business {
   phone?: string;
   yearEstablished?: number;
   businessCategories: string[];
-  cuisineTypes: string[];
-  entertainmentTypes: string[];
-  artTypes: string[];
+  specialties: string[];
   neighborhoods: string[];
   microfilters: string[];
   latitude?: number;
@@ -68,9 +64,7 @@ export const businesses: Business[] = Object.entries(modules).map(
       phone: raw.phone,
       yearEstablished: raw.yearEstablished,
       businessCategories: toArray(raw.businessCategories),
-      cuisineTypes: toArray(raw.cuisineTypes),
-      entertainmentTypes: toArray(raw.entertainmentTypes),
-      artTypes: toArray(raw.artTypes),
+      specialties: toArray(raw.specialties),
       neighborhoods: toArray(raw.neighborhoods),
       microfilters: toArray(raw.microfilters),
       latitude: raw.latitude,
