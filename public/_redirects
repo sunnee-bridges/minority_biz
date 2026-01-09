@@ -1,8 +1,4 @@
-# public/_redirects
-
-# Redirect non-www to www
-http://denverblackguide.com/*  https://www.denverblackguide.com/:splat  301!
-https://denverblackguide.com/* https://www.denverblackguide.com/:splat  301!
-
-# Redirect http to https (www version)
-http://www.denverblackguide.com/* https://www.denverblackguide.com/:splat  301!
+# Redirect all traffic to https://www.denverblackguide.com
+# Netlify automatically handles http to https, so we only need domain rules
+denverblackguide.com/*  https://www.denverblackguide.com/:splat  301!
+www.denverblackguide.com/*  https://www.denverblackguide.com/:splat  301!
