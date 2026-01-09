@@ -1,2 +1,3 @@
 # Redirect non-www to www
+#add to test
 denverblackguide.com/*  https://www.denverblackguide.com/:splat  301!
