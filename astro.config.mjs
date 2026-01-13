@@ -1,13 +1,16 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 
-const site =
-  process.env.SITE_URL ||          // set this to https://denverblackguide.com in Netlify env
-  process.env.URL ||               // Netlify primary site URL
-  process.env.DEPLOY_PRIME_URL ||  // deploy preview URL
-  "http://localhost:4321";
+const canonicalSite = "https://www.denverblackguide.com";
 
-// Only generate sitemap on Netlify production deploys
+const site =
+  process.env.CONTEXT === "production"
+    ? canonicalSite
+    : (process.env.SITE_URL ||
+       process.env.URL ||
+       process.env.DEPLOY_PRIME_URL ||
+       "http://localhost:4321");
+
 const enableSitemap =
   process.env.CONTEXT === "production" ||
   process.env.GENERATE_SITEMAP === "true";
