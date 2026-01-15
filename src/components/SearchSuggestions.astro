@@ -12,7 +12,7 @@ const {
   inputId,
   panelId,
   buttonSelector = null,
-  allPath = "/all",
+  allPath = "/all/",
   businessPath = "/business",
   neighborhoodPath = "/neighborhood",
   minChars = 2,
@@ -406,7 +406,7 @@ const {
 
         // Always navigate for a specific business
         if (type === "business" && slug) {
-          window.location.href = `${businessPath}/${slug}`;
+          window.location.href = `${businessPath}/${slug}/`;
           return;
         }
 
@@ -431,7 +431,7 @@ const {
 
         if (type === "neighborhood" && value) {
           const nSlug = slugifyNeighborhood(value);
-          window.location.href = `${neighborhoodPath}/${nSlug}`;
+          window.location.href = `${neighborhoodPath}/${nSlug}/`;
           return;
         }
 

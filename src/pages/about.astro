@@ -2,12 +2,61 @@
 // src/pages/about.astro
 import BaseLayout from "../layouts/Base.astro";
 
-const title = "About the Denver Black-Owned Business Directory";
-const description =
+const pageTitle = "About the Denver Black-Owned Business Directory";
+const pageDescription =
   "Learn more about the mission, story, and how to get listed in the Denver Black-Owned Business Directory.";
+
+const pageImage = "/og-denver-black-guide.png";
+
+// Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
+const origin =
+  import.meta.env.SITE_URL ||
+  Astro.site ||
+  Astro.url.origin;
+
+const siteUrl = new URL("/", origin).toString();
+
+// ✅ slashy canonical (explicit)
+const canonical = new URL("/about/", origin).toString();
+
+const absoluteImage = new URL(pageImage, origin).toString();
+
+const breadcrumbId = `${canonical}#breadcrumb`;
+
+const breadcrumbJsonLd = {
+  "@id": breadcrumbId,
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+    { "@type": "ListItem", position: 2, name: "About", item: canonical },
+  ],
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      name: pageTitle,
+      url: canonical,
+      description: pageDescription,
+      primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage },
+      isPartOf: { "@id": `${siteUrl}#website` },
+      publisher: { "@id": `${siteUrl}#organization` },
+      breadcrumb: { "@id": breadcrumbId },
+    },
+    breadcrumbJsonLd,
+  ],
+};
 ---
 
-<BaseLayout {title} {description}>
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  image={pageImage}
+  canonical={canonical}
+  jsonLd={jsonLd}
+>
   <div class="shell about">
     <section class="about-hero">
       <h1 class="about-hero__title">About This Directory</h1>
@@ -48,11 +97,11 @@ const description =
       <article class="about-card">
         <h2 class="about-card__title">How We Add Businesses</h2>
         <p class="about-card__text">
-          Each listing starts with publicly available info - contributed by owners and community members - to keep things as 
+          Each listing starts with publicly available info - contributed by owners and community members - to keep things as
           accurate as possible. We also review and confirm all details against websites and social media accounts.
         </p>
         <p class="about-card__text">
-          If you spot something outdated, let us know! A quick note helps us keep the directory current and respectful 
+          If you spot something outdated, let us know! A quick note helps us keep the directory current and respectful
           for everyone. We'll correct it as soon as we can.
         </p>
       </article>
@@ -65,7 +114,7 @@ const description =
         <ol class="about-list about-list--numbered">
           <li>Start by sharing a few simple details — the name, a link, a phone number, and an address.</li>
           <li>
-            Then find those personality pieces: the service type, neighborhood, accessibility notes, 
+            Then find those personality pieces: the service type, neighborhood, accessibility notes,
             and anything that makes it special.
           </li>
           <li>
@@ -73,7 +122,7 @@ const description =
           </li>
         </ol>
         <p class="about-card__text">
-          Basic listings are free for qualifying businesses. Featured placements offer extra visibility 
+          Basic listings are free for qualifying businesses. Featured placements offer extra visibility
           while helping support the directory’s growth.
         </p>
         <p class="about-card__text">
@@ -94,153 +143,66 @@ const description =
           thriving and visible.
         </p>
       </article>
-
-      
     </section>
   </div>
 
- <style>
-  .about {
-    padding-block: 3rem 4rem;
-    display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
-  }
-
-  .about-hero {
-    text-align: left;
-    max-width: 48rem;
-    margin: 0 auto 0;
-  }
-
-  .about-hero__title {
-    margin: 0 0 0.5rem;
-    font-size: 2rem;
-    line-height: 1.2;
-    color: var(--text-main);
-  }
-
-  .about-hero__subtitle {
-    margin: 0;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: var(--text-muted);
-  }
-
-  .about-grid {
-    display: grid;
-    gap: 1.5rem;
-  }
-
-  /* Mobile: single column */
-  @media (max-width: 768px) {
-    .about-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  /* Tablet: 2 columns */
-  @media (min-width: 769px) and (max-width: 1023px) {
-    .about-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    
-    /* Center the 5th card */
-    .about-card:nth-child(5) {
-      grid-column: 1 / -1;
-      max-width: 50%;
-      margin-inline: auto;
-    }
-  }
-
-  /* Desktop: 3 columns with cards 4 & 5 centered under card 2 */
-  @media (min-width: 1024px) {
-    .about-grid {
-      grid-template-columns: repeat(6, 1fr);
-    }
-    
-    /* First row - cards 1, 2, 3 each span 2 columns */
-    .about-card:nth-child(1) {
-      grid-column: 1 / 3;
-    }
-    
-    .about-card:nth-child(2) {
-      grid-column: 3 / 5;
-    }
-    
-    .about-card:nth-child(3) {
-      grid-column: 5 / 7;
-    }
-    
-    /* Second row - cards 4 & 5 centered (under card 2) */
-    .about-card:nth-child(4) {
-      grid-column: 2 / 4;
-      grid-row: 2;
-    }
-    
-    .about-card:nth-child(5) {
-      grid-column: 4 / 6;
-      grid-row: 2;
-    }
-  }
-
-  .about-card {
-    background: var(--bg-elevated);
-    border-radius: 1rem;
-    border: 1px solid var(--border-subtle);
-    padding: 1.5rem 1.75rem;
-    box-shadow: var(--shadow-soft, 0 10px 30px rgba(0,0,0,0.12));
-  }
-
-  .about-card__title {
-    margin: 0 0 0.75rem;
-    font-size: 1.2rem;
-    color: var(--text-main);
-  }
-
-  .about-card__text {
-    margin: 0 0 0.75rem;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: var(--text-muted);
-  }
-
-  .about-list {
-    margin: 0 0 0.75rem 1.1rem;
-    padding: 0;
-    font-size: 0.95rem;
-    color: var(--text-main);
-    line-height: 1.5;
-  }
-
-  .about-list--numbered {
-    list-style: decimal;
-  }
-
-  .about-list li {
-    margin-bottom: 0.35rem;
-  }
-
-  @media (max-width: 768px) {
+  <style>
+    /* (your existing styles unchanged) */
     .about {
-      padding-block: 2.25rem 3rem;
+      padding-block: 3rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+    .about-hero { text-align: left; max-width: 48rem; margin: 0 auto 0; }
+    .about-hero__title { margin: 0 0 0.5rem; font-size: 2rem; line-height: 1.2; color: var(--text-main); }
+    .about-hero__subtitle { margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-muted); }
+    .about-grid { display: grid; gap: 1.5rem; }
+
+    @media (max-width: 768px) {
+      .about-grid { grid-template-columns: 1fr; }
     }
 
-    .about-hero {
-      text-align: left;
+    @media (min-width: 769px) and (max-width: 1023px) {
+      .about-grid { grid-template-columns: repeat(2, 1fr); }
+      .about-card:nth-child(5) { grid-column: 1 / -1; max-width: 50%; margin-inline: auto; }
     }
 
-    .about-hero__title {
-      font-size: 1.6rem;
-    }
-
-    .about-hero__subtitle {
-      font-size: 0.95rem;
+    @media (min-width: 1024px) {
+      .about-grid { grid-template-columns: repeat(6, 1fr); }
+      .about-card:nth-child(1) { grid-column: 1 / 3; }
+      .about-card:nth-child(2) { grid-column: 3 / 5; }
+      .about-card:nth-child(3) { grid-column: 5 / 7; }
+      .about-card:nth-child(4) { grid-column: 2 / 4; grid-row: 2; }
+      .about-card:nth-child(5) { grid-column: 4 / 6; grid-row: 2; }
     }
 
     .about-card {
-      padding: 1.25rem 1.5rem;
+      background: var(--bg-elevated);
+      border-radius: 1rem;
+      border: 1px solid var(--border-subtle);
+      padding: 1.5rem 1.75rem;
+      box-shadow: var(--shadow-soft, 0 10px 30px rgba(0,0,0,0.12));
     }
-  }
-</style>
+
+    .about-card__title { margin: 0 0 0.75rem; font-size: 1.2rem; color: var(--text-main); }
+    .about-card__text { margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.6; color: var(--text-muted); }
+
+    .about-list {
+      margin: 0 0 0.75rem 1.1rem;
+      padding: 0;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+    .about-list--numbered { list-style: decimal; }
+    .about-list li { margin-bottom: 0.35rem; }
+
+    @media (max-width: 768px) {
+      .about { padding-block: 2.25rem 3rem; }
+      .about-hero__title { font-size: 1.6rem; }
+      .about-hero__subtitle { font-size: 0.95rem; }
+      .about-card { padding: 1.25rem 1.5rem; }
+    }
+  </style>
 </BaseLayout>

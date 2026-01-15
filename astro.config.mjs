@@ -17,6 +17,6 @@ const enableSitemap =
 
 export default defineConfig({
   site,
-  trailingSlash: "never",
+  trailingSlash: "always",
   integrations: enableSitemap ? [sitemap()] : [],
 });

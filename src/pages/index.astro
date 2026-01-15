@@ -169,7 +169,7 @@ const jsonLd = {
         </p>
 
         <p class="hero__helper">
-          Or <a href="/all">browse the full directory</a>.
+          Or <a href="/all/">browse the full directory</a>.
         </p>
 
         <!-- Hero Search -->
@@ -198,7 +198,7 @@ const jsonLd = {
             panelId="search-suggestions"
             buttonSelector=".hero__search-button"
             mode="navigate"
-            allPath="/all"
+            allPath="/all/"
             businessPath="/business"
             neighborhoodPath="/neighborhood"
             searchData={enhanced.map((b) => ({
@@ -223,7 +223,7 @@ const jsonLd = {
           const slug = slugify(type);
 
           return (
-            <a href={`/type/${slug}`} class="category-card">
+            <a href={`/type/${slug}/`} class="category-card">
               <div class="category-card__icon-wrapper">
                 <div class="category-card__icon">{icon}</div>
               </div>
@@ -240,7 +240,7 @@ const jsonLd = {
       </div>
 
       <div class="categories__footer">
-        <a href="/categories" class="categories__view-all">
+        <a href="/categories/" class="categories__view-all">
           View All Categories →
         </a>
       </div>
@@ -255,7 +255,7 @@ const jsonLd = {
             Handpicked businesses supporting our community
           </p>
         </div>
-        <a href="/all" class="featured__browse-all">
+        <a href="/all/" class="featured__browse-all">
           Browse All Businesses →
         </a>
       </div>
@@ -267,7 +267,7 @@ const jsonLd = {
           <p class="featured__empty-text">
             Check back soon for our curated selection of amazing local businesses!
           </p>
-          <a href="/all" class="featured__empty-button">
+          <a href="/all/" class="featured__empty-button">
             Browse All Businesses
           </a>
         </div>
@@ -289,7 +289,7 @@ const jsonLd = {
                 <div class="business-card__badge">Featured</div>
 
                 <h3 class="business-card__name">
-                  <a href={`/business/${b.slug}`} class="business-card__link">
+                  <a href={`/business/${b.slug}/`} class="business-card__link">
                     {name}
                   </a>
                 </h3>

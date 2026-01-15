@@ -88,7 +88,8 @@ const pageDescription =
 // Prefer SITE_URL / Astro.site for absolute canonical (Netlify friendly)
 const origin = import.meta.env.SITE_URL || Astro.site || Astro.url.origin;
 
-const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
+const canonicalPath =
+  Astro.url.pathname === "/" ? "/" : `${(Astro.url.pathname || "/").replace(/\/?$/, "")}/`;
 const canonical = new URL(canonicalPath, origin).toString();
 
 const siteUrl = new URL("/", origin).toString();
@@ -112,7 +113,7 @@ const itemListElements = neighborhoods.slice(0, 200).map((n, idx) => ({
   "@type": "ListItem",
   position: idx + 1,
   name: n.name,
-  url: new URL(`/neighborhood/${n.slug}`, origin).toString(),
+  url: new URL(`/neighborhood/${n.slug}/`, origin).toString(),
 }));
 
 const jsonLd = {
@@ -304,7 +305,7 @@ const robots = isFiltered ? "noindex,follow" : "index,follow,max-image-preview:l
         {neighborhoods.map((n) => (
           <a
             class="neighborhood-card"
-            href={`/neighborhood/${n.slug}`}
+            href={`/neighborhood/${n.slug}/`}
             data-slug={n.slug}
             data-name={n.name.toLowerCase()}
             data-count={n.count}

@@ -229,7 +229,8 @@ const origin =
    const siteUrl = new URL("/", origin).toString();
 
 // ✅ trailingSlash: "never" friendly canonical
-const canonicalPath = (Astro.url.pathname || "/").replace(/\/$/, "") || "/";
+const canonicalPath =
+  Astro.url.pathname === "/" ? "/" : `${(Astro.url.pathname || "/").replace(/\/?$/, "")}/`;
 const canonical = new URL(canonicalPath, origin).toString();
 
 const params = Astro.url.searchParams;
@@ -244,7 +245,7 @@ const listItems = filtered.slice(0, 100).map((b, i) => ({
   "@type": "ListItem",
   position: i + 1,
   name: b.name,
-  url: new URL(`/business/${b.slug}`, origin).toString(),
+  url: new URL(`/business/${b.slug}/`, origin).toString(),
 }));
 
 const breadcrumbId = `${canonical}#breadcrumb`;
@@ -254,7 +255,7 @@ const breadcrumbJsonLd = {
   "@type": "BreadcrumbList",
   itemListElement: [
     { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
-    { "@type": "ListItem", position: 2, name: "Neighborhoods", item: new URL("/neighborhood", origin).toString() },
+    { "@type": "ListItem", position: 2, name: "Neighborhoods", item: new URL("/neighborhood/", origin).toString() },
     { "@type": "ListItem", position: 3, name: displayNeighborhood, item: canonical },
   ],
 };
@@ -323,7 +324,7 @@ if (!hasResults) {
     <nav aria-label="Breadcrumb" class="directory__breadcrumb">
       <a href="/" class="directory__breadcrumb-link">Home</a>
       <span aria-hidden="true">/</span>
-      <a href="/neighborhood" class="directory__breadcrumb-link">Neighborhoods</a>
+      <a href="/neighborhood/" class="directory__breadcrumb-link">Neighborhoods</a>
       <span aria-hidden="true">/</span>
       <span class="directory__breadcrumb-current">{displayNeighborhood}</span>
     </nav>
@@ -470,7 +471,7 @@ if (!hasResults) {
 
             return (
               <a
-                href={`/business/${b.slug}`}
+                href={`/business/${b.slug}/`}
                 class="business-card-link"
                 data-slug={b.slug}
                 data-name={name.toLowerCase()}
@@ -1032,7 +1033,7 @@ if (!hasResults) {
         marker.bindPopup(`
           <div style="padding: 0.5rem;">
             <h3 style="margin: 0 0 0.25rem; font-size: 0.95rem;">
-              <a href="/business/${location.slug}" style="color: var(--accent); text-decoration: none;">
+              <a href="/business/${location.slug}/" style="color: var(--accent); text-decoration: none;">
                 ${location.name}
               </a>
             </h3>
@@ -1148,7 +1149,7 @@ if (!hasResults) {
       const slug = btn.dataset.neighborhoodSlug;
       if (!slug) return;
 
-      window.location.href = `/neighborhood/${slug}`;
+      window.location.href = `/neighborhood/${slug}/`;
     });
 
     document.addEventListener("keydown", (e) => {
@@ -1163,7 +1164,7 @@ if (!hasResults) {
       const slug = btn.dataset.neighborhoodSlug;
       if (!slug) return;
 
-      window.location.href = `/neighborhood/${slug}`;
+      window.location.href = `/neighborhood/${slug}/`;
     });
   </script>
 
