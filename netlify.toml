@@ -5,41 +5,36 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# --- Always serve the primary canonical host (www) ---
-# Root (no splat)
-[[redirects]]
-  from = "http://denverblackguide.com"
-  to = "https://www.denverblackguide.com/"
-  status = 301
-  force = true
+# ==========================================
+# Canonical host + https
+# - Forces all traffic to https://www.denverblackguide.com
+# - Preserves path and querystring
+# ==========================================
 
-[[redirects]]
-  from = "https://denverblackguide.com"
-  to = "https://www.denverblackguide.com/"
-  status = 301
-  force = true
-
-# All paths
-[[redirects]]
-  from = "http://denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat/"
-  status = 301
-  force = true
-
+# non-www (https) -> www (https)
 [[redirects]]
   from = "https://denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat/"
+  to = "https://www.denverblackguide.com/:splat"
   status = 301
   force = true
 
-# Optional: ensure http://www -> https://www
+# non-www (http) -> www (https)
+[[redirects]]
+  from = "http://denverblackguide.com/*"
+  to = "https://www.denverblackguide.com/:splat"
+  status = 301
+  force = true
+
+# www (http) -> www (https)
 [[redirects]]
   from = "http://www.denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat/"
+  to = "https://www.denverblackguide.com/:splat"
   status = 301
   force = true
 
-# --- Your sitemap redirect (keep) ---
+# ==========================================
+# Sitemap alias
+# ==========================================
 [[redirects]]
   from = "/sitemap.xml"
   to = "/sitemap-index.xml"
