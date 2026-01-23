@@ -285,14 +285,12 @@ const jsonLd = {
             const allTypeLabels = b.specialties || [];
 
             return (
-              <article class="business-card business-card--featured">
+              <a href={`/business/${b.slug}/`} class="business-card business-card--featured" style="text-decoration: none;">
                 <div class="business-card__badge">Featured</div>
 
-                <h3 class="business-card__name">
-                  <a href={`/business/${b.slug}/`} class="business-card__link">
-                    {name}
-                  </a>
-                </h3>
+               <h3 class="business-card__name">
+                {name}
+              </h3>
 
                 <div class="business-card__quick-info">
                   <span class="quick-info-item">
@@ -342,7 +340,7 @@ const jsonLd = {
                 <div class="business-card__action">
                   View Details →
                 </div>
-              </article>
+              </a>
             );
           })}
         </div>
@@ -823,26 +821,50 @@ const jsonLd = {
     /* BUSINESS CARDS */
 
     .business-card {
-      padding: 1.25rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: 0.9rem;
-      position: relative;
-      transition: all 0.2s;
-    }
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.9rem;
+  position: relative;
+  transition: all 0.2s;
+  cursor: pointer;
+}
 
-    .business-card--featured {
-      border-color: var(--accent);
-      background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--accent-soft) 100%);
-    }
+.business-card--featured {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--accent-soft) 100%);
+  position: relative;
+  overflow: hidden;
+}
 
-    .business-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-soft);
-    }
+.business-card--featured::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent);
+  transform: scaleY(0);
+  transition: transform 0.2s;
+}
+
+.business-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.business-card--featured:hover {
+  transform: translateX(4px);
+  border-color: var(--accent-strong);
+}
+
+.business-card--featured:hover::before {
+  transform: scaleY(1);
+}
 
     .business-card__badge {
       position: absolute;
@@ -865,15 +887,7 @@ const jsonLd = {
       padding-right: 4rem;
     }
 
-    .business-card__link {
-      text-decoration: none;
-      color: var(--text-main);
-    }
-
-    .business-card__link:hover {
-      text-decoration: underline;
-      color: var(--accent-strong);
-    }
+    
 
     .business-card__quick-info {
       display: flex;
