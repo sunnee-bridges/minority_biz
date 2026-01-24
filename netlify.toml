@@ -1,34 +1,33 @@
 [build]
   command = "npm run build"
   publish = "dist"
-
 [build.environment]
   NODE_VERSION = "20"
 
 # ==========================================
-# Canonical host + https
-# - Forces all traffic to https://www.denverblackguide.com
+# Canonical host + https (non-www version)
+# - Forces all traffic to https://denverblackguide.com
 # - Preserves path and querystring
 # ==========================================
 
-# non-www (https) -> www (https)
+# www (https) -> non-www (https)
 [[redirects]]
-  from = "https://denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat"
+  from = "https://www.denverblackguide.com/*"
+  to = "https://denverblackguide.com/:splat"
   status = 301
   force = true
 
-# non-www (http) -> www (https)
+# non-www (http) -> non-www (https)
 [[redirects]]
   from = "http://denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat"
+  to = "https://denverblackguide.com/:splat"
   status = 301
   force = true
 
-# www (http) -> www (https)
+# www (http) -> non-www (https)
 [[redirects]]
   from = "http://www.denverblackguide.com/*"
-  to = "https://www.denverblackguide.com/:splat"
+  to = "https://denverblackguide.com/:splat"
   status = 301
   force = true
 
