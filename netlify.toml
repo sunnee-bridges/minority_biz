@@ -5,58 +5,32 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# ==========================================
-# Disable Netlify post-processing for XML files
-# ==========================================
+# Disable ALL Netlify post-processing
 [build.processing]
-  skip_processing = false
+  skip_processing = true
 
-[build.processing.html]
-  pretty_urls = true
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.images]
-  compress = true
-
-# Exclude XML files from processing
-[[headers]]
-  for = "/*.xml"
-  [headers.values]
-    Content-Type = "application/xml; charset=utf-8"
-    X-Robots-Tag = "noindex"
-
+# Force correct headers for XML
 [[headers]]
   for = "/sitemap*.xml"
   [headers.values]
     Content-Type = "application/xml; charset=utf-8"
+    Cache-Control = "public, max-age=3600"
 
 # ==========================================
 # Canonical host + https (non-www version)
-# - Forces all traffic to https://denverblackguide.com
-# - Preserves path and querystring
 # ==========================================
-# www (https) -> non-www (https)
 [[redirects]]
   from = "https://www.denverblackguide.com/*"
   to = "https://denverblackguide.com/:splat"
   status = 301
   force = true
 
-# non-www (http) -> non-www (https)
 [[redirects]]
   from = "http://denverblackguide.com/*"
   to = "https://denverblackguide.com/:splat"
   status = 301
   force = true
 
-# www (http) -> non-www (https)
 [[redirects]]
   from = "http://www.denverblackguide.com/*"
   to = "https://denverblackguide.com/:splat"
