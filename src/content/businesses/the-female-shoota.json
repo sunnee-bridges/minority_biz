@@ -1,0 +1,27 @@
+{
+    "name": "The Female Shoota",
+    "slug": "the-female-shoota",
+    "type": "photography",
+    "specialties": [
+      "Portraits",
+      "Family",
+      "Senior Photos",
+      "Studio"
+    ],
+    "businessCategories": [
+      "Photography"
+    ],
+    "neighborhoods": [
+      "Aurora"
+    ],
+    "latitude": 39.662880799999996,
+    "longitude": -104.86222699999999,
+    "microfilters": [
+      "Wheelchair accessible",
+      "By appointment",
+      "Consultation available",
+      "Studio sessions"
+    ],
+    "website": "http://thefemaleshoota.com/",
+    "phone": "(720) 515-4459"
+  }

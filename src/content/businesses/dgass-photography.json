@@ -1,0 +1,23 @@
+{
+    "name": "Dgass Photography & Wedding Videography",
+    "slug": "dgass-photography",
+    "type": "photography",
+    "specialties": [
+      "Wedding",
+      "Engagement",
+      "Family"
+    ],
+    "businessCategories": [
+      "Photography",
+      "Videographer"
+    ],
+    "neighborhoods": [],
+    "microfilters": [
+      "By appointment",
+      "Consultation available",
+      "Photo",
+      "Video"
+    ],
+    "website": "https://dgassphotography.com",
+    "phone": "(402) 708-8812"
+  }
