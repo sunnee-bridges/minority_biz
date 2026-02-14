@@ -15,7 +15,8 @@ const enableSitemap =
   process.env.GENERATE_SITEMAP === "true";
 
 export default defineConfig({
-  site,
+  site: canonicalSite,
+  output: "static",
   trailingSlash: "always",
   integrations: [],
 });
