@@ -27,13 +27,13 @@
 
 [[redirects]]
   from = "http://denverblackguide.com/*"
-  to = "https://denverblackguide.com/:splat"
+  to = "https://denverblackguide.com/:splat/"
   status = 301
   force = true
 
 [[redirects]]
   from = "http://www.denverblackguide.com/*"
-  to = "https://denverblackguide.com/:splat"
+  to = "https://denverblackguide.com/:splat/"
   status = 301
   force = true
 
